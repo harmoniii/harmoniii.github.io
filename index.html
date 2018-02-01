@@ -1,5 +1,6 @@
 ﻿<html>
- <img SRC="1.png" onclick=imgchange(this,"1.png","2.png")>
+ <img id="imageswitch" SRC="1.png" onclick=imgchange(this,"1.png","2.png")>
+ <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
 <script>
   var x=false
   function imgchange(obj,imgX,imgY) {
@@ -10,6 +11,14 @@
    }
   x=!x
  }
+ 
+ $(document).ready(function() {
+    $('#imageswitch').click(function() {
+        $('#counter').html(+$('#counter').html()+1);
+    });
+});
+
  </script>
+ 	<div id="counter">0</div>
  </html>
  
