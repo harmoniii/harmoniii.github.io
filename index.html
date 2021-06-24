@@ -1,8 +1,14 @@
 <div id="sales">Хочешь посмотреть на самого красивого котика? Сгенерируем фотографию автоматически <br><input type="button" value="Да!" onclick="buy()" /></div>
 <script>
+pic=new Array(
+'<img src="https://i.imgur.com/XDbO2f7.png" width=400 alt=""/>',
+'<img src="https://i.imgur.com/HnUoI49.png" width=400 alt=""/>',
+'<img src="https://i.imgur.com/vRALwGf.png" width=400 alt=""/>'
+);
+n=Math.floor(Math.random() * 3);
 var sales_div = document.getElementById("sales");
 function buy(){
-sales.innerHTML = 'Так вот же он! <br> <img src="https://i.imgur.com/XDbO2f7.png" alt=""><br><input type="button" value="Вернуться к генерации" onclick="cancel()" />';
+sales.innerHTML = 'Так вот же он! <br> document.write(pic[n]); <br><input type="button" value="Вернуться к генерации" onclick="cancel()" />';
 }
 function cancel(){
 sales.innerHTML = 'Хочешь посмотреть на самого красивого котика? Сгенерируем фотографию автоматически <br> <input type="button" value="Да!" onclick="buy()" />';
