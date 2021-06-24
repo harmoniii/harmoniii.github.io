@@ -1,68 +1,10 @@
-<style>.modal {
-display: none; /* Модальное окно скрыто по умолчанию */
-position: fixed; /* Фикс. Позиция на главной странице */
-z-index: 1; /* Отображение на заднем плане */
-left: 0;
-top: 0;
-width: 100%; /* 100% по ширине */
-height: 100%; /* 100% по высоте */
-overflow: auto; /* Включить прокрутку, если необходимо */
-background-color: rgb(0,0,0); 
-background-color: rgba(0,0,0,0.4); 
+<div id="sales">Купи меня! <input type="button" value="Купить" onclick="buy()" /></div>
+<script>
+var sales_div = document.getElementById("sales");
+function buy(){
+sales.innerHTML = 'Спасибо за покупку! <input type="button" value="Отменить покупку" onclick="cancel()" />';
 }
-/* Содержание модального окна*/
-.modal-content {
-background-color: #fefefe;
-margin: 15% auto; /* 15% от верха и центрировано */
-padding: 20px;
-border: 1px solid #888;
-width: 80%; /* Может быть больше и меньше, зависит от размеров экрана */
-box-shadow: 5px 10px 5px #666; /*Добавить тень */
+function cancel(){
+sales.innerHTML = 'Купи меня! <input type="button" value="Купить" onclick="buy()" />';
 }
-/* Основные свойства кнопки «Закрыть» */
-.close {
-color: #aaa;
-float: right;
-font-size: 28px;
-font-weight: bold;
-}
-/* Свойства кнопки «Закрыть», когда вы наводите на нее курсор или взаимодействуете с ней */
-.close:hover,
-.close:focus {
-color: black;
-text-decoration: none;
-cursor: pointer;
-}</style>
-<script>// Объявить переменную модального окна в текущей области видимости
-var modal = document.getElementById(‘myModal’);
-// Переменная кнопки, открывающей модальное окно
-var btn = document.getElementById(“myBtn”);
-// Получение элемента <span>, который закрывает модальное окно
-var span = document.getElementsByClassName(“close”)[0];
-// Когда пользователь нажимает кнопку, открывается pop-up форма 
-btn.onclick = function() {
-modal.style.display = “block”;
-}
-// Когда пользователь нажимает кнопку (x) <span>, закрывается окно формы
-span.onclick = function() {
-modal.style.display = “none”;
-}
-// Когда пользователь нажимает в любое место вне формы, закрыть окно формы
-window.onclick = function(event) {
-if (event.target == modal) {
-modal.style.display = “none”;
-}
-}</script>
-
-<!– Триггер/Открытие окна –>
-<button id=”myBtn”>Open Modal</button>
-
-<!– Модальное диалоговое окно –>
-<div id=”myModal” class=”modal”>
-<!– Содержание –>
-<div class=”modal-content”>
-<span class=”close”>&times;</span>
-<iframe> вставить код iframe вашей формы ClickDimensions
-</iframe>
-</div>
-</div>
+</script>
