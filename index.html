@@ -8,7 +8,7 @@ pic=new Array(
 n=Math.floor(Math.random() * 3);
 var sales_div = document.getElementById("sales");
 function buy(){
-sales.innerHTML = 'Так вот же он! <br> document.write(pic[n]); <br><input type="button" value="Вернуться к генерации" onclick="cancel()" />';
+sales.innerHTML = 'Так вот же он! <br> <script>document.write(pic[n]);</script> <br><input type="button" value="Вернуться к генерации" onclick="cancel()" />';
 }
 function cancel(){
 sales.innerHTML = 'Хочешь посмотреть на самого красивого котика? Сгенерируем фотографию автоматически <br> <input type="button" value="Да!" onclick="buy()" />';
