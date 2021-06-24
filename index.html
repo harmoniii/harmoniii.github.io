@@ -1,10 +1,10 @@
-<div id="sales">Купи меня! <input type="button" value="Купить" onclick="buy()" /></div>
+<div id="sales">Хочешь посмотреть на самого красивого котика? Сгенерируем фотографию автоматически <br><input type="button" value="Да!" onclick="buy()" /></div>
 <script>
 var sales_div = document.getElementById("sales");
 function buy(){
-sales.innerHTML = 'Спасибо за покупку! <input type="button" value="Отменить покупку" onclick="cancel()" />';
+sales.innerHTML = 'Так вот же он! <img src="https://i.imgur.com/XDbO2f7.png" alt=""><input type="button" value="Вернуться к генерации" onclick="cancel()" />';
 }
 function cancel(){
-sales.innerHTML = 'Купи меня! <input type="button" value="Купить" onclick="buy()" />';
+sales.innerHTML = 'Хочешь посмотреть на самого красивого котика? Сгенерируем фотографию автоматически <br> <input type="button" value="Да!" onclick="buy()" />';
 }
 </script>
