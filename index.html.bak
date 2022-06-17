@@ -115,5 +115,13 @@ a:-webkit-any-link {
 </style>
 <script>(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62134e8be7072cb0a995c474',region: 'ru-1', language: 'EN'});</script>
 <body style="background-color: #f3f2f4; margin-top: 0; position: relative;">
-<div class="t-btn t142__submit t142__submit_size_xxl" data-eyezon="62ac2b6e05e9c3f237d11dbe" style="color:#ffffff;border:0px solid #000000;background-color:#ff2d55;border-radius:50px; -moz-border-radius:50px; -webkit-border-radius:50px;font-weight:700; vertical-align: middle; margin:0 auto; fixed: absolute; top: 50%; transform: translate(0, -50%); left: 45%; position: fixed;"> <span class="t142__text" style="display: table-cell; vertical-align: middle; height: inherit;" data-eyezon="62ac2b6e05e9c3f237d11dbe">see live.</span> </div>
+<div class="t-btn t142__submit t142__submit_size_xxl" data-eyezon="62ac2b6e05e9c3f237d11dbe" style="color:#ffffff;border:0px solid #000000;background-color:#ff2d55;border-radius:50px; -moz-border-radius:50px; -webkit-border-radius:50px;font-weight:700; vertical-align: middle; margin:0 auto; fixed: absolute; top: 50%; transform: translate(0, -50%); left: 45%; position: fixed;"> 
+<span class="t142__text" 
+  style="display: table-cell;
+  vertical-align: middle;
+  height: inherit;
+  margin-left: auto;
+  margin-right: auto;
+  width: 154px;"
+   data-eyezon="62ac2b6e05e9c3f237d11dbe">see live.</span> </div>
 </body>
