@@ -13,6 +13,7 @@
 body {
    margin: 0;
    padding: 0;
+   position: relative;
 }
 </style>
 <body style="background-color: #f3f2f4;">
