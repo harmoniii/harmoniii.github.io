@@ -1,15 +1,17 @@
 <head>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+	<script> /*image change*/
+		function imagefun() {
+            var Image_Id = document.getElementById('getImage');
+            if (Image_Id.src.match("1.png")) {
+                Image_Id.src = "2.png";
+            }
+            else {
+                Image_Id.src = "1.png";
+            }
+        }   
+	</script>
 </head>
-<script> /*image change*/
-	function changeImage() {
-    if (document.getElementById("imgClickAndChange").src == "1.png"){
-        document.getElementById("imgClickAndChange").src = "2.png";
-    } else {
-        document.getElementById("imgClickAndChange").src = "1.png";
-    }
-}
-</script>
 <body>
-	<img alt="" src="1.png" id="imgClickAndChange" onclick="changeImage()"/>
+	v2<br><img alt="" src="1.png" id="getImage" onclick="igamefun()"/>
 </body>
