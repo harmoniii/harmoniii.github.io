@@ -6,20 +6,20 @@
 		/*image change*/
 		function imagefun() {
             var Image_Id = document.getElementById('getImage');
-            if (Image_Id.src.match("1.png")) {
-                Image_Id.src = "2.png";
-				const clicks = document.querySelector('.clicks');
-				clicks.id = document.querySelector('clicks');
-				score += 1;
-				clicks.innerHTML = score;
+            if (Image_Id.src.match("1.png")) { // if default pic
+                Image_Id.src = "2.png"; // change to 2nd
+				const clicks = document.querySelector('.clicks'); // looking for class clicks
+				clicks.id = document.querySelector('clicks'); // gets an id
+				score += 1; // adds 1 point
+				clicks.innerHTML = score; // changing it in <a>
             }
             else {
-                Image_Id.src = "1.png";
+                Image_Id.src = "1.png"; // returt 1st pic
             }
         }   
 	</script>
 </head>
 <body>
-	v3.2<br><img alt="" src="1.png" id="getImage" onclick="imagefun()"/>
+	v3.3<br><img alt="" src="1.png" id="getImage" onclick="imagefun()"/>
 	<p>Score: <a class="clicks">0</a></p>
 </body>
