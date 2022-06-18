@@ -1,8 +1,8 @@
 <head>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script> 
+		var audio = new Audio('nya.mp3');
 		function playsound(){
-			var audio = new Audio('nya.mp3');
 			audio.play();
 		}
 		/* zeroing score */
@@ -21,10 +21,21 @@
             else {
                 Image_Id.src = "1.png"; // returt 1st pic
             }
-        }   
+        }
+		function changeSound()
+			{if (audio == 'nya.mp3') { // if default sound
+				audio = 'dasha.mp3';
+            }
+            else {
+                audio = "nya.mp3"; // returt 1st pic
+            }
 	</script>
 </head>
 <body>
-	v3.4.6<br><img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
+	v3.5<br/>
+	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
+	<br/>
+	<button id="changeSound">Change Nya-Sound</button>
+	
 </body>
