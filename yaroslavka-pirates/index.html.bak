@@ -1,19 +1,28 @@
 <head>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script> 
+		var musicArray = ['1','2']
+		function playsound(){
+			var randomItem = myArray[Math.floor(Math.random()*myArray.length)];
+			if (randomItem == '1') {			
+				var audio = new Audio('nya.mp3');
+				audio.play(); }
+					else
+				{var audio = new Audio('dasha.mp3');
+				audio.play(); }
+		}
 		/* zeroing score */
 		var score = 0;
 		/*image change*/
-		function imagefun() {
+		function imagechange() {
             var Image_Id = document.getElementById('getImage');
             if (Image_Id.src.match("1.png")) { // if default pic
+				playsound();
                 Image_Id.src = "2.png"; // change to 2nd
 				const clicks = document.querySelector('.clicks'); // looking for class clicks
 				clicks.id = document.querySelector('clicks'); // gets an id
 				score += 1; // adds 1 point
 				clicks.innerHTML = score; // changing it in <a>
-				var audio = new Audio('nya.mp3');
-				audio.play();
             }
             else {
                 Image_Id.src = "1.png"; // returt 1st pic
@@ -22,6 +31,6 @@
 	</script>
 </head>
 <body>
-	v3.4<br><img alt="" src="1.png" id="getImage" onclick="imagefun()"/>
+	v3.4.1<br><img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 </body>
