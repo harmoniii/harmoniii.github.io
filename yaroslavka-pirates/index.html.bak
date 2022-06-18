@@ -12,6 +12,8 @@
 				clicks.id = document.querySelector('clicks'); // gets an id
 				score += 1; // adds 1 point
 				clicks.innerHTML = score; // changing it in <a>
+				var audio = new Audio('nya.mp3');
+				audio.play();
             }
             else {
                 Image_Id.src = "1.png"; // returt 1st pic
@@ -20,6 +22,6 @@
 	</script>
 </head>
 <body>
-	v3.2<br><img alt="" src="1.png" id="getImage" onclick="imagefun()"/>
+	v3.3<br><img alt="" src="1.png" id="getImage" onclick="imagefun()"/>
 	<p>Score: <a class="clicks">0</a></p>
 </body>
