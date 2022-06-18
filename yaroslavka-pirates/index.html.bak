@@ -31,6 +31,6 @@
 	</script>
 </head>
 <body>
-	v3.4.1<br><img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
+	v3.4.2<br><img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 </body>
