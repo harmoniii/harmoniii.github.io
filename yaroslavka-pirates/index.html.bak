@@ -32,7 +32,7 @@
 	</script>
 </head>
 <body>
-	v3.4.6<br/>
+	v3.5<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
