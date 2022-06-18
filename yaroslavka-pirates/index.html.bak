@@ -19,17 +19,18 @@
                 Image_Id.src = "1.png"; // returt 1st pic
             }
         }
-		function changeSound()
-			{if (audio == 'nya.mp3') { // if default sound
-				audio = 'dasha.mp3';
+		function changeSound() {
+			if (new Audio('nya.mp3')) { // if default sound
+				var audio = new Audio('dasha.mp3');
             }
             else {
-                audio = "nya.mp3"; // returt 1st pic
+                var audio = new Audio('nya.mp3'); // returt 1st pic
             }
+		}
 	</script>
 </head>
 <body>
-	v3.5.2<br/>
+	v3.5.4<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>

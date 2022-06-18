@@ -8,7 +8,7 @@
 		function imagechange() {
             var Image_Id = document.getElementById('getImage');
             if (Image_Id.src.match("1.png")) { // if default pic
-				//audio.play();
+				audio.play();
                 Image_Id.src = "2.png"; // change to 2nd
 				const clicks = document.querySelector('.clicks'); // looking for class clicks
 				clicks.id = document.querySelector('clicks'); // gets an id
@@ -19,17 +19,18 @@
                 Image_Id.src = "1.png"; // returt 1st pic
             }
         }
-		function changeSound()
-			{if (audio == 'nya.mp3') { // if default sound
-				audio = 'dasha.mp3';
+		function changeSound() {
+			if (new Audio('nya.mp3')) { // if default sound
+				var audio = new Audio('dasha.mp3');
             }
             else {
-                audio = "nya.mp3"; // returt 1st pic
+                var audio = new Audio('nya.mp3'); // returt 1st pic
             }
+		}
 	</script>
 </head>
 <body>
-	v3.5.3<br/>
+	v3.5.4<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
