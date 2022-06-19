@@ -1,4 +1,5 @@
 <head>
+	<link rel="stylesheet" href="design.css">
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script> 
 		/* zeroing score */
@@ -36,7 +37,7 @@
 	</script>
 </head>
 <body>
-	v3.5.10<br/>
+	v3.6<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
