@@ -1,8 +1,7 @@
 <head>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
-	<script src="soundmanager2"></script>
 	<script> 
-		var audio = new Audio('nya.mp3');
+		var sound = new Audio('nya.mp3');
 		/* zeroing score */
 		var score = 0;
 		/*image change*/
@@ -10,7 +9,7 @@
             var Image_Id = document.getElementById('getImage');
             if (Image_Id.src.match("1.png")) { // if default pic
 				console.log("bfr play");
-				audio.play();
+				sound.play();
 				console.log("aftr play");
                 Image_Id.src = "2.png"; // change to 2nd
 				const clicks = document.querySelector('.clicks'); // looking for class clicks
@@ -23,21 +22,22 @@
             }
         }
 		function changeSound() {
-			console.log(audio);
+			var sound = new Audio('nya.mp3');
+			console.log(sound.src);
 			console.log("changeSound started");
-			if (audio == new Audio('nya.mp3')) { // if default sound
-				var audio = new Audio('dasha.mp3');
+			if (sound.src.match('nya.mp3')) { // if default sound
+				var sound = new Audio('dasha.mp3');
 				
             }
             else {
-                var audio = new Audio('nya.mp3'); // returt 1st sound
+                var sound = new Audio('nya.mp3'); // returt 1st sound
 				console.log("Changed to Nya");
             }
 		}
 	</script>
 </head>
 <body>
-	v3.5.9.5<br/>
+	v3.5.9.7<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
