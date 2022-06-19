@@ -20,11 +20,14 @@
             }
         }
 		function changeSound() {
-			if (var audio == new Audio('nya.mp3')) { // if default sound
+			console.log("changeSound started");
+			if (audio == new Audio('nya.mp3')) { // if default sound
 				var audio = new Audio('dasha.mp3');
+				
             }
             else {
                 var audio = new Audio('nya.mp3'); // returt 1st sound
+				console.log("Changed to Nya");
             }
 		}
 	</script>
