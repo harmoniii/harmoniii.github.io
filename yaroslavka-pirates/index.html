@@ -11,8 +11,11 @@
 				if(document.getElementById('selectsound').value == "val1") {
 					var sound = new Audio('nya.mp3');
 					sound.play();
-				} else {
+				} else if (document.getElementById('selectsound').value == "val2"){
 					var sound = new Audio('dasha.mp3');
+					sound.play();
+				} else if (document.getElementById('selectsound').value == "val3"){
+					var sound = new Audio('WOO.mp3');
 					sound.play();
 				}
                 Image_Id.src = "2.png"; // change to 2nd
@@ -29,15 +32,18 @@
 			if(document.getElementById('selectsound').value == "val1") {
 				var sound = new Audio('nya.mp3');
 				sound.play();
-			} else {
+			} else if (document.getElementById('selectsound').value == "val2"){
 				var sound = new Audio('dasha.mp3');
 				sound.play();
-			}
+			} else if (document.getElementById('selectsound').value == "val3"){
+				var sound = new Audio('WOO.mp3');
+				sound.play();
+			} 
 		}
 	</script>
 </head>
 <body>
-	v4<br/>
+	v4 + DLC<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
@@ -45,6 +51,7 @@
 	<select id="selectsound" name="selectsound" onchange="changeSound()">
 		<option value="val1" id="valid1"> Default </option>
 		<option value="val2" id="valid2"> Custom </option>
+		<option value="val3" id="valid3"> RIGHT VERSION </option>
 	</select>
 	
 </body>
