@@ -21,16 +21,16 @@
         }
 		function changeSound() {
 			if (new Audio('nya.mp3')) { // if default sound
-				audio = new Audio('dasha.mp3');
+				var audio = new Audio('dasha.mp3');
             }
             else {
-                audio = new Audio('nya.mp3'); // returt 1st sound
+                var audio = new Audio('nya.mp3'); // returt 1st sound
             }
 		}
 	</script>
 </head>
 <body>
-	v3.5.6<br/>
+	v3.5.7<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
