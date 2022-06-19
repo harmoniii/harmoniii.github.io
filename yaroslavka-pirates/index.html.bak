@@ -23,7 +23,7 @@
             }
         }
 		function changeSound() {
-			console.log(document.getElementsByName("audio").value;
+			console.log(audio);
 			console.log("changeSound started");
 			if (audio == new Audio('nya.mp3')) { // if default sound
 				var audio = new Audio('dasha.mp3');
@@ -37,7 +37,7 @@
 	</script>
 </head>
 <body>
-	v3.5.9.3<br/>
+	v3.5.9.4<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
