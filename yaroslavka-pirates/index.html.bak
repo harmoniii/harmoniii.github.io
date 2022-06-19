@@ -8,7 +8,9 @@
 		function imagechange() {
             var Image_Id = document.getElementById('getImage');
             if (Image_Id.src.match("1.png")) { // if default pic
+				console.log("bfr play");
 				audio.play();
+				console.log("aftr play");
                 Image_Id.src = "2.png"; // change to 2nd
 				const clicks = document.querySelector('.clicks'); // looking for class clicks
 				clicks.id = document.querySelector('clicks'); // gets an id
@@ -33,7 +35,7 @@
 	</script>
 </head>
 <body>
-	v3.5.9<br/>
+	v3.5.9.1<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
