@@ -1,16 +1,19 @@
 <head>
 	<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 	<script> 
-		var sound = new Audio('nya.mp3');
 		/* zeroing score */
 		var score = 0;
 		/*image change*/
 		function imagechange() {
             var Image_Id = document.getElementById('getImage');
             if (Image_Id.src.match("1.png")) { // if default pic
-				console.log("bfr play");
-				sound.play();
-				console.log("aftr play");
+				if(document.getElementById('selectsound').value == "val1") {
+					var sound = new Audio('nya.mp3');
+					sound.play();
+				} else {
+					var sound = new Audio('dasha.mp3');
+					sound.play();
+				}
                 Image_Id.src = "2.png"; // change to 2nd
 				const clicks = document.querySelector('.clicks'); // looking for class clicks
 				clicks.id = document.querySelector('clicks'); // gets an id
@@ -22,25 +25,25 @@
             }
         }
 		function changeSound() {
-			var sound = new Audio('nya.mp3');
-			console.log(sound.src);
-			console.log("changeSound started");
-			if (sound.src.match('https://harmoniii.github.io/yaroslavka-pirates/nya.mp3')) { // if default sound
+			if(document.getElementById('selectsound').value == "val1") {
+				var sound = new Audio('nya.mp3');
+				sound.play();
+			} else {
 				var sound = new Audio('dasha.mp3');
-				
-            }
-            else {
-                var sound = new Audio('nya.mp3'); // returt 1st sound
-				console.log("Changed to Nya");
-            }
+				sound.play();
+			}
 		}
 	</script>
 </head>
 <body>
-	v3.5.9.7<br/>
+	v3.5.10<br/>
 	<img alt="" src="1.png" id="getImage" onclick="imagechange()"/>
 	<p>Score: <a class="clicks">0</a></p>
 	<br/>
-	<button onclick="changeSound()">Change Nya-Sound</button>
+	<p>Select Nya-Sound</p>
+	<select id="selectsound" name="selectsound" onchange="changeSound()">
+		<option value="val1" id="valid1"> Default </option>
+		<option value="val2" id="valid2"> Custom </option>
+	</select>
 	
 </body>
