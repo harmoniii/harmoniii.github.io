@@ -1,23 +1,6 @@
 <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet'>
 <script>
-(function(w,d,s,o,f,js,fjs) {
-                w[o] = w[o]  function () { (w[o].q = w[o].q  []).push(arguments) };
-                js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];
-                js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);
-            }(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));
-
-            eyeZon('setDefaultClientField', 'name', '');
-            eyeZon('setDefaultClientField', 'phone', '');
-            eyeZon('setDefaultClientField', 'email', '');
-
-            eyeZon('init', businessId: '',
-            region: 'ru-1',);
-
-            eyeZon('setAnalyticsParam', 'clientId', clientId);
-
-            eyeZon('on', 'PUT_IN_CART_FROM_WIDGET', this.addToCart.bind(this));
-
-
+(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62134e8be7072cb0a995c474',region: 'ru-1', language: 'EN'});
 </script>
 <style>
 .center {
