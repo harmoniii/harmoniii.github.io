@@ -10,16 +10,14 @@
             eyeZon('setDefaultClientField', 'phone', '');
             eyeZon('setDefaultClientField', 'email', '');
 
-            eyeZon('init', this.options);
+            eyeZon('init', businessId: '',
+            region: 'ru-1',);
 
             eyeZon('setAnalyticsParam', 'clientId', clientId);
 
             eyeZon('on', 'PUT_IN_CART_FROM_WIDGET', this.addToCart.bind(this));
 
-options: {
-            businessId: '',
-            region: 'ru-1',
-        },
+
 </script>
 <style>
 .center {
