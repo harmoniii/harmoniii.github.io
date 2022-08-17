@@ -40,10 +40,11 @@
 
 			<!-- Replace # with your store URL -->
 			<a href="#" class="item store">
-			<div>
+			<div class="tooltip">
 				<img src="img/store.png" alt="Minecraft store icon" class="img">
-				<p class="subtitle">Join our private</p>
-				<p class="title">VIP Server</p>
+				<p class="subtitle">Join our whitelist</p>
+				<p class="title">Vanilla Server</p>
+				<span class="tooltiptext">Type /server in chat to join.<br>- Tree Assistant<br>- RPG Miner<br>- Beacon Waypoints<br>- No Phantoms</span>
 			</div>
 			</a>
 
@@ -51,7 +52,7 @@
 			<a href="#" class="item vote">
 			<div>
 				<img src="img/vote.png" alt="Minecraft voting icon" class="img">
-				<p class="subtitle">Donate or VIP ask</p>
+				<p class="subtitle">Donate or Whitelist PM</p>
 				<p class="title">xxxxxx#3265</p>
 			</div>
 			</a>
