@@ -29,7 +29,7 @@
 
 		<div class="items">
 			<!-- Replace # with your forum URL-->
-			<a class="item forums">
+			<a href="#" class="item forums">
 			<div>
 				<span class="ip"><img src="img/forums.png" alt="Minecraft forums icon" class="img"></span>
 				<p class="subtitle">Join Molinaha's</p>
@@ -38,7 +38,7 @@
 			</a>
 
 			<!-- Replace # with your store URL -->
-			<a class="item store">
+			<a href="#" class="item store">
 			<div>
 				<span class="ip"><img src="img/store.png" alt="Minecraft store icon" class="img"></span>
 				<p class="subtitle">Join our private</p>
@@ -47,7 +47,7 @@
 			</a>
 
 			<!-- Replace # with your vote URL -->
-			<a class="item vote">
+			<a href="#" class="item vote">
 			<div>
 				<img src="img/vote.png" alt="Minecraft voting icon" class="img">
 				<p class="subtitle">List of our</p>
