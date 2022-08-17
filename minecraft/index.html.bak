@@ -30,17 +30,18 @@
 		<div class="items">
 			<!-- Replace # with your forum URL-->
 			<a href="#" class="item forums">
-			<div>
-				<span class="ip"><img src="img/forums.png" alt="Minecraft forums icon" class="img"></span>
+			<div class="tooltip">
+				<img src="img/forums.png" alt="Minecraft forums icon" class="img">
 				<p class="subtitle">Join Molinaha's</p>
 				<p class="title">Modded Server</p>
+				<span class="tooltiptext">Type /server in chat to join.<br>- Tree Assistant<br>- /sethome<br>- /tpa<br>- RPG Miner<br>- /back to corpse<br>- Single Player Sleep<br>- No Rain<br>- Beacon Waypoints</span>
 			</div>
 			</a>
 
 			<!-- Replace # with your store URL -->
 			<a href="#" class="item store">
 			<div>
-				<span class="ip"><img src="img/store.png" alt="Minecraft store icon" class="img"></span>
+				<img src="img/store.png" alt="Minecraft store icon" class="img">
 				<p class="subtitle">Join our private</p>
 				<p class="title">VIP Server</p>
 			</div>
@@ -50,8 +51,8 @@
 			<a href="#" class="item vote">
 			<div>
 				<img src="img/vote.png" alt="Minecraft voting icon" class="img">
-				<p class="subtitle">List of our</p>
-				<p class="title">Mods</p>
+				<p class="subtitle">Donate or VIP ask</p>
+				<p class="title">xxxxxx#3265</p>
 			</div>
 			</a>
 
