@@ -5,11 +5,11 @@
 <html>
 <head>
 	<!-- Info meta tags, important for social media + SEO -->
-	<title>MyServer - Official Website</title>
-	<meta name="description" content="MyServer is a new and awesome Minecraft server. You can join with the IP 'play.myserver.net'.">
-	<meta property="og:title" content="MyServer - Official Website Portal">
-	<meta property="og:site_name" content="MyServer">
-	<meta property="og:description" content="MyServer is a new and awesome Minecraft server. You can join with the IP 'play.myserver.net'.">
+	<title>Deboost Minecraft - Official Website</title>
+	<meta name="description" content="Deboost Minecraft is a new and awesome Minecraft server. You can join with the IP '109.173.72.73:27000'.">
+	<meta property="og:title" content="Deboost Minecraft - Official Website Portal">
+	<meta property="og:site_name" content="Deboost Minecraft">
+	<meta property="og:description" content="Deboost Minecraft is a new and awesome Minecraft server. You can join with the IP '109.173.72.73:27000'.">
 	<meta property="og:image" content="https://bybilly.uk/portal/img/minecraft.jpg">
 	<meta property="og:url" content="https://bybilly.uk/">
 	<meta name="twitter:card" content="summary_large_image">
@@ -26,7 +26,7 @@
 		<div class="logo">
 			<!-- In the img folder, upload your logo -->
 			<!-- Make sure you name it 'logo.png' or update the code below -->
-			<img src="img/logo.png" alt="MyServer logo">
+			<img src="img/logo.png" alt="Deboost Minecraft logo" height="200">
 		</div>
 
 		<div class="items">
@@ -63,8 +63,8 @@
 			<!-- Replace play.cubecraft.net with your server IP address -->
 			<!-- Do it on both line 66 and line 67 -->
 			<!-- Please set both your IP and port -->
-			<p>Join <span class="sip" data-ip="play.cubecraft.net" data-port="25565">
-			</span> other players on <span class="ip">play.cubecraft.net</span></p>
+			<p>Join <span class="sip" data-ip="109.173.72.73" data-port="27000">
+			</span> other players on <span class="ip">Deboost Minecraft Server</span></p>
 		</div>
 	</div>
 
