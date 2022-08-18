@@ -49,7 +49,7 @@
 			</a>
 
 			<!-- Replace # with your vote URL -->
-			<a href="#" class="item vote">
+			<a href="https://discord.gg/p9DhMDbhpF" class="item vote">
 			<div>
 				<img src="img/vote.png" alt="Minecraft voting icon" class="img">
 				<p class="subtitle">Donate or Whitelist PM</p>
