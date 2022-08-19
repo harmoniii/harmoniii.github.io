@@ -43,7 +43,6 @@ p {
 }
 
 .logo img {
-	width: 225px; /* Change image size for mobile */
 	-webkit-animation-name: logo;
 	        animation-name: logo;
 	-webkit-animation-duration: 5s;
@@ -54,36 +53,6 @@ p {
 	        animation-timing-function: ease-in-out;
 }
 
-
-@-webkit-keyframes logo {
-	0% {
-		-webkit-transform: scale(1);
-		        transform: scale(1);
-	}
-	50% {
-		-webkit-transform: scale(1.07);
-		        transform: scale(1.07);
-	}
-	100% {
-		-webkit-transform: scale(1);
-		        transform: scale(1);
-	}
-}
-
-@keyframes logo {
-	0% {
-		-webkit-transform: scale(1);
-		        transform: scale(1);
-	}
-	50% {
-		-webkit-transform: scale(1.07);
-		        transform: scale(1.07);
-	}
-	100% {
-		-webkit-transform: scale(1);
-		        transform: scale(1);
-	}
-}
 
 .playercount {
 	display: inline-block;
