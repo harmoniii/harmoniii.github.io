@@ -33,7 +33,7 @@
 				<img src="img/store.png" alt="Minecraft store icon" class="img">
 				<p class="subtitle">Join our</p>
 				<p class="title">Vanilla Server</p>
-				<span class="tooltiptext">Type /server in chat to join.<br>- Tree Assistant (nerfed)<br>- RPG Miner (nerfed)<br>- Beacon Waypoints<br>- Dynmap (click to open site)</span>
+				<span class="tooltiptext">Type /server in chat to join.<br>- Tree Assistant (nerfed)<br>- RPG Miner (nerfed)<br>- Beacon Waypoints<br>- Craftable Saddle<br>- Dynmap (click to open site)</span>
 			</div>
 			</a>
 			<a href="http://109.173.72.73:27013/" class="item forums">
