@@ -9,11 +9,8 @@
   top: 50%;
   transform: translateY(-50%);
 }
-#eyezon {
- left: 45px !important;
- display: initial !important;
-}
-#eye-button {
+#eye-button.BOTTOM_CENTER {
   right: 24px !important;
   bottom: 280px !important;
+  display: flex !important;
 }
