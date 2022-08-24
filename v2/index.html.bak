@@ -12,6 +12,7 @@ var loadCss = function(){
  
 //call function on window load
 window.addEventListener('load', loadCss);
+alert("Testing");
 </script>
 <script>
   alert("Библиотека загружена, встроенный скрипт выполнен");
