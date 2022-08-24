@@ -1,21 +1,22 @@
 <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet'>
 <script>(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62134e8be7072cb0a995c474',region: 'ru-1', language: 'EN'});</script>
 <script>
-if(document.createStyleSheet) {
-  document.createStyleSheet('http://harmoniii.github.io/v2/stylesheet.css');
-}
-else {
-  var styles = "@import url('http://harmoniii.github.io/v2/stylesheet.css');";
-  var newSS=document.createElement('link');
-  newSS.rel='stylesheet';
-  newSS.href='data:text/css,'+escape(styles);
-  document.getElementsByTagName("head")[0].appendChild(newSS);
-}
+//define function to load css
+var loadCss = function(){
+    var cssLink = document.createElement('link');
+    cssLink.rel = 'stylesheet';
+    cssLink.href = 'stylesheet.css';
+    var head = document.getElementsByTagName('head')[0];
+    head.parentNode.insertBefore(cssLink, head);
+};
+ 
+//call function on window load
+window.addEventListener('load', loadCss);
 </script>
 <script>
   alert("Библиотека загружена, встроенный скрипт выполнен");
 </script>
-<body style="background-color: #f3f2f4; margin-top: 0; position: relative; height:100%;">
+<body>
 	<div class="center" style="background-color: #f3f2f4;">
 		<img data-eyezon="62ac2b6e05e9c3f237d11dbe" src="1.png" alt="Button"></div>
 </body>
