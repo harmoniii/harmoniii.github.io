@@ -14,3 +14,6 @@
   bottom: 280px !important;
   display: flex !important;
 }
+body {
+	background-color: #f3f2f4; margin-top: 0; position: relative; height:100%;
+}
