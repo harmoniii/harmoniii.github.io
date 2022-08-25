@@ -1,5 +1,4 @@
 <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet'>
-<script>(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62134e8be7072cb0a995c474',region: 'ru-1', language: 'EN'});</script>
 <script>
 //define function to load css
 var loadCss = function(){
@@ -12,12 +11,22 @@ var loadCss = function(){
  
 //call function on window load
 window.addEventListener('load', loadCss);
-alert("Testing");
 </script>
 <script>
-  alert("Библиотека загружена, встроенный скрипт выполнен");
+    const eyeZonInterval = setInterval(() => {
+        const shadowHost = document.getElementById('eyezon-root');
+        if (shadowHost) {
+            clearInterval(eyeZonInterval)
+            const style = document.createElement('style')
+            style.type = 'text/css'
+            style.textContent = '#eyezon #eye-button.BOTTOM_CENTER {margin-left: -250px;}'
+            shadowHost.shadowRoot.appendChild(style)
+        }
+    }, 100)
 </script>
 <body>
 	<div class="center" style="background-color: #f3f2f4;">
 		<img data-eyezon="62ac2b6e05e9c3f237d11dbe" src="1.png" alt="Button"></div>
+	<div class="center"> <p><code>&lt;script&gt;</code><br /><code>const eyeZonInterval = setInterval(() =&gt; {</code><br /><code>const shadowHost = document.getElementById('eyezon-root');</code><br /><code>if (shadowHost) {</code><br /><code>clearInterval(eyeZonInterval)</code><br /><code>const style = document.createElement('style')</code><br /><code>style.type = 'text/css'</code><br /><code>style.textContent = '#eyezon #eye-button.BOTTOM_CENTER {margin-left: -50px;}'</code><br /><code>shadowHost.shadowRoot.appendChild(style)</code><br /><code>}</code><br /><code>}, 100)</code><br /><code>&lt;/script&gt;</code></p></div>
 </body>
+<script>(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62134e8be7072cb0a995c474',region: 'ru-1', language: 'EN'});</script>
