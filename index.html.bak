@@ -119,8 +119,8 @@ eyeZon('init', {
 	businessId: '62134e8be7072cb0a995c474',
 	region: 'ru-1', 
 	language: 'EN',
-	resetRoutingAfterSeconds: 20,
-	secondRoutingAfterSeconds: 20});
+	resetRoutingAfterSeconds: 60,
+	secondRoutingAfterSeconds: 60});
 
 </script>
 <body style="background-color: #f3f2f4; margin-top: 0; position: relative;">
