@@ -26,7 +26,7 @@ window.addEventListener('load', loadCss);
 </script>
 <body>
 	<div class="center" style="background-color: #f3f2f4;">
-		<img data-eyezon="62ac2b6e05e9c3f237d11dbe" src="1.png" alt="Button"></div>
-	<div> <p><code>&lt;script&gt;</code><br /><code>const eyeZonInterval = setInterval(() =&gt; {</code><br /><code>const shadowHost = document.getElementById('eyezon-root');</code><br /><code>if (shadowHost) {</code><br /><code>clearInterval(eyeZonInterval)</code><br /><code>const style = document.createElement('style')</code><br /><code>style.type = 'text/css'</code><br /><code>style.textContent = '#eyezon #eye-button.BOTTOM_CENTER {margin-left: -50px;}'</code><br /><code>shadowHost.shadowRoot.appendChild(style)</code><br /><code>}</code><br /><code>}, 100)</code><br /><code>&lt;/script&gt;</code></p></div>
+		<img data-eyezon="62725a4205a5176bfed43558" src="1.png" alt="Button">
+	</div>
 </body>
-<script>(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62134e8be7072cb0a995c474',region: 'ru-1', language: 'EN'});</script>
+<script>(function(w, d, s, o, f, js, fjs) {w[o] = w[o] || function () { (w[o].q = w[o].q || []).push(arguments) };js = d.createElement(s); fjs = d.getElementsByTagName(s)[0];js.id = o; js.src = f; js.async = true; fjs.parentNode.insertBefore(js, fjs);}(window, document, 'script', 'eyeZon', 'https://storage.googleapis.com/eyezonscriptv2/static/js/eyezonwidget.js'));eyeZon('init', {businessId: '62725984114355859fe34325',region: 'ru-1', language: 'EN', streamingBackend:"wss://wssru2.eyezon.online/",recordsUrl:"https://recordsru2.eyezon.online/});</script>
