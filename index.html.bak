@@ -136,3 +136,39 @@ eyeZon('init', {
    data-eyezon="631b37206749f693632137e0" data-eyezon-streamer-ids='["1"]'
         data-eyezon-second-shop-ids='["2"]'>>live.</span> </div>
 </body>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Koulen&family=Lato&family=Nunito&family=Playfair+Display:ital@1&family=Prata&family=Raleway:ital,wght@1,100&family=Roboto&family=Roboto+Condensed&family=Teko&display=swap');
+
+.btn{
+
+font-family: Roboto, sans-serif;
+font-weight: 0;
+font-size: 21px;
+color: #fff;
+background-color: #ff2d55;
+padding: 10px 30px;
+border: solid #ff2d55 2px;
+box-shadow: rgb(0, 0, 0) 0px 0px 0px 0px;
+border-radius: 10px;
+transition : 407ms;
+transform: translateY(0);
+display: flex;
+flex-direction:row-reverse;
+align-items: center;
+cursor: pointer;
+text-transform: uppercase;
+}
+
+.btn:hover{
+
+transition : 407ms;
+padding: 10px 30px;
+transform : translateY(-0px);
+background-color: #ffffff;
+color: #ff2d55;
+border: solid 2px #ff2d55;
+}
+
+</style>
+
+<button class="btn">SEE LIVE <img src="https://www.htmlcssbuttongenerator.com/iconExample-eye-lined.svg" style="width:25px; margin-left:0px; margin-right:15px; flex-direction: row-reverse;"></button>
