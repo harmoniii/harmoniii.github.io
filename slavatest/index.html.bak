@@ -1,2 +1,3 @@
+<title>Hey Bruh</title>
 <script>!function(e,n,t,o,s,i,a){e[o]=e[o]||function(){(e[o].q=e[o].q||[]).push(arguments)},i=n.createElement(t),a=n.getElementsByTagName(t)[0],i.id=o,i.src="https://storage.googleapis.com/eyezonfortest/widget_2.0/static/js/eyezonwidget.js",i.async=!0,a.parentNode.insertBefore(i,a)}(window,document,"script","eyeZon"),eyeZon("init",{businessId:"5",region:"prod",language:"ru"})</script>
 <button data-eyezon="20">Open Widget</button>
