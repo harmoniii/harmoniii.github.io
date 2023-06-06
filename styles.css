@@ -9,9 +9,10 @@
       padding: 20px;
     }
 
-    #header h1 {
-      margin: 0;
-    }
+#header h1 {
+  margin: 0;
+  font-family: "Oswald", Arial, sans-serif;
+}
 
     #menu {
       text-align: center;
@@ -44,20 +45,26 @@
       padding: 20px;
     }
 	
-	.dropdown-content {
+.dropdown-content {
   display: none;
   position: absolute;
-  background-color: #f9f9f9;
+  background-color: black;
   min-width: 160px;
   box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
   z-index: 1;
+  border: 1px solid #F57C00;
 }
 
 .dropdown-content a {
-  color: black;
+  color: #F57C00;
   padding: 12px 16px;
   text-decoration: none;
   display: block;
+  border-bottom: 1px solid #F57C00;
+}
+
+.dropdown-content a:last-child {
+  border-bottom: none;
 }
 
 .dropdown:hover .dropdown-content {
