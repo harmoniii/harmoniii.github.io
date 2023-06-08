@@ -3,7 +3,8 @@
 ! function (e, n, t, o, s, i, a) {
    e[o] = e[o] || function () {
       (e[o].q = e[o].q || []).push(arguments)
-   }, i = n.createElement(t), a = n.getElementsByTagName(t)[0], i.id = o, i.src = https://storage.googleapis.com/eyezonfortest/widget_2.0/static/js/eyezonwidget.js, i.async = !0, a.parentNode.insertBefore(i, a)}(window, document, "script", "eyeZon"), 
+   }, i = n.createElement(t), a = n.getElementsByTagName(t)[0], i.id = o, i.src ="https://storage.googleapis.com/eyezonfortest/widget_2.0/static/js/eyezonwidget.js", i.async = !0, a.parentNode.insertBefore(i, a)}
+   (window, document, "script", "eyeZon"), 
    eyeZon("init",{businessId:"20",region:"prod",language:"ru"})
    eyeZon('on', 'DIALOG_CREATED', function(){console.log('test DIALOG_CREATED');ga('send',{hitType:'event',eventCategory:'eyezon',eventAction:'click',eventLabel:'dialog'});
    });
