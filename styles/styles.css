@@ -82,3 +82,12 @@
 .shake {
   animation: shake 0.5s;
 }
+
+a {
+  color: orange;
+  text-decoration: none;
+}
+
+a:visited {
+  color: orange;
+}
