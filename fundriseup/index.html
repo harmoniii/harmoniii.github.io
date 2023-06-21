@@ -27,6 +27,7 @@ window.fundraiseup_livemode = false;</script>
 <script>
   FundraiseUp.on('checkoutOpen', function(details) {	
     console.log(details);
+	dataLayer.push({'event':'checkoutOpen'})
   });
 </script>
 </head>
@@ -46,7 +47,7 @@ window.fundraiseup_livemode = false;</script>
   <section id="call-to-action">
     <h3>Why Donate to Our Campaign?</h3>
     <p>Your donation to our campaign can make a significant difference in the lives of underprivileged individuals and families.</p>
-    <a href="#XJKDHSTQ" style="display: none" onclick="dataLayer.push({'event': 'checkoutOpen'});"></a>
+    <a href="#XJKDHSTQ" style="display: none"></a>
   </section>
 
   <section id="features">
