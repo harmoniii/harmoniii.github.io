@@ -31,8 +31,8 @@ window.fundraiseup_livemode = false;</script>
   });
   
   FundraiseUp.on('donationComplete', function(details) {
-  var feathr_amount = details.donation.amount
-  var feathr_currency = details.donation.currency || 'USD';
+  var feathr_amount = details.donation.amount;
+  var feathr_currency = details.donation.currency;
   gtag('event', 'FundraiseUp.donationComplete', {
   'value': feathr_amount;
   'currency': feathr_currency;
