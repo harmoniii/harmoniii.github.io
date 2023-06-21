@@ -24,6 +24,11 @@ window.fundraiseup_livemode = false;</script>
 
   gtag('config', 'G-HCY8B8MC1Q');
 </script>
+<script>
+  FundraiseUp.on('checkoutOpen', function(details) {	
+    console.log(details);
+  });
+</script>
 </head>
 
 <body>
