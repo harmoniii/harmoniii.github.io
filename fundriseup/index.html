@@ -27,8 +27,17 @@ window.fundraiseup_livemode = false;</script>
 <script>
   FundraiseUp.on('checkoutOpen', function(details) {	
     console.log(details);
-	dataLayer.push({'event_name':'checkoutOpen'})
+	gtag('event','FundraiseUp.checkoutOpen');
   });
+  
+  FundraiseUp.on('donationComplete', function(details) {
+  var feathr_amount = details.donation.amount
+  var feathr_currency = details.donation.currency || 'USD';
+  gtag('event', 'FundraiseUp.donationComplete', {
+  'value': feathr_amount;
+  'currency': feathr_currency;
+});
+});
 </script>
 </head>
 
