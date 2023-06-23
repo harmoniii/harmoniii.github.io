@@ -1,10 +1,22 @@
 <link href='https://fonts.googleapis.com/css?family=Montserrat' rel='stylesheet'>
 <script>
-!function(e,n,t,o,s,i,a){e[o]=e[o]||function(){(e[o].q=e[o].q||[]).push(arguments)},i=n.createElement(t),a=n.getElementsByTagName(t)[0],i.id=o,i.src="https://storage.googleapis.com/eyezonfortest/widget_2.0/static/js/eyezonwidget.js",i.async=!0,a.parentNode.insertBefore(i,a)}(window,document,"script","eyeZon"),
-eyeZon("init",{
-  businessId:"5",
-  region:"prod"
-})
+  (function(w, d, s, o, f, js, fjs) {
+    w[o] = w[o] || function() {
+      (w[o].q = w[o].q || []).push(arguments);
+    };
+    js = d.createElement(s);
+    fjs = d.getElementsByTagName(s)[0];
+    js.id  = o;
+    js.src = f;
+    js.async = true;
+    fjs.parentNode.insertBefore(js, fjs);
+  }(window, document, "script", "eyeZon", "https://storage.googleapis.com/eyezonfortest/widget_2.0/static/js/eyezonwidget.js"));
+  const searchParams = new URL(window.location.href).searchParams;
+
+  eyeZon("init", {
+    businessId:"5",
+    region:"prod"
+  });
 eyeZon('setAnalyticsParam', 'clientId', '123456'); 
 eyeZon('setAnalyticsParam', 'region', 'Berlin'); 
 </script>
