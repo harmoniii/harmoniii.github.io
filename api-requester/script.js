@@ -18,10 +18,10 @@ function sendRequest() {
     if (includeBody) {
         requestOptions.body = body;
     }
-    const baseUrl = 'https://crossorigin.me/';
-    const fullUrl = baseUrl + url;
+    //const baseUrl = 'https://crossorigin.me/';
+    //const fullUrl = baseUrl + url;
 
-    fetch(fullUrl, requestOptions)
+    fetch(url, requestOptions)
         .then(response => response.json())
         .then(data => {
             document.getElementById('response').textContent = JSON.stringify(data, null, 2);
