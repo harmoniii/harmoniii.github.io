@@ -24,10 +24,10 @@ function sendRequest() {
     fetch(fullUrl, requestOptions)
         .then(response => response.json())
         .then(data => {
-            document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            displayResponseInTable(data);
         })
         .catch(error => {
-            document.getElementById('response').textContent = error.message;
+            document.getElementById('responseTableBody').innerHTML = `<tr><td colspan="2">${error.message}</td></tr>`;
         });
 }
 function displayResponseInTable(data) {
