@@ -29,4 +29,22 @@ function sendRequest() {
         .catch(error => {
             document.getElementById('response').textContent = error.message;
         });
+
+    function displayResponseInTable(data) {
+    const tableBody = document.getElementById('responseTableBody');
+    tableBody.innerHTML = '';
+
+    for (const key in data) {
+        if (data.hasOwnProperty(key)) {
+            const row = document.createElement('tr');
+            const keyCell = document.createElement('td');
+            keyCell.textContent = key;
+            const valueCell = document.createElement('td');
+            valueCell.textContent = JSON.stringify(data[key]);
+
+            row.appendChild(keyCell);
+            row.appendChild(valueCell);
+            tableBody.appendChild(row);
+        }
+    }
 }
