@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="styles.css">
+</head>
+<body>
+    <h1>Отправка API-запросов</h1>
+    <form id="apiForm">
+        <label for="urlInput">URL:</label>
+        <input type="text" id="urlInput" required><br><br>
+
+        <label for="tokenInput">API TOKEN:</label>
+        <input type="text" id="tokenInput" required><br><br>
+
+        <label for="requestType">Тип запроса:</label>
+        <select id="requestType" required>
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+        </select><br><br>
+
+        <label for="bodyInput">BODY (JSON):</label>
+        <textarea id="bodyInput"></textarea><br><br>
+
+        <button type="button" onclick="sendRequest()">Отправить запрос</button>
+    </form>
+
+    <div id="responseContainer">
+        <h2>Ответ:</h2>
+        <pre id="response"></pre>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
