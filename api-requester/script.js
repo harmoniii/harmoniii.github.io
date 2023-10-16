@@ -2,18 +2,22 @@ function sendRequest() {
     const url = document.getElementById('urlInput').value;
     const token = document.getElementById('tokenInput').value;
     const requestType = document.getElementById('requestType').value;
-    const body = document.getElementById('bodyInput').value;
+    const includeBody = document.getElementById('includeBody').checked;
+    const body = includeBody ? document.getElementById('bodyInput').value : undefined;
 
     const headers = {
-        'api-key': token, // Используем API ключ
+        'api-key': token,
         'Content-Type': 'application/json'
     };
 
     const requestOptions = {
         method: requestType,
-        headers: headers,
-        body: body
+        headers: headers
     };
+
+    if (includeBody) {
+        requestOptions.body = body;
+    }
     const baseUrl = 'https://crossorigin.me/';
     const fullUrl = baseUrl + url;
 
