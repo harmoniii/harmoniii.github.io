@@ -7,16 +7,19 @@
     <h1>Отправка API-запросов</h1>
     <form id="apiForm">
         <label for="urlInput">URL:</label>
-        <input type="text" id="urlInput" required><br><br>
+        <input size="100" type="text" id="urlInput" required><br><br>
 
         <label for="tokenInput">API TOKEN:</label>
-        <input type="text" id="tokenInput" required><br><br>
+        <input size="100" type="text" id="tokenInput" required><br><br>
 
         <label for="requestType">Тип запроса:</label>
         <select id="requestType" required>
             <option value="GET">GET</option>
             <option value="POST">POST</option>
         </select><br><br>
+
+        <label for="includeBody">Включить BODY:</label>
+        <input type="checkbox" id="includeBody"><br><br>
 
         <label for="bodyInput">BODY (JSON):</label>
         <textarea id="bodyInput"></textarea><br><br>
