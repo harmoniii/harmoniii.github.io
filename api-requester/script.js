@@ -29,8 +29,8 @@ function sendRequest() {
         .catch(error => {
             document.getElementById('response').textContent = error.message;
         });
-
-    function displayResponseInTable(data) {
+}
+function displayResponseInTable(data) {
     const tableBody = document.getElementById('responseTableBody');
     tableBody.innerHTML = '';
 
