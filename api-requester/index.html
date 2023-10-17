@@ -4,39 +4,52 @@
     <link rel="stylesheet" type="text/css" href="styles.css">
 </head>
 <body>
-    <h1>Отправка API-запросов</h1>
-    <form id="apiForm">
-        <label for="urlInput">URL:</label>
-        <input size="100" type="text" id="urlInput" required><br><br>
+    <div class="split-container">
+        <div class="left-panel">
+            <h1>Отправка API-запросов</h1>
+            <form id="apiForm">
+                <label for="useCorsProxy">Использовать CORS Proxy:</label>
+                <input type="checkbox" id="useCorsProxy"><br>
 
-        <label for="tokenInput">API TOKEN:</label>
-        <input size="100" type="text" id="tokenInput" required><br><br>
-
-        <label for="requestType">Тип запроса:</label>
-        <select id="requestType" required>
-            <option value="GET">GET</option>
-            <option value="POST">POST</option>
-        </select><br><br>
-
-        <label for="includeBody">Включить BODY:</label>
-        <input type="checkbox" id="includeBody"><br><br>
-
-        <label for="bodyInput">BODY (JSON):</label>
-        <textarea id="bodyInput"></textarea><br><br>
-
-        <button type="button" onclick="sendRequest()">Отправить запрос</button>
-    </form>
+                <label for="urlInput">URL:</label>
+                <input type="text" size=100 id="urlInput" value="" required><br>
+    
+                <label for="tokenInput">API TOKEN:</label>
+                <input type="text" size=100 id="tokenInput" value="" required><br>
+    
+                <label for="requestType">Тип запроса:</label>
+                <select id="requestType" required>
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                </select><br><br>
+    
+                <label for="includeBody">Включить BODY:</label>
+                <input type="checkbox" id="includeBody"><br><br>
+    
+                <label for="bodyInput">BODY (JSON):</label>
+                <textarea size=100 id="bodyInput" style="display: none;"></textarea><br><br>
+    
+                <button type="button" onclick="sendRequest()">Отправить запрос</button>
+                <button type="button" onclick="downloadCSV()">Скачать CSV</button>
+            </form>
+        </div>
+        <div class="right-panel">
+            <h2>Предзаполнение полей</h2>
+            <button onclick="addAffilates()">Add Affiliates</button>
+        </div>
+    </div>
 
     <div id="responseContainer">
         <h2>Ответ:</h2>
         <table id="responseTable">
             <thead>
                 <tr>
-                    <th>Ключ</th>
                     <th>Значение</th>
                 </tr>
             </thead>
-            <tbody id="responseTableBody"></tbody>
+            <tbody id="responseTableBody">
+                <!-- Ваши данные будут добавляться сюда -->
+            </tbody>
         </table>
     </div>
 
