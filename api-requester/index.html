@@ -27,7 +27,7 @@
                 <input type="checkbox" id="includeBody"><br><br>
     
                 <label for="bodyInput">BODY (JSON):</label>
-                <textarea size=100 id="bodyInput" style="display: none;"></textarea><br><br>
+                <textarea cols="50" rows="25" id="bodyInput" style="display: none;"></textarea><br><br>
     
                 <button type="button" onclick="sendRequest()">Отправить запрос</button>
                 <button type="button" onclick="downloadCSV()">Скачать CSV</button>
@@ -36,6 +36,7 @@
         <div class="right-panel">
             <h2>Предзаполнение полей</h2>
             <button onclick="addAffilates()">Add Affiliates</button>
+            <button onclick="downloadClicks()">Клики</button>
         </div>
     </div>
 

@@ -1,11 +1,41 @@
-document.getElementById('includeBody').addEventListener('change', function() {
+const prepopulatedData = {
+    range: {
+        from: "string",
+        to: "string",
+        timezone: "string",
+        interval: null
+    },
+    limit: 0,
+    offset: 0,
+    columns: ["string"],
+    filters: [
+        {
+            name: "string",
+            operator: "string",
+            expression: "string"
+        }
+    ],
+    sort: [
+        {
+            name: "string",
+            order: "ASC"
+        }
+    ]
+};
+
+function checkIncludeBodyCheckbox() {
+    const includeBodyCheckbox = document.getElementById('includeBody');
     const bodyInput = document.getElementById('bodyInput');
-    if (this.checked) {
+
+    if (includeBodyCheckbox.checked) {
         bodyInput.style.display = 'block';
     } else {
         bodyInput.style.display = 'none';
     }
-});
+}
+
+// Устанавливаем интервал проверки каждые 2 секунды
+setInterval(checkIncludeBodyCheckbox, 2000);
 
 function addAffilates() {
     const urlInput = document.getElementById('urlInput');
@@ -13,6 +43,7 @@ function addAffilates() {
     const requestType = document.getElementById('requestType');
     const bodyInput = document.getElementById('bodyInput');
     const corsProxy = document.getElementById('useCorsProxy');
+    const includeBodyCheckbox = document.getElementById('includeBody');
 
     // Предзаполнение полей
     urlInput.value = 'https://ida.wake-app.net/admin_api/v1/affiliate_networks';
@@ -20,6 +51,23 @@ function addAffilates() {
     requestType.value = 'GET';
     bodyInput.value = '';
     corsProxy.checked = true;
+    includeBodyCheckbox.checked = false;
+}
+
+function downloadClicks() {
+    const urlInput = document.getElementById('urlInput');
+    const corsProxy = document.getElementById('useCorsProxy');
+    const requestType = document.getElementById('requestType');
+    const tokenInput = document.getElementById('tokenInput');
+    const includeBodyCheckbox = document.getElementById('includeBody');
+    const bodyInput = document.getElementById('bodyInput');
+
+    urlInput.value = 'https://ida.wake-app.net/admin_api/v1/clicks/log';
+    corsProxy.checked = true;
+    requestType.value = 'POST';
+    tokenInput.value = '-';
+    includeBodyCheckbox.checked = true;
+    bodyInput.value = JSON.stringify(prepopulatedData, null, 2);
 }
 
 function sendRequest() {
