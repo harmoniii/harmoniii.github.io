@@ -49,6 +49,7 @@ button:hover {
 
 #responseContainer {
     margin-top: 20px;
+    width: calc(100% - 220px);
 }
 
 pre {
