@@ -8,27 +8,38 @@
     datetime, year, month, week, weekday, day, hour, day_hour, landing_clicked_datetime, destination, is_unique_stream, is_unique_campaign, is_unique_global, is_bot, is_empty_referrer, is_using_proxy, 
     landing_clicked, is_lead, is_sale, is_rejected, parent_campaign_id, parent_sub_ids, parent_campaign, parent_sub_id, profitability, revenue, profit, lead_revenue, sale_revenue, rejected_revenue, 
     rebills, now, landing_clicked_period
+
+    Available: 
+    [\"EQUALS\",\"NOT_EQUAL\",\"GREATER_THAN\",\"EQUALS_OR_GREATER_THAN\",\"LESS_THAN\",\"EQUALS_OR_LESS_THAN\",\"MATCH_REGEXP\",\"NOT_MATCH_REGEXP\",\"BEGINS_WITH\",
+    \"IP_BEGINS_WITH\",\"ENDS_WITH\",\"CONTAINS\",\"NOT_CONTAIN\",\"IN_LIST\",\"NOT_IN_LIST\",\"BETWEEN\",\"IS_SET\",\"IS_NOT_SET\",
+    \"IS_TRUE\",\"IS_FALSE\",\"HAS_LABEL\",\"HAS_NOT_LABEL\",\"EXPRESSION\"]" }
 */
+
+const currentDate = new Date();
+const year = currentDate.getFullYear();
+const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+const day = String(currentDate.getDate()).padStart(2, '0');
+const formattedDate = `${year}-${month}-${day}`;
 
 const prepopulatedData = {
     range: {
-        from: "YYYY-MM-DD",
-        to: "YYYY-MM-DD",
+        from: formattedDate,
+        to: formattedDate,
         timezone: "Europe/Moscow"
     },
     limit: 0,
     offset: 0,
-    columns: ["campaign","offer","stream","sub_id","campaign_id","sub_id_1","sub_id_2","sub_id_3","sub_id_4","sub_id_5","sub_id_6","sub_id_7","sub_id_8","sub_id_9","sub_id_10","country_code","datetime","is_bot","is_lead","is_sale"],
+    columns: ["offer","sub_id","campaign_id","sub_id_1","sub_id_2","sub_id_3","sub_id_4","sub_id_5","sub_id_6","sub_id_7","sub_id_8","sub_id_9","sub_id_10","country_code","datetime","is_bot","is_lead","is_sale"],
     filters: [
         {
-            name: "offer_id",
-            operator: "EQUALS or IN_LIST",
-            expression: "22070"
+            name: "offer",
+            operator: "CONTAINS",
+            expression: ["24357","24359"]
         }
     ],
     sort: [
         {
-            name: "sub_id",
+            name: "datetime",
             order: "ASC"
         }
     ]
@@ -133,29 +144,33 @@ function downloadCSV() {
     const responseContainer = document.getElementById('responseContainer');
     const responseData = JSON.parse(responseContainer.textContent);
 
-    if (!responseData || typeof responseData !== 'object') {
+    if (!responseData || !Array.isArray(responseData.rows)) {
         alert('Нет данных для экспорта в CSV.');
         return;
     }
 
-    const keys = Object.keys(responseData);
+    const rows = responseData.rows;
 
-    if (keys.length === 0) {
+    if (rows.length === 0) {
         alert('Нет данных для экспорта в CSV.');
         return;
     }
 
     // Создаем CSV-строку с заголовками
-    let csv = keys.join(',') + '\n';
+    const headers = ['offer', 'sub_id', 'campaign_id', 'sub_id_1', 'sub_id_2', 'sub_id_3', 'sub_id_4', 'sub_id_5', 'sub_id_6', 'sub_id_7', 'sub_id_8', 'sub_id_9', 'sub_id_10', 'country_code', 'datetime', 'is_bot', 'is_lead', 'is_sale'];
+    let csv = headers.join(',') + '\n';
 
-    // Создаем строку с значениями
-    csv += keys.map(key => {
-        const value = responseData[key];
-        if (typeof value === 'object') {
-            return JSON.stringify(value);
-        }
-        return value;
-    }).join(',') + '\n';
+    // Создаем строки с данными
+    rows.forEach(item => {
+        const values = headers.map(key => {
+            const value = item[key];
+            if (typeof value === 'object') {
+                return JSON.stringify(value);
+            }
+            return value;
+        });
+        csv += values.join(',') + '\n';
+    });
 
     // Создаем Blob с CSV-строкой
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -173,16 +188,38 @@ function downloadCSV() {
 
     // Очищаем URL-объект
     URL.revokeObjectURL(url);
+    
+    const table = document.createElement('table');
+    const headerRow = document.createElement('tr');
+    headers.forEach(headerText => {
+        const th = document.createElement('th');
+        th.appendChild(document.createTextNode(headerText));
+        headerRow.appendChild(th);
+    });
+    table.appendChild(headerRow);
+
+    // Добавляем данные в таблицу
+    rows.forEach(item => {
+        const row = document.createElement('tr');
+        headers.forEach(key => {
+            const cell = document.createElement('td');
+            cell.appendChild(document.createTextNode(item[key]));
+            row.appendChild(cell);
+        });
+        table.appendChild(row);
+    });
+
+    // Создаем всплывающее окно с таблицей
+    const popup = window.open('', 'CSV Table', 'width=600, height=400');
+    popup.document.write('<html><head><title>CSV Table</title></head><body>');
+    popup.document.write('<h1>CSV Data</h1>');
+    popup.document.write(table.outerHTML);
+    popup.document.write('</body></html>');
+    popup.document.close();
+
+    // Выводим окно на экран
+    if (window.focus) {
+        popup.focus();
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
 
