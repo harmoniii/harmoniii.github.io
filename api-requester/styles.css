@@ -43,6 +43,11 @@ button {
     cursor: pointer;
 }
 
+.button[disabled] {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+  }
+
 button:hover {
     background-color: #0056b3;
 }
@@ -57,3 +62,22 @@ pre {
     padding: 10px;
     border-radius: 5px;
 }
+
+ .question-button {
+    background-color: #3498db;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .popup {
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 5px;
+    z-index: 1;
+  }
