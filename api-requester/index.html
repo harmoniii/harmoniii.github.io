@@ -31,7 +31,11 @@
                 <textarea cols="50" rows="25" id="bodyInput" style="display: none;"></textarea><br><br>
     
                 <button type="button" onclick="sendRequest()">Отправить запрос</button>
-                <button class="button" id="downloadCsvButton" onclick="downloadCSV()" disabled>Скачать CSV</button>
+                <button class="button" id="downloadCsvButton" onclick="downloadCSV()" disabled>Скачать CSV</button><br/><br/>
+
+                <label for="headersInput">Введите значения для скачивания (заголовки через запятую):</label>
+                <input type="text" size=100 id="headersInput" placeholder="sub_id, offer, stream, campaign_id, sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5, sub_id_6, sub_id_7, sub_id_8, sub_id_9, sub_id_10, country_code, datetime, is_bot, is_lead, is_sale">
+
             </form>
         </div>
         <div class="right-panel">
@@ -46,7 +50,7 @@
     </div>
 
     <div id="popup" class="popup">
-        sign, version, campaign, campaign_group, landing_group, offer_group, landing, offer, affiliate_network, ts, stream, source, x_requested_with, referrer, search_engine, keyword, 
+    Заголовки: sign, version, campaign, campaign_group, landing_group, offer_group, landing, offer, affiliate_network, ts, stream, source, x_requested_with, referrer, search_engine, keyword, 
     click_id, sub_id, visitor_code, campaign_id, campaign_group_id, offer_group_id, landing_group_id, landing_id, offer_id, affiliate_network_id, ts_id, stream_id, ad_campaign_id, 
     external_id, creative_id, sub_id_1, sub_id_2, sub_id_3, sub_id_4, sub_id_5, sub_id_6, sub_id_7, sub_id_8, sub_id_9, sub_id_10, sub_id_11, sub_id_12, sub_id_13, sub_id_14, sub_id_15, sub_id_16, 
     sub_id_17, sub_id_18, sub_id_19, sub_id_20, sub_id_21, sub_id_22, sub_id_23, sub_id_24, sub_id_25, sub_id_26, sub_id_27, sub_id_28, sub_id_29, sub_id_30, connection_type, operator, isp, 
@@ -56,10 +60,10 @@
     landing_clicked, is_lead, is_sale, is_rejected, parent_campaign_id, parent_sub_ids, parent_campaign, parent_sub_id, profitability, revenue, profit, lead_revenue, sale_revenue, rejected_revenue, 
     rebills, now, landing_clicked_period
 <br/><br/>
-    Available: 
-    [\"EQUALS\",\"NOT_EQUAL\",\"GREATER_THAN\",\"EQUALS_OR_GREATER_THAN\",\"LESS_THAN\",\"EQUALS_OR_LESS_THAN\",\"MATCH_REGEXP\",\"NOT_MATCH_REGEXP\",\"BEGINS_WITH\",
-    \"IP_BEGINS_WITH\",\"ENDS_WITH\",\"CONTAINS\",\"NOT_CONTAIN\",\"IN_LIST\",\"NOT_IN_LIST\",\"BETWEEN\",\"IS_SET\",\"IS_NOT_SET\",
-    \"IS_TRUE\",\"IS_FALSE\",\"HAS_LABEL\",\"HAS_NOT_LABEL\",\"EXPRESSION\"]" }
+    Оператор поиска: 
+    EQUALS,NOT_EQUAL,GREATER_THAN,EQUALS_OR_GREATER_THAN,LESS_THAN,EQUALS_OR_LESS_THAN,MATCH_REGEXP,NOT_MATCH_REGEXP,BEGINS_WITH,
+    IP_BEGINS_WITH,ENDS_WITH,CONTAINS,NOT_CONTAIN,IN_LIST,NOT_IN_LIST,BETWEEN,IS_SET,IS_NOT_SET,
+    IS_TRUE,IS_FALSE,HAS_LABEL,HAS_NOT_LABEL,EXPRESSION
     </div>
 
     <script src="script.js"></script>
