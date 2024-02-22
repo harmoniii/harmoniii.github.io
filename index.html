@@ -5,6 +5,15 @@
   <title>Nikolay "haRmoniii"</title>
   <link rel="stylesheet" href="/styles/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@300;400;700&display=swap" rel="stylesheet">
+<script>
+	$('.slider-wrap a').on('click', function(e){
+  e.preventDefault();
+    $(this)
+      .toggleClass('close')
+      .siblings('div')
+      .slideToggle();  
+});
+</script>
 </head>
 <body>
   <div id="header">
@@ -37,6 +46,162 @@
   </div>
 
   <div id="content">
+    <section id="section3">
+      <h2>Мой телеграм бот для перессылки сообщений.</h2>
+	<div class="slider-wrap">
+  	<div class="wrap-img">
+  </div>
+  <a href="#">Больше</a>
+  <div class="wrap-desc">
+      <code>
+	      from telegram import Update, InputMediaPhoto, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler, ConversationHandler
+from telegram.ext import MessageHandler
+from telegram.error import TelegramError, TimedOut, NetworkError
+
+TELEGRAM_CHANNEL_ID = ''
+TELEGRAM_BOT_TOKEN = ''
+
+# Состояния разговора для обработки Inline-кнопок
+ALLOW, DENY = range(2)
+# ...
+
+# Dictionary to store users who initiated the /start command and their associated callback queries
+start_users = {}
+user_forwarded_status = {}
+
+# ...
+
+def start(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+
+    # Создаем клавиатуру с кнопками для разрешения и отклонения
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("Разрешить доступ", callback_data=f"{ALLOW}_{user_id}")],
+        [InlineKeyboardButton("Запретить доступ", callback_data=f"{DENY}_{user_id}")],
+    ])
+
+    # Отправляем сообщение с клавиатурой в канал
+    context.bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=f'Пользователь @{username} (ID: {user_id}) запрашивает доступ к боту.', reply_markup=keyboard)
+
+    # Сохраняем информацию о запросе на доступ и пользователе, который начал разговор
+    start_users[int(user_id)] = {'username': username, 'callback_query': None}
+
+    update.message.reply_text('Ваш запрос на доступ отправлен на рассмотрение. Пожалуйста, подождите.')
+
+    return ConversationHandler.END
+
+# ...
+
+def button_click(update: Update, context: CallbackContext) -> None:
+    query = update.callback_query
+    user_id = query.from_user.id
+    username = query.from_user.username
+
+    # Split the callback_data to get the decision and the user_id
+    decision, requester_id = query.data.split('_')
+
+    if decision == str(ALLOW):
+        # Сохраняем разрешение для пользователя, который начал разговор
+        start_users[int(requester_id)]['allowed'] = True
+        query.edit_message_text(f'Доступ пользователя @{start_users[int(requester_id)]["username"]} (ID: {requester_id}) разрешен.')
+
+        # Отправляем сообщение пользователю, что его запрос был одобрен
+        context.bot.send_message(chat_id=requester_id, text='Доступ разрешен.')
+    elif decision == str(DENY):
+        # Сохраняем отказ для пользователя, который начал разговор
+        start_users[int(requester_id)]['allowed'] = False
+        query.edit_message_text(f'Доступ пользователя @{start_users[int(requester_id)]["username"]} (ID: {requester_id}) отклонен.')
+
+# ...
+
+def forward_message(update: Update, context: CallbackContext) -> None:
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+    text = update.message.text
+    media = update.message.effective_attachment  # Изменение здесь
+
+    # Получаем последнее отправленное сообщение пользователя из context.user_data
+    last_forwarded_message_id = context.user_data.get('last_forwarded_message_id', None)
+
+    # Проверяем, есть ли разрешение у пользователя, который начал разговор
+    if start_users.get(user_id) and 'allowed' in start_users[user_id] and start_users[user_id]['allowed']:
+        if last_forwarded_message_id != update.message.message_id:
+            if text:
+                # Пересылаем текстовое сообщение в канал
+                context.bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=f'@{username} (ID: {user_id}) написал: {text}')
+
+            if media:
+                # Пересылаем медиафайл в канал с информацией из оригинального сообщения
+                caption = f"{username} (ID: {user_id}): {update.message.caption}" if update.message.caption else f"@{username} (ID: {user_id}) написал:"
+                context.bot.send_photo(chat_id=TELEGRAM_CHANNEL_ID, photo=media[0].file_id, caption=caption)
+
+            # Обновляем информацию о последнем отправленном сообщении в context.user_data
+            context.user_data['last_forwarded_message_id'] = update.message.message_id
+    else:
+        # Сообщаем пользователю, что у него нет доступа
+        update.message.reply_text('Извините, у вас нет доступа к этому боту. Возможно, вы не написали /start')
+
+# ...
+
+def techint(update: Update, context: CallbackContext) -> None:
+    # Пересылаем сообщение в канал с указанием отправителя и названия чата
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+    chat_title = update.message.chat.title if update.message.chat.title else "Личный чат"
+    context.bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=f'Пользователь @{username} (ID: {user_id}) из чата "{chat_title}" написал: {update.message.text}')
+
+# ...
+
+def chat_member_update(update: Update, context: CallbackContext) -> None:
+    # Обрабатываем событие добавления бота в чат
+    new_chat_member = update.message.new_chat_members[0] if update.message.new_chat_members else None
+    bot_id = context.bot.id
+    
+    if new_chat_member and new_chat_member.id == bot_id:
+        # Добавляем обработчик для событий в чате
+        dp.add_handler(MessageHandler(Filters.command & ~Filters.update.edited_message, techint), group=1)
+        
+def main() -> None:
+    updater = Updater(TELEGRAM_BOT_TOKEN)
+    dp = updater.dispatcher
+
+    # Создаем обработчик коллбэков для кнопок
+    dp.add_handler(CallbackQueryHandler(button_click))
+
+    # Создаем обработчик команды /start
+    dp.add_handler(CommandHandler("start", start))
+
+    # Создаем обработчик команды /techint
+    dp.add_handler(CommandHandler("techint", techint))
+
+    # Создаем обработчик сообщений в личке
+    dp.add_handler(MessageHandler(Filters.all, forward_message))
+
+    # Создаем обработчик события добавления бота в чат
+    dp.add_handler(MessageHandler(Filters.status_update.new_chat_members, chat_member_update))
+
+    updater.start_polling()
+    updater.idle()
+
+    try:
+        updater.start_polling()
+        updater.idle()
+    except (TelegramError, TimedOut, NetworkError) as e:
+        print(f"Error: {e}")
+        # Можно добавить дополнительные действия по обработке ошибок, например, перезапуск бота.
+
+if __name__ == '__main__':
+    main()
+      </code>
+  </div>
+ 
+</div>
+
+</div>
+    </section>
+
     <section id="section1">
       <h2>The first feeling.</h2>
 	  <img src="https://i.vas3k.club/aa06202771898ed74904a1071f813c595f8fa0f3eb43c32c9862fc53ed092534.jpg" alt="Image" width="800">
