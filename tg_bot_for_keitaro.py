@@ -65,7 +65,6 @@ def create_csv(data):
             '76': 'A Organic',
         }
 
-        # Запишите данные
         for item in data['rows']:
             offer = item.get('offer', '')
             offer_id = re.search(r'\#\#(\d+)', offer)
