@@ -9,6 +9,7 @@
             font-family: Arial, sans-serif;
             text-align: center;
             background-color: #f5f5f5;
+            padding: 20px;
         }
         h1 {
             color: #ffd700;
@@ -21,6 +22,26 @@
             font-size: 20px;
             margin-top: 10px;
         }
+        .copy-section {
+            margin-top: 30px;
+        }
+        .copy-label {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .copy-item {
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 5px auto;
+            width: 200px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .copy-item:hover {
+            background-color: #e0e0e0;
+        }
         .language-switcher {
             margin-top: 20px;
         }
@@ -28,6 +49,13 @@
             padding: 10px 20px;
             margin: 5px;
             cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #ffd700;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #e6c200;
         }
     </style>
 </head>
@@ -36,6 +64,13 @@
 
     <div class="date" id="date"></div>
     <div class="clock" id="clock"></div>
+
+    <div class="copy-section">
+        <div class="copy-label" id="copy-label">Нажми чтобы скопировать</div>
+        <div class="copy-item" onclick="copyText('/go_direct_y_3_4')">/go_direct_y_3_4</div>
+        <div class="copy-item" onclick="copyText('🗿 Ruins')">🗿 Ruins</div>
+        <div class="copy-item" onclick="copyText('/rb_join_bb')">/rb_join_bb</div>
+    </div>
 
     <div class="language-switcher">
         <button onclick="switchLanguage('ru')">Русский</button>
@@ -46,6 +81,11 @@
         const titles = {
             'ru': 'Желтый медведь',
             'en': 'Yellow Bear'
+        };
+
+        const copyLabels = {
+            'ru': 'Нажми чтобы скопировать',
+            'en': 'Click to copy'
         };
 
         const gmtOffset = 3; // GTM +3
@@ -60,18 +100,43 @@
 
             const startHour = 8;
             const shiftHours = 2;
-            let hours = startHour + (currentDate.getDate() - 10) * shiftHours;
+            let daysPassed = currentDate.getDate() - 10;
+            if (daysPassed < 0) {
+                // Если дата меньше 10 числа, считаем предыдущий месяц
+                const lastDayPrevMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
+                daysPassed = lastDayPrevMonth - 10 + currentDate.getDate();
+            }
+            let hours = startHour + daysPassed * shiftHours;
             let secondTime = hours + 13; // Время второго цикла (21:00)
 
             hours = (hours % 24 + 24) % 24;
             secondTime = (secondTime % 24 + 24) % 24;
 
-            document.getElementById('clock').innerText = `Время: ${hours}:00 и ${secondTime}:00 (GTM +${gmtOffset})`;
+            const lang = document.documentElement.lang;
+            if (lang === 'ru') {
+                document.getElementById('clock').innerText = `Время: ${formatTime(hours)} и ${formatTime(secondTime)} (GTM +${gmtOffset})`;
+            } else {
+                document.getElementById('clock').innerText = `Time: ${formatTime(hours)} and ${formatTime(secondTime)} (GTM +${gmtOffset})`;
+            }
+        }
+
+        function formatTime(hours) {
+            return `${String(hours).padStart(2, '0')}:00`;
         }
 
         function switchLanguage(lang) {
             document.getElementById('title').innerText = titles[lang];
+            document.getElementById('copy-label').innerText = copyLabels[lang];
             document.documentElement.lang = lang;
+            updateDateTime(); // Обновляем текст времени при смене языка
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert(text + ' скопировано!');
+            }).catch(err => {
+                alert('Не удалось скопировать текст: ', err);
+            });
         }
 
         updateDateTime();
