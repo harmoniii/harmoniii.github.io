@@ -14,7 +14,7 @@
             color: #ffd700;
         }
         table {
-            width: 50%;
+            width: 60%;
             margin: 20px auto;
             border-collapse: collapse;
         }
@@ -22,6 +22,16 @@
             padding: 15px;
             border: 1px solid #ccc;
             text-align: center;
+        }
+        .copy-section {
+            margin-top: 20px;
+            font-size: 18px;
+        }
+        .copy-item {
+            cursor: pointer;
+            color: blue;
+            text-decoration: underline;
+            margin: 10px 0;
         }
         .language-switcher {
             margin-top: 20px;
@@ -51,6 +61,13 @@
         </tr>
     </table>
 
+    <div class="copy-section">
+        <p id="copy-label">Нажми чтобы скопировать:</p>
+        <p class="copy-item" onclick="copyText('/go_direct_y_3_4')" id="item1">/go_direct_y_3_4</p>
+        <p class="copy-item" onclick="copyText('🗿 Ruins')" id="item2">🗿 Ruins</p>
+        <p class="copy-item" onclick="copyText('/rb_join_bb')" id="item3">/rb_join_bb</p>
+    </div>
+
     <div class="language-switcher">
         <button onclick="switchLanguage('ru')">Русский</button>
         <button onclick="switchLanguage('en')">English</button>
@@ -65,12 +82,19 @@
         const labels = {
             'ru': {
                 today: 'Сегодня',
-                tomorrow: 'Завтра'
+                tomorrow: 'Завтра',
+                copyLabel: 'Нажми чтобы скопировать:'
             },
             'en': {
                 today: 'Today',
-                tomorrow: 'Tomorrow'
+                tomorrow: 'Tomorrow',
+                copyLabel: 'Click to copy:'
             }
+        };
+
+        const copyItems = {
+            'ru': ['/go_direct_y_3_4', '🗿 Ruins', '/rb_join_bb'],
+            'en': ['/go_direct_y_3_4', '🗿 Ruins', '/rb_join_bb']
         };
 
         const gmtOffset = 3; // GTM +3
@@ -113,8 +137,20 @@
             document.getElementById('title').innerText = titles[lang];
             document.getElementById('today-label').innerText = labels[lang].today;
             document.getElementById('tomorrow-label').innerText = labels[lang].tomorrow;
+            document.getElementById('copy-label').innerText = labels[lang].copyLabel;
+
+            const items = copyItems[lang];
+            document.getElementById('item1').innerText = items[0];
+            document.getElementById('item2').innerText = items[1];
+            document.getElementById('item3').innerText = items[2];
 
             document.documentElement.lang = lang;
+        }
+
+        function copyText(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert(`Скопировано: ${text}`);
+            });
         }
 
         updateDateTime();
