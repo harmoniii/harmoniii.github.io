@@ -9,38 +9,19 @@
             font-family: Arial, sans-serif;
             text-align: center;
             background-color: #f5f5f5;
-            padding: 20px;
         }
         h1 {
             color: #ffd700;
         }
-        .clock {
-            font-size: 24px;
-            margin-top: 20px;
+        table {
+            width: 50%;
+            margin: 20px auto;
+            border-collapse: collapse;
         }
-        .date {
-            font-size: 20px;
-            margin-top: 10px;
-        }
-        .copy-section {
-            margin-top: 30px;
-        }
-        .copy-label {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        .copy-item {
-            background-color: #ffffff;
+        th, td {
+            padding: 15px;
             border: 1px solid #ccc;
-            padding: 10px;
-            margin: 5px auto;
-            width: 200px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-        .copy-item:hover {
-            background-color: #e0e0e0;
+            text-align: center;
         }
         .language-switcher {
             margin-top: 20px;
@@ -49,28 +30,26 @@
             padding: 10px 20px;
             margin: 5px;
             cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #ffd700;
-            transition: background-color 0.3s;
-        }
-        button:hover {
-            background-color: #e6c200;
         }
     </style>
 </head>
 <body>
     <h1 id="title">Желтый медведь</h1>
 
-    <div class="date" id="date"></div>
-    <div class="clock" id="clock"></div>
-
-    <div class="copy-section">
-        <div class="copy-label" id="copy-label">Нажми чтобы скопировать</div>
-        <div class="copy-item" onclick="copyText('/go_direct_y_2_4')">/go_direct_y_2_4</div>
-        <div class="copy-item" onclick="copyText('🗿 Ruins')">🗿 Ruins</div>
-        <div class="copy-item" onclick="copyText('/rb_join_bb')">/rb_join_bb</div>
-    </div>
+    <table>
+        <tr>
+            <th id="today-label">Сегодня</th>
+            <th id="tomorrow-label">Завтра</th>
+        </tr>
+        <tr>
+            <td id="today-date"></td>
+            <td id="tomorrow-date"></td>
+        </tr>
+        <tr>
+            <td id="today-time"></td>
+            <td id="tomorrow-time"></td>
+        </tr>
+    </table>
 
     <div class="language-switcher">
         <button onclick="switchLanguage('ru')">Русский</button>
@@ -83,60 +62,59 @@
             'en': 'Yellow Bear'
         };
 
-        const copyLabels = {
-            'ru': 'Нажми чтобы скопировать',
-            'en': 'Click to copy'
+        const labels = {
+            'ru': {
+                today: 'Сегодня',
+                tomorrow: 'Завтра'
+            },
+            'en': {
+                today: 'Today',
+                tomorrow: 'Tomorrow'
+            }
         };
 
         const gmtOffset = 3; // GTM +3
 
         function updateDateTime() {
             const currentDate = new Date();
+            const tomorrowDate = new Date(currentDate);
+            tomorrowDate.setDate(currentDate.getDate() + 1);
+
             const year = currentDate.getFullYear();
             const month = String(currentDate.getMonth() + 1).padStart(2, '0');
             const day = String(currentDate.getDate()).padStart(2, '0');
 
-            document.getElementById('date').innerText = `${day}.${month}.${year}`;
+            const tomorrowYear = tomorrowDate.getFullYear();
+            const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
+            const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
+
+            document.getElementById('today-date').innerText = `${day}.${month}.${year}`;
+            document.getElementById('tomorrow-date').innerText = `${tomorrowDay}.${tomorrowMonth}.${tomorrowYear}`;
 
             const startHour = 8;
             const shiftHours = 2;
-            let daysPassed = currentDate.getDate() - 10;
-            if (daysPassed < 0) {
-                // Если дата меньше 10 числа, считаем предыдущий месяц
-                const lastDayPrevMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 0).getDate();
-                daysPassed = lastDayPrevMonth - 10 + currentDate.getDate();
-            }
-            let hours = startHour + daysPassed * shiftHours;
-            let secondTime = hours + 13; // Время второго цикла (21:00)
+            let todayHours = startHour + (currentDate.getDate() - 10) * shiftHours;
+            let todaySecondTime = todayHours + 13; // Время второго цикла (21:00)
 
-            hours = (hours % 24 + 24) % 24;
-            secondTime = (secondTime % 24 + 24) % 24;
+            let tomorrowHours = startHour + (tomorrowDate.getDate() - 10) * shiftHours;
+            let tomorrowSecondTime = tomorrowHours + 13;
 
-            const lang = document.documentElement.lang;
-            if (lang === 'ru') {
-                document.getElementById('clock').innerText = `Время: ${formatTime(hours)} и ${formatTime(secondTime)} (GTM +${gmtOffset})`;
-            } else {
-                document.getElementById('clock').innerText = `Time: ${formatTime(hours)} and ${formatTime(secondTime)} (GTM +${gmtOffset})`;
-            }
-        }
+            todayHours = (todayHours % 24 + 24) % 24;
+            todaySecondTime = (todaySecondTime % 24 + 24) % 24;
 
-        function formatTime(hours) {
-            return `${String(hours).padStart(2, '0')}:00`;
+            tomorrowHours = (tomorrowHours % 24 + 24) % 24;
+            tomorrowSecondTime = (tomorrowSecondTime % 24 + 24) % 24;
+
+            document.getElementById('today-time').innerText = `${todayHours}:00 и ${todaySecondTime}:00 (GTM +${gmtOffset})`;
+            document.getElementById('tomorrow-time').innerText = `${tomorrowHours}:00 и ${tomorrowSecondTime}:00 (GTM +${gmtOffset})`;
         }
 
         function switchLanguage(lang) {
             document.getElementById('title').innerText = titles[lang];
-            document.getElementById('copy-label').innerText = copyLabels[lang];
-            document.documentElement.lang = lang;
-            updateDateTime(); // Обновляем текст времени при смене языка
-        }
+            document.getElementById('today-label').innerText = labels[lang].today;
+            document.getElementById('tomorrow-label').innerText = labels[lang].tomorrow;
 
-        function copyText(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert(text + ' скопировано!');
-            }).catch(err => {
-                alert('Не удалось скопировать текст: ', err);
-            });
+            document.documentElement.lang = lang;
         }
 
         updateDateTime();
