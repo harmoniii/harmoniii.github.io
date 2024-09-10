@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Желтый медведь</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #ffd700;
+        }
+        .clock {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+        .date {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        .language-switcher {
+            margin-top: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="title">Желтый медведь</h1>
+
+    <div class="date" id="date"></div>
+    <div class="clock" id="clock"></div>
+
+    <div class="language-switcher">
+        <button onclick="switchLanguage('ru')">Русский</button>
+        <button onclick="switchLanguage('en')">English</button>
+    </div>
+
+    <script>
+        const titles = {
+            'ru': 'Желтый медведь',
+            'en': 'Yellow Bear'
+        };
+
+        const gmtOffset = 3; // GTM +3
+
+        function updateDateTime() {
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+
+            document.getElementById('date').innerText = `${day}.${month}.${year}`;
+
+            const startHour = 8;
+            const shiftHours = 2;
+            let hours = startHour + (currentDate.getDate() - 10) * shiftHours;
+            let secondTime = hours + 13; // Время второго цикла (21:00)
+
+            hours = (hours % 24 + 24) % 24;
+            secondTime = (secondTime % 24 + 24) % 24;
+
+            document.getElementById('clock').innerText = `Время: ${hours}:00 и ${secondTime}:00 (GTM +${gmtOffset})`;
+        }
+
+        function switchLanguage(lang) {
+            document.getElementById('title').innerText = titles[lang];
+            document.documentElement.lang = lang;
+        }
+
+        updateDateTime();
+        setInterval(updateDateTime, 60000); // Обновление времени каждые 60 секунд
+    </script>
+</body>
+</html>
