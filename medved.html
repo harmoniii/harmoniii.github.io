@@ -29,9 +29,17 @@
         }
         .copy-item {
             cursor: pointer;
-            color: blue;
-            text-decoration: underline;
+            padding: 10px 20px;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
             margin: 10px 0;
+            display: inline-block;
+            transition: background-color 0.3s ease;
+        }
+        .copy-item:hover {
+            background-color: #0056b3;
         }
         .language-switcher {
             margin-top: 20px;
@@ -40,6 +48,15 @@
             padding: 10px 20px;
             margin: 5px;
             cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: #fff;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
@@ -63,14 +80,14 @@
 
     <div class="copy-section">
         <p id="copy-label">Нажми чтобы скопировать:</p>
-        <p class="copy-item" onclick="copyText('/go_direct_y_2_4')" id="item1">/go_direct_y_2_4</p>
-        <p class="copy-item" onclick="copyText('🗿 Ruins')" id="item2">🗿 Ruins</p>
-        <p class="copy-item" onclick="copyText('/rb_join_bb')" id="item3">/rb_join_bb</p>
+        <button class="copy-item" onclick="copyText('/go_direct_y_3_4')" id="item1">/go_direct_y_3_4</button>
+        <button class="copy-item" onclick="copyText('🗿 Ruins')" id="item2">🗿 Ruins</button>
+        <button class="copy-item" onclick="copyText('/rb_join_bb')" id="item3">/rb_join_bb</button>
     </div>
 
     <div class="language-switcher">
-        <button onclick="switchLanguage('ru')">Русский</button>
-        <button onclick="switchLanguage('en')">English</button>
+        <button onclick="switchLanguage('ru')">🇷🇺 RU</button>
+        <button onclick="switchLanguage('en')">🇺🇸 EN</button>
     </div>
 
     <script>
@@ -93,8 +110,8 @@
         };
 
         const copyItems = {
-            'ru': ['/go_direct_y_3_4', '🗿 Ruins', '/rb_join_bb'],
-            'en': ['/go_direct_y_3_4', '🗿 Ruins', '/rb_join_bb']
+            'ru': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb'],
+            'en': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb']
         };
 
         const gmtOffset = 3; // GTM +3
