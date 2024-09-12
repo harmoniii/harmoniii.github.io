@@ -74,16 +74,18 @@
             <th id="tomorrow-label">Завтра</th>
         </tr>
         <tr>
-            <td id="today-date"></td>
-            <td id="tomorrow-date"></td>
-        </tr>
-        <tr>
-            <td id="today-time"></td>
-            <td id="tomorrow-time"></td>
+            <td>
+                <div id="today-date"></div>
+                <div id="today-time"></div>
+                <p class="note" id="today-note" style="display: none;"></p> <!-- Подсказка для сегодня -->
+            </td>
+            <td>
+                <div id="tomorrow-date"></div>
+                <div id="tomorrow-time"></div>
+                <p class="note" id="tomorrow-note" style="display: none;"></p> <!-- Подсказка для завтра -->
+            </td>
         </tr>
     </table>
-
-    <p class="note" id="night-note" style="display: none;"></p> <!-- Подсказка -->
 
     <div class="copy-section">
         <p id="copy-label">Нажми чтобы скопировать:</p>
@@ -108,22 +110,22 @@
                 today: 'Сегодня',
                 tomorrow: 'Завтра',
                 copyLabel: 'Нажми чтобы скопировать:',
-                nightNote: 'Время относится к ночи следующего дня'
+                nightNote: 'Второе время относится к ночи следующего дня'
             },
             'en': {
                 today: 'Today',
                 tomorrow: 'Tomorrow',
                 copyLabel: 'Click to copy:',
-                nightNote: 'The time refers to the night of the next day'
+                nightNote: 'The second time refers to the night of the next day'
             }
         };
 
         const copyItems = {
-            'ru': ['/go_direct_y_3_4', '🗿 Ruins', '/rb_join_bb'],
-            'en': ['/go_direct_y_3_4', '🗿 Ruins', '/rb_join_bb']
+            'ru': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb'],
+            'en': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb']
         };
 
-        const gmtOffset = 3; // GTM +3
+        const gmtOffset = 3; // GMT +3
 
         function updateDateTime() {
             const currentDate = new Date();
@@ -155,16 +157,25 @@
             tomorrowHours = (tomorrowHours % 24 + 24) % 24;
             tomorrowSecondTime = (tomorrowSecondTime % 24 + 24) % 24;
 
-            document.getElementById('today-time').innerText = `${todayHours}:00 и ${todaySecondTime}:00 (GTM +${gmtOffset})`;
-            document.getElementById('tomorrow-time').innerText = `${tomorrowHours}:00 и ${tomorrowSecondTime}:00 (GTM +${gmtOffset})`;
+            document.getElementById('today-time').innerText = `${todayHours}:00 и ${todaySecondTime}:00 (GMT +${gmtOffset})`;
+            document.getElementById('tomorrow-time').innerText = `${tomorrowHours}:00 и ${tomorrowSecondTime}:00 (GMT +${gmtOffset})`;
 
-            // Проверка и вывод подсказки, если второе время меньше первого
-            const nightNoteElement = document.getElementById('night-note');
+            // Проверка и вывод подсказки, если второе время меньше первого (для "Сегодня")
+            const todayNoteElement = document.getElementById('today-note');
             if (todaySecondTime < todayHours) {
-                nightNoteElement.style.display = 'block';
-                nightNoteElement.innerText = labels[document.documentElement.lang].nightNote;
+                todayNoteElement.style.display = 'block';
+                todayNoteElement.innerText = labels[document.documentElement.lang].nightNote;
             } else {
-                nightNoteElement.style.display = 'none';
+                todayNoteElement.style.display = 'none';
+            }
+
+            // Проверка и вывод подсказки, если второе время меньше первого (для "Завтра")
+            const tomorrowNoteElement = document.getElementById('tomorrow-note');
+            if (tomorrowSecondTime < tomorrowHours) {
+                tomorrowNoteElement.style.display = 'block';
+                tomorrowNoteElement.innerText = labels[document.documentElement.lang].nightNote;
+            } else {
+                tomorrowNoteElement.style.display = 'none';
             }
         }
 
@@ -181,10 +192,14 @@
 
             document.documentElement.lang = lang;
 
-            // Обновляем текст подсказки для ночного времени
-            const nightNoteElement = document.getElementById('night-note');
-            if (nightNoteElement.style.display === 'block') {
-                nightNoteElement.innerText = labels[lang].nightNote;
+            // Обновляем текст подсказок для ночного времени
+            const todayNoteElement = document.getElementById('today-note');
+            const tomorrowNoteElement = document.getElementById('tomorrow-note');
+            if (todayNoteElement.style.display === 'block') {
+                todayNoteElement.innerText = labels[lang].nightNote;
+            }
+            if (tomorrowNoteElement.style.display === 'block') {
+                tomorrowNoteElement.innerText = labels[lang].nightNote;
             }
         }
 
