@@ -8,20 +8,48 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            background-color: #f5f5f5;
+            background-color: #333;
+            color: #fff;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
         h1 {
             color: #ffd700;
+            display: inline-block;
+            margin-right: 20px;
         }
-        table {
+        .theme-switcher {
+            display: inline-block;
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #ffd700;
+            border-radius: 5px;
+            background-color: #444;
+            color: #ffd700;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .theme-switcher:hover {
+            background-color: #ffd700;
+            color: #333;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
             width: 60%;
             margin: 20px auto;
-            border-collapse: collapse;
         }
-        th, td {
+        li {
             padding: 15px;
-            border: 1px solid #ccc;
-            text-align: center;
+            margin: 10px 0;
+            border: 1px solid #666;
+            border-radius: 5px;
+            background-color: #444;
+        }
+        .past {
+            color: #888;
+            background-color: #555;
+        }
+        .future {
+            color: #fff;
         }
         .copy-section {
             margin-top: 20px;
@@ -31,16 +59,16 @@
             cursor: pointer;
             padding: 10px 20px;
             color: #333;
-            background-color: #fff;
-            border: 2px solid #007bff;
+            background-color: #ffd700;
+            border: 2px solid #ffd700;
             border-radius: 5px;
             margin: 10px 0;
             display: inline-block;
             transition: all 0.3s ease;
         }
         .copy-item:hover {
-            background-color: #007bff;
-            color: #fff;
+            background-color: #444;
+            color: #ffd700;
         }
         .language-switcher {
             margin-top: 20px;
@@ -51,41 +79,59 @@
             cursor: pointer;
             border: none;
             border-radius: 5px;
-            background-color: #007bff;
-            color: #fff;
+            background-color: #ffd700;
+            color: #333;
             font-size: 16px;
             transition: background-color 0.3s ease;
         }
         button:hover {
-            background-color: #0056b3;
+            background-color: #333;
+            color: #ffd700;
         }
-        .note {
-            font-size: 12px;
-            color: #777;
+        .light-theme {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        .light-theme h1 {
+            color: #333;
+        }
+        .light-theme .theme-switcher {
+            background-color: #ddd;
+            color: #333;
+        }
+        .light-theme ul li {
+            background-color: #fff;
+            color: #333;
+            border: 1px solid #ccc;
+        }
+        .light-theme .past {
+            background-color: #f0f0f0;
+        }
+        .light-theme .copy-item {
+            background-color: #fff;
+            color: #333;
+            border: 2px solid #007bff;
+        }
+        .light-theme .copy-item:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .light-theme button {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .light-theme button:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
-<body>
+<body class="dark-theme">
     <h1 id="title">Желтый медведь</h1>
+    <span class="theme-switcher" id="themeColor" onclick="toggleTheme()">Сменить тему</span>
 
-    <table>
-        <tr>
-            <th id="today-label">Сегодня</th>
-            <th id="tomorrow-label">Завтра</th>
-        </tr>
-        <tr>
-            <td>
-                <div id="today-date"></div>
-                <div id="today-time"></div>
-                <p class="note" id="today-note" style="display: none;"></p> <!-- Подсказка для сегодня -->
-            </td>
-            <td>
-                <div id="tomorrow-date"></div>
-                <div id="tomorrow-time"></div>
-                <p class="note" id="tomorrow-note" style="display: none;"></p> <!-- Подсказка для завтра -->
-            </td>
-        </tr>
-    </table>
+    <ul id="bear-timetable">
+        <!-- Ячейки с датами и временем медведя будут добавляться динамически -->
+    </ul>
 
     <div class="copy-section">
         <p id="copy-label">Нажми чтобы скопировать:</p>
@@ -107,100 +153,93 @@
 
         const labels = {
             'ru': {
-                today: 'Сегодня',
-                tomorrow: 'Завтра',
-                copyLabel: 'Нажми чтобы скопировать:',
-                nightNote: 'Второе время относится к ночи следующего дня'
+                copyLabel: 'Нажми чтобы скопировать:'
             },
             'en': {
-                today: 'Today',
-                tomorrow: 'Tomorrow',
-                copyLabel: 'Click to copy:',
-                nightNote: 'The second time refers to the night of the next day'
+                copyLabel: 'Click to copy:'
             }
         };
 
-        const copyItems = {
-            'ru': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb'],
-            'en': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb']
-        };
+        // const copyItems = {
+        //     'ru': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb'],
+        //     'en': ['/go_direct_y_2_4', '🗿 Ruins', '/rb_join_bb']
+        // };
 
-        const gmtOffset = 3; // GMT +3
+        const themeColor = {
+            'ru': ['Переключить тему'],
+            'en': ['Switch theme']
+        }
 
-        function updateDateTime() {
+        const gmtOffset = 3; // GTM +3
+
+        function getBearDates() {
             const currentDate = new Date();
-            const tomorrowDate = new Date(currentDate);
-            tomorrowDate.setDate(currentDate.getDate() + 1);
+            const bearDates = [];
 
-            const year = currentDate.getFullYear();
-            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-            const day = String(currentDate.getDate()).padStart(2, '0');
-
-            const tomorrowYear = tomorrowDate.getFullYear();
-            const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
-            const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
-
-            document.getElementById('today-date').innerText = `${day}.${month}.${year}`;
-            document.getElementById('tomorrow-date').innerText = `${tomorrowDay}.${tomorrowMonth}.${tomorrowYear}`;
-
-            const startHour = 8;
+            // Время медведя с шагом 2 часа начиная с 8:00 для 7 дней, включая 2 прошедших
+            const startHour = 5;
             const shiftHours = 2;
-            let todayHours = startHour + (currentDate.getDate() - 10) * shiftHours;
-            let todaySecondTime = todayHours + 13; // Время второго цикла (21:00)
+            
+            for (let i = 0; i < 3; i++) {
+                const bearDate = new Date(currentDate);
+                bearDate.setDate(currentDate.getDate() + i);
+                
+                let hours = startHour + (i * shiftHours);
+                hours = (hours % 24 + 24) % 24;
 
-            let tomorrowHours = startHour + (tomorrowDate.getDate() - 10) * shiftHours;
-            let tomorrowSecondTime = tomorrowHours + 13;
+                let secondTime = hours + 13; // Время второго цикла (21:00)
+                secondTime = (secondTime % 24 + 24) % 24;
 
-            todayHours = (todayHours % 24 + 24) % 24;
-            todaySecondTime = (todaySecondTime % 24 + 24) % 24;
+                bearDates.push({
+                    date: bearDate,
+                    time: hours
+                });
 
-            tomorrowHours = (tomorrowHours % 24 + 24) % 24;
-            tomorrowSecondTime = (tomorrowSecondTime % 24 + 24) % 24;
-
-            document.getElementById('today-time').innerText = `${todayHours}:00 и ${todaySecondTime}:00 (GMT +${gmtOffset})`;
-            document.getElementById('tomorrow-time').innerText = `${tomorrowHours}:00 и ${tomorrowSecondTime}:00 (GMT +${gmtOffset})`;
-
-            // Проверка и вывод подсказки, если второе время меньше первого (для "Сегодня")
-            const todayNoteElement = document.getElementById('today-note');
-            if (todaySecondTime < todayHours) {
-                todayNoteElement.style.display = 'block';
-                todayNoteElement.innerText = labels[document.documentElement.lang].nightNote;
-            } else {
-                todayNoteElement.style.display = 'none';
+                bearDates.push({
+                    date: bearDate,
+                    time: secondTime
+                });
             }
 
-            // Проверка и вывод подсказки, если второе время меньше первого (для "Завтра")
-            const tomorrowNoteElement = document.getElementById('tomorrow-note');
-            if (tomorrowSecondTime < tomorrowHours) {
-                tomorrowNoteElement.style.display = 'block';
-                tomorrowNoteElement.innerText = labels[document.documentElement.lang].nightNote;
-            } else {
-                tomorrowNoteElement.style.display = 'none';
-            }
+            return bearDates;
+        }
+
+        function updateBearTimetable() {
+            const timetable = document.getElementById('bear-timetable');
+            const bearDates = getBearDates();
+            const currentDate = new Date();
+
+            bearDates.forEach((bearEvent) => {
+                const listItem = document.createElement('li');
+                
+                const year = bearEvent.date.getFullYear();
+                const month = String(bearEvent.date.getMonth() + 1).padStart(2, '0');
+                const day = String(bearEvent.date.getDate()).padStart(2, '0');
+
+                listItem.innerText = `${day}.${month}.${year} — ${bearEvent.time}:00 (GMT +${gmtOffset})`;
+
+                // Подсветка прошедших событий
+                if (bearEvent.date < currentDate || (bearEvent.date.toDateString() === currentDate.toDateString() && bearEvent.time < currentDate.getHours())) {
+                    listItem.classList.add('past');
+                } else {
+                    listItem.classList.add('future');
+                }
+
+                timetable.appendChild(listItem);
+            });
         }
 
         function switchLanguage(lang) {
             document.getElementById('title').innerText = titles[lang];
-            document.getElementById('today-label').innerText = labels[lang].today;
-            document.getElementById('tomorrow-label').innerText = labels[lang].tomorrow;
             document.getElementById('copy-label').innerText = labels[lang].copyLabel;
+            document.getElementById('themeColor').innerText = themeColor[lang];
 
-            const items = copyItems[lang];
-            document.getElementById('item1').innerText = items[0];
-            document.getElementById('item2').innerText = items[1];
-            document.getElementById('item3').innerText = items[2];
+            // const items = copyItems[lang];
+            // document.getElementById('item1').innerText = items[0];
+            // document.getElementById('item2').innerText = items[1];
+            // document.getElementById('item3').innerText = items[2];
 
             document.documentElement.lang = lang;
-
-            // Обновляем текст подсказок для ночного времени
-            const todayNoteElement = document.getElementById('today-note');
-            const tomorrowNoteElement = document.getElementById('tomorrow-note');
-            if (todayNoteElement.style.display === 'block') {
-                todayNoteElement.innerText = labels[lang].nightNote;
-            }
-            if (tomorrowNoteElement.style.display === 'block') {
-                tomorrowNoteElement.innerText = labels[lang].nightNote;
-            }
         }
 
         function copyText(text) {
@@ -209,8 +248,20 @@
             });
         }
 
-        updateDateTime();
-        setInterval(updateDateTime, 60000); // Обновление времени каждые 60 секунд
+        function toggleTheme() {
+            const body = document.body;
+            const switcher = document.querySelector('.theme-switcher');
+
+            body.classList.toggle('light-theme');
+
+            if (body.classList.contains('light-theme')) {
+                switcher.innerText = themeColor[lang];
+            } else {
+                switcher.innerText = themeColor[lang];
+            }
+        }
+
+        updateBearTimetable();
     </script>
 </body>
 </html>
