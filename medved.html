@@ -129,6 +129,7 @@
     <h1 id="title">Желтый медведь</h1>
 
     <ul id="bear-timetable">
+        UNDER MAINTANCE
         <!-- Ячейки с датами и временем медведя будут добавляться динамически -->
     </ul>
 
@@ -204,30 +205,30 @@
             return bearDates;
         }
 
-        function updateBearTimetable() {
-            const timetable = document.getElementById('bear-timetable');
-            const bearDates = getBearDates();
-            const currentDate = new Date();
+        // function updateBearTimetable() {
+        //     const timetable = document.getElementById('bear-timetable');
+        //     const bearDates = getBearDates();
+        //     const currentDate = new Date();
 
-            bearDates.forEach((bearEvent) => {
-                const listItem = document.createElement('li');
+        //     bearDates.forEach((bearEvent) => {
+        //         const listItem = document.createElement('li');
                 
-                const year = bearEvent.date.getFullYear();
-                const month = String(bearEvent.date.getMonth() + 1).padStart(2, '0');
-                const day = String(bearEvent.date.getDate()).padStart(2, '0');
+        //         const year = bearEvent.date.getFullYear();
+        //         const month = String(bearEvent.date.getMonth() + 1).padStart(2, '0');
+        //         const day = String(bearEvent.date.getDate()).padStart(2, '0');
 
-                listItem.innerText = `${day}.${month}.${year} — ${bearEvent.time}:00 (GMT +${gmtOffset})`;
+        //         listItem.innerText = `${day}.${month}.${year} — ${bearEvent.time}:00 (GMT +${gmtOffset})`;
 
-                // Подсветка прошедших событий
-                if (bearEvent.date < currentDate || (bearEvent.date.toDateString() === currentDate.toDateString() && bearEvent.time < currentDate.getHours())) {
-                    listItem.classList.add('past');
-                } else {
-                    listItem.classList.add('future');
-                }
+        //         // Подсветка прошедших событий
+        //         if (bearEvent.date < currentDate || (bearEvent.date.toDateString() === currentDate.toDateString() && bearEvent.time < currentDate.getHours())) {
+        //             listItem.classList.add('past');
+        //         } else {
+        //             listItem.classList.add('future');
+        //         }
 
-                timetable.appendChild(listItem);
-            });
-        }
+        //         timetable.appendChild(listItem);
+        //     });
+        // }
 
         function switchLanguage(lang) {
             document.getElementById('title').innerText = titles[lang];
