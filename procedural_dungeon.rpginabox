@@ -1,0 +1,112 @@
+// Сбрасываем карту, затем сразу же грузим
+reset_map("MyMap");
+load_map("MyMap", coord[63, -63, 0], EAST);
+
+// Настройки генерации
+$columns = random(15, 30);
+$rows = random(10, 25);
+$floorChance = 75; // вероятность пола (в процентах)
+
+// Проходим по всем x и y
+for $x in range($columns) do
+    for $y in range($rows) do
+
+        // Формируем уникальный ID для этого тайла
+        if $x == 0 or $x == $columns - 1 or $y == 0 or $y == $rows - 1 then
+            // Стены по краю карты
+            $tile_id = "wall_" + str($x) + "_" + str($y);
+            add_tile("tile_wall_model", coord[$x, $y, 0], $tile_id);
+        else
+            $rand = random(1, 100);
+            if $rand <= $floorChance then
+                // Пол
+                $tile_id = "floor_" + str($x) + "_" + str($y);
+                add_tile("tile_floor_model", coord[$x, $y, 0], $tile_id);
+            else
+                // Стена
+                $tile_id = "wall_" + str($x) + "_" + str($y);
+                add_tile("tile_wall_model", coord[$x, $y, 0], $tile_id);
+            end;
+        end;
+    end;
+end;
+
+function navtn($xn, $yn, $current_id, $col, $row) begin
+	if $xn >= 0 and num($xn) < num($col) and $yn >= 0 and num($yn) < num($row) then
+		$neighbour_tile = tile[$xn,$yn,0];
+		$neighbour_id = $neighbour_tile.id;
+		$cursubs = substr($current_id, 0, 5);
+		$neisubs = substr($neighbour_id, 0, 5);
+		print($current_id);
+		print($cursubs);
+		if $cursubs=="floor" and $neisubs=="floor" then
+			return $neighbour_id
+		end;
+	end;
+end;
+// Проходим по всем х и у для определения проходимости
+for $x in range($columns) do
+    for $y in range($rows) do
+		// Берем актуальный тайл
+		$current_tile = tile[$x,$y,0];
+		$current_id = $current_tile.id;
+		$y1=$y + 1;
+		$y2=$y - 1;
+		$x1=$x + 1;
+		$x2=$x - 1;
+		$res1 = navtn($x, $y1, $current_id, $columns, $rows);
+		$res2 = navtn($x, $y2, $current_id, $columns, $rows);
+		$res3 = navtn($x1, $y, $current_id, $columns, $rows);
+		$res4 = navtn($x2, $y, $current_id, $columns, $rows);
+		// print($res1+" "+$res2+" "+$res3+" "+$res4); это был дебаг
+		if $res1 != null then
+			replace_navigation($current_id, NONE, WALK_AND_INTERACT);
+			replace_navigation($current_id, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($current_id, PENDING, WALK_AND_INTERACT);
+			replace_navigation($current_id, INTERACT_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res1, NONE, WALK_AND_INTERACT);
+			replace_navigation($res1, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res1, PENDING, WALK_AND_INTERACT);
+			replace_navigation($res1, INTERACT_ONLY, WALK_AND_INTERACT);
+			modify_navigation($res1, $current_id, WALK_AND_INTERACT);
+		end;
+		if $res2 != null then
+			replace_navigation($current_id, NONE, WALK_AND_INTERACT);
+			replace_navigation($current_id, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($current_id, PENDING, WALK_AND_INTERACT);
+			replace_navigation($current_id, INTERACT_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res2, NONE, WALK_AND_INTERACT);
+			replace_navigation($res2, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res2, PENDING, WALK_AND_INTERACT);
+			replace_navigation($res2, INTERACT_ONLY, WALK_AND_INTERACT);
+			modify_navigation($res2, $current_id, WALK_AND_INTERACT);
+		end;
+		if $res3 != null then
+			replace_navigation($current_id, NONE, WALK_AND_INTERACT);
+			replace_navigation($current_id, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($current_id, PENDING, WALK_AND_INTERACT);
+			replace_navigation($current_id, INTERACT_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res3, NONE, WALK_AND_INTERACT);
+			replace_navigation($res3, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res3, PENDING, WALK_AND_INTERACT);
+			replace_navigation($res3, INTERACT_ONLY, WALK_AND_INTERACT);
+			modify_navigation($res3, $current_id, WALK_AND_INTERACT);
+		end;
+		if $res4 != null then
+			replace_navigation($current_id, NONE, WALK_AND_INTERACT);
+			replace_navigation($current_id, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($current_id, PENDING, WALK_AND_INTERACT);
+			replace_navigation($current_id, INTERACT_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res4, NONE, WALK_AND_INTERACT);
+			replace_navigation($res4, WALK_ONLY, WALK_AND_INTERACT);
+			replace_navigation($res4, PENDING, WALK_AND_INTERACT);
+			replace_navigation($res4, INTERACT_ONLY, WALK_AND_INTERACT);
+			modify_navigation($res4, $current_id, WALK_AND_INTERACT);
+		end;
+	end;
+end;
+
+// Ставим игрока
+put_player(coord[1, 1, 0]);
+
+display_message("Map generation complete!");
