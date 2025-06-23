@@ -8,8 +8,8 @@ export const CONFIG = {
 };
 
 export const ZONE_DEFS = [
-  { type: 'block', color: 'var(--block-color)', score: 0 },
-  { type: 'score', color: 'var(--primary-color)', score: 1 },
+  { type: 'block', color: '#f44336', score: 0 },
+  { type: 'score', color: '#4CAF50', score: 1 },
   { type: 'score', color: '#2196F3', score: 2 },
   { type: 'score', color: '#FFC107', score: 5 }
 ];
@@ -21,7 +21,7 @@ export const UPGRADE_DEFS = [
     baseCost: 50,
     costMultiplier: 1.15,
     apply(state, level) {
-      state.clickValueBase = 1 * Math.pow(1 + 0.005, level);
+      state.clickValueBase = 1 * Math.pow(1.005, level);
     }
   },
   {

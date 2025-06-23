@@ -21,6 +21,12 @@ export default class UIManager {
     EventBus.subscribe('skillPurchased', () => this.showNotification('Skill Learned!'));
     EventBus.subscribe('blocked', () => this.showBlock());
     EventBus.subscribe('zonesShuffled', () => this.showNotification('Zones Shuffled'));
+    EventBus.subscribe('zonesRecreated', () => this.showNotification('Block zones removed!'));
+    EventBus.subscribe('offlineEarnings', (data) => {
+      if (data.amount > 1) {
+        this.showNotification(`Offline earnings: +${Math.floor(data.amount)}`);
+      }
+    });
   }
 
   createScore() {
@@ -126,8 +132,10 @@ export default class UIManager {
 
   bindReset() {
     document.getElementById('reset-button').onclick = () => {
-      localStorage.removeItem('gameState');
-      window.location.reload();
+      if (confirm('Are you sure you want to reset all progress?')) {
+        localStorage.removeItem('gameState');
+        EventBus.emit('gameReset');
+      }
     };
   }
 }
