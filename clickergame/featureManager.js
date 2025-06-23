@@ -63,7 +63,11 @@ export class FeatureManager {
   }
 
   initUpgrades() {
-    this.upgrades = UPGRADE_DEFS.map(def => ({ def, level: 0, cost: def.baseCost }));
+    // Восстанавливаем состояние улучшений из сохраненного состояния
+    this.upgrades = UPGRADE_DEFS.map(def => {
+      const saved = this.state.upgrades && this.state.upgrades[def.id];
+      return saved ? { def, ...saved } : { def, level: 0, cost: def.baseCost };
+    });
     EventBus.subscribe('purchase', id => {
       const u = this.upgrades.find(x => x.def.id === id);
       if (this.state.score >= u.cost) {
@@ -75,12 +79,27 @@ export class FeatureManager {
           this.state.lastPassiveTick = Date.now();
         }
         EventBus.emit('upgradeApplied', { id, level: u.level, cost: u.cost });
+        
+        // Сохраняем состояние улучшений
+        this.state.upgrades = this.state.upgrades || {};
+        this.state.upgrades[id] = { level: u.level, cost: u.cost };
+      }
+    });
+    
+    // Применяем сохраненные улучшения при загрузке
+    this.upgrades.forEach(u => {
+      if (u.level > 0) {
+        u.def.apply(this.state, u.level);
       }
     });
   }
 
   initAchievements() {
-    this.achievements = ACHIEVEMENT_DEFS.map(def => ({ ...def, unlocked: false }));
+    // Восстанавливаем состояние достижений из сохраненного состояния
+    this.achievements = ACHIEVEMENT_DEFS.map(def => {
+      const saved = this.state.achievements && this.state.achievements[def.id];
+      return { ...def, unlocked: saved ? saved.unlocked : false };
+    });
     EventBus.subscribe('scored', () => this.checkAchievements());
     EventBus.subscribe('upgradeApplied', () => this.checkAchievements());
   }
@@ -89,13 +108,22 @@ export class FeatureManager {
     this.achievements.forEach(a => {
       if (!a.unlocked && a.condition(this.state)) {
         a.unlocked = true;
+        
+        // Сохраняем состояние достижений
+        this.state.achievements = this.state.achievements || {};
+        this.state.achievements[a.id] = { unlocked: true };
+        
         EventBus.emit('achievementUnlocked', { id: a.id, name: a.name });
       }
     });
   }
 
   initSkills() {
-    this.skills = SKILL_TREE_DEFS.map(def => ({ ...def, purchased: false }));
+    // Восстанавливаем состояние навыков из сохраненного состояния
+    this.skills = SKILL_TREE_DEFS.map(def => {
+      const saved = this.state.skills && this.state.skills[def.id];
+      return { ...def, purchased: saved ? saved.purchased : false };
+    });
     EventBus.subscribe('achievementUnlocked', () => {
       this.state.skillPoints++;
       EventBus.emit('skillPointsChanged', this.state.skillPoints);
@@ -106,8 +134,20 @@ export class FeatureManager {
         this.state.skillPoints -= sk.cost;
         sk.purchased = true;
         sk.apply(this.state);
+        
+        // Сохраняем состояние навыков
+        this.state.skills = this.state.skills || {};
+        this.state.skills[id] = { purchased: true };
+        
         EventBus.emit('skillPurchased', { id });
         EventBus.emit('skillPointsChanged', this.state.skillPoints);
+      }
+    });
+    
+    // Применяем сохраненные навыки при загрузке
+    this.skills.forEach(sk => {
+      if (sk.purchased) {
+        sk.apply(this.state);
       }
     });
   }
