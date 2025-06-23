@@ -7,15 +7,14 @@ export const CONFIG = {
 };
 
 export const ZONE_COUNT = 8;
-
-// На случай, если в будущем понадобится статический набор зон.
-// Сейчас мы рендерим одинаковое число «random»-зон, но оставляем ZONE_DEFS
 export const ZONE_DEFS = Array.from({ length: ZONE_COUNT }, () => ({ type: 'random' }));
 
 export const RESOURCES = [
-  'gold','faith','chaos','wood','stone','food','water','iron','people','energy','science'
+  'gold','wood','stone','food','water','iron',
+  'people','energy','science','faith','chaos'
 ];
 
+// Баффы/дебаффы описываем только метаданными — логику применяем в FeatureManager
 export const BUFF_DEFS = [
   { id: 'frenzy',    name: '🔥 Frenzy',             duration: 15 },
   { id: 'lucky',     name: '💎 Lucky Zone',         duration: 10 },

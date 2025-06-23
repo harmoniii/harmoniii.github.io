@@ -2,22 +2,13 @@
 import { RESOURCES } from './config.js';
 
 const DEFAULT_STATE = {
-  blockedUntil:       0,
-  totalClicks:        0,
-  lastTimestamp:      Date.now(),
-  skillPoints:        0,
-  flags:              {},
-  combo: {
-    lastZone:  null,
-    count:     0,
-    deadline:  0
-  },
-  resources: RESOURCES.reduce((acc, key) => ({ ...acc, [key]: 0 }), {}),
-  buffs:     [],
-  debuffs:   [],
-  upgrades:  {},
-  achievements:{},
-  skills:    {}
+  blockedUntil: 0,
+  combo: { lastZone: null, count: 0, deadline: 0 },
+  resources: RESOURCES.reduce((o, k) => (o[k] = 0, o), {}),
+  buffs: [],
+  debuffs: [],
+  flags: {},
+  lastTimestamp: Date.now()
 };
 
 export function saveState(state) {
@@ -28,7 +19,7 @@ export function saveState(state) {
 export function loadState() {
   try {
     const enc = localStorage.getItem('gameState');
-    if (!enc) throw 'no data';
+    if (!enc) throw 0;
     const loaded = JSON.parse(atob(enc));
     return { ...DEFAULT_STATE, ...loaded };
   } catch {

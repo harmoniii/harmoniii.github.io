@@ -8,16 +8,16 @@
 </head>
 <body>
   <div id="game-container">
-    <div id="score-container"></div>
+    <div id="resources-left" class="res-col"></div>
     <canvas id="gameCanvas"></canvas>
-    <div id="block-overlay"><span id="block-timer"></span></div>
+    <div id="resources-right" class="res-col"></div>
     <div id="notifications"></div>
   </div>
-
-  <button id="reset-button">Reset Progress</button>
-  <button id="save-button">Save</button>
-  <button id="load-button">Load</button>
-
+  <div class="controls">
+    <button id="reset-button">Reset</button>
+    <button id="save-button">Save</button>
+    <button id="load-button">Load</button>
+  </div>
   <script type="module" src="game.js"></script>
 </body>
 </html>
