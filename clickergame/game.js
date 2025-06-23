@@ -1,84 +1,61 @@
 // game.js
-import { CONFIG } from './config.js';
-import { EventBus } from './eventBus.js';
-import { FeatureManager } from './featureManager.js';
+import { EventBus }      from './eventBus.js';
+import { FeatureManager }from './featureManager.js';
 import { loadState, saveState } from './storage.js';
-import UIManager from './ui.js';
+import UIManager         from './ui.js';
+import { CONFIG }        from './config.js';
 
 let state = loadState();
 let featureManager = new FeatureManager(state);
 state.featureMgr = featureManager;
-let ui = new UIManager(state);
+new UIManager(state);
 
 const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-let angle = 0;
+canvas.width  = CONFIG.canvasSize;
+canvas.height = CONFIG.canvasSize;
+const ctx    = canvas.getContext('2d');
+let angle    = 0;
 
 function getClickAngle(e) {
   const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left - canvas.width / 2;
-  const y = e.clientY - rect.top - canvas.height / 2;
+  const x = e.clientX - rect.left  - canvas.width  / 2;
+  const y = e.clientY - rect.top   - canvas.height / 2;
   return Math.atan2(y, x) - angle;
 }
 
-// Исправляем touch события
-canvas.addEventListener('click', e => EventBus.emit('click', getClickAngle(e)));
+canvas.addEventListener('click',      e => EventBus.emit('click', getClickAngle(e)));
 canvas.addEventListener('touchstart', e => {
-  e.preventDefault(); // Предотвращаем двойное срабатывание
+  e.preventDefault();
   EventBus.emit('click', getClickAngle(e.touches[0]));
 });
 
-// Добавляем функцию для полного сброса игры
 function resetGame() {
-  // Очищаем все обработчики событий
   EventBus._handlers = {};
-  
-  // Загружаем начальное состояние
   state = loadState();
-  
-  // Пересоздаем все менеджеры
   featureManager = new FeatureManager(state);
   state.featureMgr = featureManager;
-  ui = new UIManager(state);
-  
-  // Сбрасываем угол поворота
+  new UIManager(state);
   angle = 0;
 }
-
-// Подписываемся на событие сброса
 EventBus.subscribe('gameReset', resetGame);
 
 function loop() {
-  const now = Date.now();
-  if (state.passive.amount > 0) {
-    const diff = now - state.lastPassiveTick;
-    if (diff >= state.passive.interval) {
-      const times = Math.floor(diff / state.passive.interval);
-      state.score += times * state.passive.amount;
-      state.lastPassiveTick += times * state.passive.interval;
-      EventBus.emit('scored', { gain: state.passive.amount });
-    }
-  }
-
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
   const total = 2 * Math.PI;
-  const zones = state.featureMgr.zones;
-  const step = total / zones.length;
-  zones.forEach(z => {
+  const step  = total / featureManager.zones.length;
+  featureManager.zones.forEach(z => {
     ctx.beginPath();
-    ctx.moveTo(canvas.width / 2, canvas.height / 2);
+    ctx.moveTo(CONFIG.canvasSize/2, CONFIG.canvasSize/2);
     ctx.arc(
-      canvas.width / 2,
-      canvas.width / 2,
-      canvas.width / 2 - 10,
+      CONFIG.canvasSize/2,
+      CONFIG.canvasSize/2,
+      CONFIG.canvasSize/2 - 10,
       z.index * step + angle,
       (z.index + 1) * step + angle
     );
     ctx.closePath();
-    ctx.fillStyle = z.def.color;
+    ctx.fillStyle = z.def.color || '#888';
     ctx.fill();
-    
-    // Добавляем обводку для лучшей видимости
     ctx.strokeStyle = '#333';
     ctx.lineWidth = 1;
     ctx.stroke();
