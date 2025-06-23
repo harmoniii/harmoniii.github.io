@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML5 Clicker Game</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="score-container">Очки: <span id="score">0</span></div>
+  <canvas id="gameCanvas" width="500" height="500"></canvas>
+  <div id="upgrades-container">
+    <button id="upgrade-click">Увеличить доход (+0.5%)</button>
+    <button id="upgrade-passive">Пассивный доход (1 очко/10с)</button>
+  </div>
+  <button id="reset-button">Сброс прогресса</button>
+  <script src="config.js"></script>
+  <script src="zones.js"></script>
+  <script src="upgrades.js"></script>
+  <script src="storage.js"></script>
+  <script src="ui.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
