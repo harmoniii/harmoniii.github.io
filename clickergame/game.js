@@ -6,8 +6,9 @@ import { loadState, saveState } from './storage.js';
 import UIManager from './ui.js';
 
 let state = loadState();
-state.featureMgr = new FeatureManager(state);
-const ui = new UIManager(state);
+let featureManager = new FeatureManager(state);
+state.featureMgr = featureManager;
+let ui = new UIManager(state);
 
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
@@ -20,8 +21,32 @@ function getClickAngle(e) {
   return Math.atan2(y, x) - angle;
 }
 
+// Исправляем touch события
 canvas.addEventListener('click', e => EventBus.emit('click', getClickAngle(e)));
-canvas.addEventListener('touchstart', e => EventBus.emit('click', getClickAngle(e.touches[0])));
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault(); // Предотвращаем двойное срабатывание
+  EventBus.emit('click', getClickAngle(e.touches[0]));
+});
+
+// Добавляем функцию для полного сброса игры
+function resetGame() {
+  // Очищаем все обработчики событий
+  EventBus._handlers = {};
+  
+  // Загружаем начальное состояние
+  state = loadState();
+  
+  // Пересоздаем все менеджеры
+  featureManager = new FeatureManager(state);
+  state.featureMgr = featureManager;
+  ui = new UIManager(state);
+  
+  // Сбрасываем угол поворота
+  angle = 0;
+}
+
+// Подписываемся на событие сброса
+EventBus.subscribe('gameReset', resetGame);
 
 function loop() {
   const now = Date.now();
@@ -52,6 +77,11 @@ function loop() {
     ctx.closePath();
     ctx.fillStyle = z.def.color;
     ctx.fill();
+    
+    // Добавляем обводку для лучшей видимости
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.stroke();
   });
 
   saveState(state);

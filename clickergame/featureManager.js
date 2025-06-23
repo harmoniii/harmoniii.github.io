@@ -11,14 +11,30 @@ export class FeatureManager {
     this.initAchievements();
     this.initSkills();
     this.applyOfflineEarnings();
+    
+    // Подписываемся на событие покупки навыка, чтобы пересоздать зоны
+    EventBus.subscribe('skillPurchased', (data) => {
+      if (data.id === 'removeBlock') {
+        this.initZones(); // Пересоздаем зоны после покупки навыка удаления блоков
+        EventBus.emit('zonesRecreated');
+      }
+    });
   }
 
   initZones() {
-    const defs = this.state.flags.removeBlock
+    // Очищаем старые подписки на клики, если они есть
+    if (this.clickHandler) {
+      EventBus._handlers.click = (EventBus._handlers.click || []).filter(h => h !== this.clickHandler);
+    }
+    
+    const defs = (this.state.flags && this.state.flags.removeBlock)
       ? ZONE_DEFS.filter(d => d.type !== 'block')
       : ZONE_DEFS;
+    
     this.zones = defs.map((def, i) => new Zone(def, i, defs.length));
-    EventBus.subscribe('click', angle => {
+    
+    // Сохраняем ссылку на обработчик для последующего удаления
+    this.clickHandler = (angle) => {
       if (Date.now() < this.state.blockedUntil) return;
       const z = this.zones.find(z => z.contains(angle));
       if (!z) return;
@@ -32,7 +48,9 @@ export class FeatureManager {
       }
       this.shuffleZones();
       EventBus.emit('zonesShuffled');
-    });
+    };
+    
+    EventBus.subscribe('click', this.clickHandler);
   }
 
   shuffleZones() {
@@ -97,8 +115,14 @@ export class FeatureManager {
   applyOfflineEarnings() {
     const now = Date.now();
     const diffH = (now - this.state.lastTimestamp) / 3600000;
-    const earn = diffH * this.state.passive.amount * CONFIG.offlineRate;
-    this.state.score += earn;
+    // Исправляем: проверяем что passive.amount больше 0 перед начислением
+    if (this.state.passive.amount > 0) {
+      const earn = diffH * this.state.passive.amount * CONFIG.offlineRate;
+      this.state.score += earn;
+      if (earn > 0) {
+        EventBus.emit('offlineEarnings', { amount: earn });
+      }
+    }
     this.state.lastTimestamp = now;
   }
 }
