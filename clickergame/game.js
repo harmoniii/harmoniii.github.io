@@ -3,7 +3,7 @@ import { CONFIG } from './config.js';
 import { EventBus } from './eventBus.js';
 import { FeatureManager } from './featureManager.js';
 import { loadState, saveState } from './storage.js';
-import { UIManager } from './ui.js';
+import UIManager from './ui.js';
 
 let state = loadState();
 state.featureMgr = new FeatureManager(state);
@@ -19,6 +19,7 @@ function getClickAngle(e) {
   const y = e.clientY - rect.top - canvas.height / 2;
   return Math.atan2(y, x) - angle;
 }
+
 canvas.addEventListener('click', e => EventBus.emit('click', getClickAngle(e)));
 canvas.addEventListener('touchstart', e => EventBus.emit('click', getClickAngle(e.touches[0])));
 

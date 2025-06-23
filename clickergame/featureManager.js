@@ -17,10 +17,10 @@ export class FeatureManager {
     const defs = this.state.flags.removeBlock
       ? ZONE_DEFS.filter(d => d.type !== 'block')
       : ZONE_DEFS;
-    this.zones = defs.map((def, i) => new Zone(def, i));
+    this.zones = defs.map((def, i) => new Zone(def, i, defs.length));
     EventBus.subscribe('click', angle => {
       if (Date.now() < this.state.blockedUntil) return;
-      const z = this.zones.find(z => z.contains(angle, 2 * Math.PI));
+      const z = this.zones.find(z => z.contains(angle));
       if (!z) return;
       if (z.def.type === 'block') {
         this.state.blockedUntil = Date.now() + CONFIG.blockDuration;
@@ -30,7 +30,6 @@ export class FeatureManager {
         this.state.totalClicks++;
         EventBus.emit('scored', { gain: z.def.score });
       }
-      // Shuffle zones after each click
       this.shuffleZones();
       EventBus.emit('zonesShuffled');
     });
@@ -54,6 +53,9 @@ export class FeatureManager {
         u.level++;
         u.cost = Math.floor(u.def.baseCost * Math.pow(u.def.costMultiplier, u.level));
         u.def.apply(this.state, u.level);
+        if (id === 'passiveIncome') {
+          this.state.lastPassiveTick = Date.now();
+        }
         EventBus.emit('upgradeApplied', { id, level: u.level, cost: u.cost });
       }
     });
