@@ -39,6 +39,8 @@ export default class UIManager {
 
   createUpgrades() {
     this.upgContainer = document.getElementById('upgrades-container');
+    // Очищаем контейнер перед созданием кнопок
+    this.upgContainer.innerHTML = '';
     this.upgradeButtons = {};
     UPGRADE_DEFS.forEach(def => {
       const btn = document.createElement('button');
@@ -63,17 +65,36 @@ export default class UIManager {
 
   createAchievements() {
     this.achContainer = document.getElementById('achievements-container');
+    // Очищаем контейнер и показываем уже разблокированные достижения
+    this.achContainer.innerHTML = '';
+    
+    // Показываем уже разблокированные достижения при загрузке
+    if (this.state.featureMgr && this.state.featureMgr.achievements) {
+      this.state.featureMgr.achievements.forEach(achievement => {
+        if (achievement.unlocked) {
+          this.displayAchievement(achievement.name);
+        }
+      });
+    }
   }
-  showAchievement({ name }) {
+  
+  displayAchievement(name) {
     const item = document.createElement('div');
     item.className = 'achievement-item';
     item.textContent = `Achievement: ${name}`;
     this.achContainer.append(item);
+  }
+  
+  showAchievement({ name }) {
+    this.displayAchievement(name);
     this.showNotification(`Unlocked: ${name}`);
   }
 
   createSkills() {
     this.skillsContainer = document.getElementById('levels-container');
+    // Очищаем контейнер перед созданием элементов
+    this.skillsContainer.innerHTML = '';
+    
     this.spEl = document.createElement('div');
     this.spEl.id = 'skill-points';
     this.skillsContainer.append(this.spEl);
