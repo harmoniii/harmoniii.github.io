@@ -1,0 +1,23 @@
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: sans-serif;
+}
+#score-container {
+  margin: 10px;
+  font-size: 24px;
+}
+#gameCanvas {
+  border: 1px solid #000;
+}
+#upgrades-container {
+  margin: 10px;
+}
+#upgrades-container button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+#reset-button {
+  margin: 10px;
+}
