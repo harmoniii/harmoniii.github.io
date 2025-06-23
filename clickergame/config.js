@@ -1,7 +1,7 @@
 // config.js
 export const CONFIG = {
   canvasSize: 500,
-  rotationSpeed: 0.005,
+  rotationSpeed: 0.5,
   blockDuration: 3000,
   offlineRate: 0.2, // 20% of passive per hour offline
   storageSecret: 'my-secret-key'
