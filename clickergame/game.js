@@ -1,5 +1,5 @@
 // game.js
-import { CONFIG, ZONE_DEFS } from './config.js';
+import { CONFIG } from './config.js';
 import { EventBus } from './eventBus.js';
 import { FeatureManager } from './featureManager.js';
 import { loadState, saveState } from './storage.js';
@@ -13,7 +13,6 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let angle = 0;
 
-// Input
 function getClickAngle(e) {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left - canvas.width / 2;
@@ -23,10 +22,8 @@ function getClickAngle(e) {
 canvas.addEventListener('click', e => EventBus.emit('click', getClickAngle(e)));
 canvas.addEventListener('touchstart', e => EventBus.emit('click', getClickAngle(e.touches[0])));
 
-// Main loop
 function loop() {
   const now = Date.now();
-  // passive income
   if (state.passive.amount > 0) {
     const diff = now - state.lastPassiveTick;
     if (diff >= state.passive.interval) {
@@ -39,8 +36,9 @@ function loop() {
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   const total = 2 * Math.PI;
-  const step = total / ZONE_DEFS.length;
-  state.featureMgr.zones.forEach(z => {
+  const zones = state.featureMgr.zones;
+  const step = total / zones.length;
+  zones.forEach(z => {
     ctx.beginPath();
     ctx.moveTo(canvas.width / 2, canvas.height / 2);
     ctx.arc(
