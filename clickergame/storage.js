@@ -27,7 +27,11 @@ const DEFAULT_STATE = {
   lastTimestamp: Date.now(),
   lastPassiveTick: Date.now(),
   skillPoints: 0,
-  flags: {}
+  flags: {},
+  // Добавляем поля для сохранения состояний
+  upgrades: {},
+  achievements: {},
+  skills: {}
 };
 
 export function saveState(state) {
