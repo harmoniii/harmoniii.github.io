@@ -4,16 +4,14 @@ export const CONFIG = {
   rotationSpeed: 0.005,
   blockDuration: 3000,
   offlineRate: 0.2, // 20% of passive per hour offline
-  storageSecret: 'my-secret-key' // key for XOR encoding
+  storageSecret: 'my-secret-key'
 };
 
 export const ZONE_DEFS = [
-  { type: 'block', color: '#d53e07', score: 0 },
-  { type: 'score', color: '#838383', score: 1 },
-  { type: 'score', color: '#b87333', score: 2 },
-  { type: 'score', color: '#000090', score: 5 },
-  { type: 'score', color: '#d53e07', score: 10 },
-  // add more zones here
+  { type: 'block', color: 'var(--block-color)', score: 0 },
+  { type: 'score', color: 'var(--primary-color)', score: 1 },
+  { type: 'score', color: '#2196F3', score: 2 },
+  { type: 'score', color: '#FFC107', score: 5 }
 ];
 
 export const UPGRADE_DEFS = [
@@ -23,7 +21,7 @@ export const UPGRADE_DEFS = [
     baseCost: 50,
     costMultiplier: 1.15,
     apply(state, level) {
-      state.clickValueBase = 1 * Math.pow(1 + 0.1, level);
+      state.clickValueBase = 1 * Math.pow(1 + 0.005, level);
     }
   },
   {
@@ -35,38 +33,37 @@ export const UPGRADE_DEFS = [
       state.passive.interval = 10000;
       state.passive.amount = level;
     }
-  },
-  // add more upgrades here
+  }
 ];
 
 export const ACHIEVEMENT_DEFS = [
-  {
-    id: 'firstClick',
-    name: 'First Click',
-    condition: state => state.totalClicks >= 1
-  },
-  {
-    id: 'hundredClicks',
-    name: 'Century Click',
-    condition: state => state.totalClicks >= 100
-  }
-  // add more achievements here
+  { id: 'firstClick', name: 'First Click', condition: state => state.totalClicks >= 1 },
+  { id: 'hundredClicks', name: 'Century Click', condition: state => state.totalClicks >= 100 }
 ];
 
 export const SKILL_TREE_DEFS = [
-  // stub for future skill tree
+  {
+    id: 'removeBlock',
+    name: 'Remove Block Zone',
+    cost: 1,
+    description: 'Removes all blocking zones',
+    apply(state) {
+      state.flags = state.flags || {};
+      state.flags.removeBlock = true;
+    }
+  },
+  {
+    id: 'clickPlus',
+    name: 'Click +10',
+    cost: 1,
+    description: 'Gives +10 points per click',
+    apply(state) {
+      state.clickValueBase += 10;
+    }
+  }
 ];
 
 export const LOCALES = {
-  en: {
-    score: 'Score',
-    reset: 'Reset Progress',
-    block: 'Blocked',
-  },
-  ru: {
-    score: 'Очки',
-    reset: 'Сброс прогресса',
-    block: 'Блокировка',
-  }
-  // add more languages here
+  en: { score: 'Score', reset: 'Reset Progress', block: 'Blocked', skillPoints: 'Skill Points' },
+  ru: { score: 'Очки', reset: 'Сброс прогресса', block: 'Блокировка', skillPoints: 'Очки навыков' }
 };

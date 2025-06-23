@@ -5,18 +5,15 @@ import { FeatureManager } from './featureManager.js';
 import { loadState, saveState } from './storage.js';
 import { UIManager } from './ui.js';
 
-// Load or initialize state
 let state = loadState();
-// Initialize features and UI
 state.featureMgr = new FeatureManager(state);
 const ui = new UIManager(state);
 
-// Canvas setup
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 let angle = 0;
 
-// Input handling (mouse and touch)
+// Input
 function getClickAngle(e) {
   const rect = canvas.getBoundingClientRect();
   const x = e.clientX - rect.left - canvas.width / 2;
@@ -26,10 +23,21 @@ function getClickAngle(e) {
 canvas.addEventListener('click', e => EventBus.emit('click', getClickAngle(e)));
 canvas.addEventListener('touchstart', e => EventBus.emit('click', getClickAngle(e.touches[0])));
 
-// Main render loop
+// Main loop
 function loop() {
+  const now = Date.now();
+  // passive income
+  if (state.passive.amount > 0) {
+    const diff = now - state.lastPassiveTick;
+    if (diff >= state.passive.interval) {
+      const times = Math.floor(diff / state.passive.interval);
+      state.score += times * state.passive.amount;
+      state.lastPassiveTick += times * state.passive.interval;
+      EventBus.emit('scored', { gain: state.passive.amount });
+    }
+  }
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  // Draw rotating zones
   const total = 2 * Math.PI;
   const step = total / ZONE_DEFS.length;
   state.featureMgr.zones.forEach(z => {
@@ -47,13 +55,9 @@ function loop() {
     ctx.fill();
   });
 
-  // Save state each frame
   saveState(state);
-  // Increment rotation
   angle += CONFIG.rotationSpeed;
-  // Continue loop
   requestAnimationFrame(loop);
 }
 
-// Start the loop
 loop();
