@@ -2,25 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Modular HTML5 Clicker Game</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Advanced Clicker</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <div id="game-container">
-    <select id="lang-select">
-      <option value="en">English</option>
-      <option value="ru">Русский</option>
-    </select>
     <div id="score-container"></div>
-    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <canvas id="gameCanvas"></canvas>
     <div id="block-overlay"><span id="block-timer"></span></div>
-    <div id="upgrades-container"></div>
-    <div id="achievements-container"></div>
-    <div id="levels-container"></div>
     <div id="notifications"></div>
   </div>
+
   <button id="reset-button">Reset Progress</button>
+  <button id="save-button">Save</button>
+  <button id="load-button">Load</button>
+
   <script type="module" src="game.js"></script>
 </body>
 </html>

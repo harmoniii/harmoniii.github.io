@@ -1,162 +1,69 @@
 // ui.js
-import { EventBus } from './eventBus.js';
-import { UPGRADE_DEFS, SKILL_TREE_DEFS, LOCALES } from './config.js';
+import { EventBus }   from './eventBus.js';
+import { saveState }  from './storage.js';
 
 export default class UIManager {
   constructor(state) {
     this.state = state;
-    this.locale = LOCALES['en'];
-    this.createScore();
-    this.createUpgrades();
-    this.createAchievements();
-    this.createSkills();
-    this.createBlockOverlay();
-    this.createNotifications();
+
+    this.createResourceDisplay();
+    this.bindSaveLoad();
     this.bindReset();
 
-    EventBus.subscribe('scored', () => this.updateScore());
-    EventBus.subscribe('upgradeApplied', () => this.updateUpgrades());
-    EventBus.subscribe('achievementUnlocked', data => this.showAchievement(data));
-    EventBus.subscribe('skillPointsChanged', () => this.updateSkills());
-    EventBus.subscribe('skillPurchased', () => this.showNotification('Skill Learned!'));
-    EventBus.subscribe('blocked', () => this.showBlock());
-    EventBus.subscribe('zonesShuffled', () => this.showNotification('Zones Shuffled'));
-    EventBus.subscribe('zonesRecreated', () => this.showNotification('Block zones removed!'));
-    EventBus.subscribe('offlineEarnings', (data) => {
-      if (data.amount > 1) {
-        this.showNotification(`Offline earnings: +${Math.floor(data.amount)}`);
-      }
-    });
+    EventBus.subscribe('resourceChanged', ()=> this.updateResources());
+    EventBus.subscribe('comboChanged',    ()=> this.updateResources());
+    EventBus.subscribe('buffApplied',     id => this.showNotification(`Buff: ${id}`));
+    EventBus.subscribe('debuffApplied',   id => this.showNotification(`Debuff: ${id}`));
+
+    // автосохранение
+    setInterval(() => saveState(this.state), 5000);
   }
 
-  createScore() {
-    this.scoreEl = document.getElementById('score-container');
-    this.updateScore();
-  }
-  updateScore() {
-    this.scoreEl.textContent = `${this.locale.score}: ${Math.floor(this.state.score)}`;
+  createResourceDisplay() {
+    this.resEl = document.getElementById('score-container');
+    this.updateResources();
   }
 
-  createUpgrades() {
-    this.upgContainer = document.getElementById('upgrades-container');
-    // Очищаем контейнер перед созданием кнопок
-    this.upgContainer.innerHTML = '';
-    this.upgradeButtons = {};
-    UPGRADE_DEFS.forEach(def => {
-      const btn = document.createElement('button');
-      btn.className = 'upgrade-button';
-      btn.id = def.id;
-      btn.onclick = () => EventBus.emit('purchase', def.id);
-      this.upgContainer.append(btn);
-      this.upgradeButtons[def.id] = btn;
-    });
-    this.updateUpgrades();
-  }
-  updateUpgrades() {
-    Object.values(this.upgradeButtons).forEach(btn => {
-      const up = this.state.featureMgr.upgrades.find(u => u.def.id === btn.id);
-      btn.textContent = `(${up.level}) ${up.def.name}: ${up.cost}`;
-      const disabled = this.state.score < up.cost;
-      btn.disabled = disabled;
-      btn.classList.toggle('disabled', disabled);
-    });
-    this.updateScore();
+  updateResources() {
+    const r = this.state.resources;
+    this.resEl.textContent =
+      `🪙 ${r.gold} | 🌲 ${r.wood} | 🪨 ${r.stone} | 🍞 ${r.food} | 💧 ${r.water} | ` +
+      `⚙️ ${r.iron} | 👥 ${r.people} | 🔋 ${r.energy} | 🧠 ${r.science} | ` +
+      `✝️ ${r.faith} | ☠️ ${r.chaos} | Combo: ${this.state.combo.count}`;
   }
 
-  createAchievements() {
-    this.achContainer = document.getElementById('achievements-container');
-    // Очищаем контейнер и показываем уже разблокированные достижения
-    this.achContainer.innerHTML = '';
-    
-    // Показываем уже разблокированные достижения при загрузке
-    if (this.state.featureMgr && this.state.featureMgr.achievements) {
-      this.state.featureMgr.achievements.forEach(achievement => {
-        if (achievement.unlocked) {
-          this.displayAchievement(achievement.name);
-        }
-      });
-    }
-  }
-  
-  displayAchievement(name) {
-    const item = document.createElement('div');
-    item.className = 'achievement-item';
-    item.textContent = `Achievement: ${name}`;
-    this.achContainer.append(item);
-  }
-  
-  showAchievement({ name }) {
-    this.displayAchievement(name);
-    this.showNotification(`Unlocked: ${name}`);
-  }
-
-  createSkills() {
-    this.skillsContainer = document.getElementById('levels-container');
-    // Очищаем контейнер перед созданием элементов
-    this.skillsContainer.innerHTML = '';
-    
-    this.spEl = document.createElement('div');
-    this.spEl.id = 'skill-points';
-    this.skillsContainer.append(this.spEl);
-    this.skillButtons = {};
-    SKILL_TREE_DEFS.forEach(def => {
-      const btn = document.createElement('button');
-      btn.className = 'level-item';
-      btn.id = def.id;
-      btn.onclick = () => EventBus.emit('skillPurchase', def.id);
-      this.skillsContainer.append(btn);
-      this.skillButtons[def.id] = btn;
-    });
-    this.updateSkills();
-  }
-  updateSkills() {
-    this.spEl.textContent = `${this.locale.skillPoints}: ${this.state.skillPoints}`;
-    Object.values(this.skillButtons).forEach(btn => {
-      const sk = this.state.featureMgr.skills.find(s => s.id === btn.id);
-      btn.textContent = `${sk.name} (cost: ${sk.cost})`;
-      const disabled = sk.purchased || this.state.skillPoints < sk.cost;
-      btn.disabled = disabled;
-      btn.classList.toggle('disabled', disabled);
-    });
-  }
-
-  createBlockOverlay() {
-    this.overlay = document.getElementById('block-overlay');
-    this.timerEl = document.getElementById('block-timer');
-  }
-  showBlock() {
-    this.overlay.style.display = 'flex';
-    const update = () => {
-      const rem = Math.ceil((this.state.blockedUntil - Date.now()) / 1000);
-      if (rem > 0) {
-        this.timerEl.textContent = `${this.locale.block}: ${rem}s`;
-        requestAnimationFrame(update);
-      } else {
-        this.overlay.style.display = 'none';
+  bindSaveLoad() {
+    document.getElementById('save-button').onclick = () => {
+      const { featureMgr, ...toSave } = this.state;
+      const hash = btoa(JSON.stringify(toSave));
+      prompt('Copy your save-code:', hash);
+    };
+    document.getElementById('load-button').onclick = () => {
+      const code = prompt('Paste your save-code:');
+      try {
+        const loaded = JSON.parse(atob(code));
+        Object.assign(this.state, loaded);
+        EventBus.emit('gameReset');
+      } catch {
+        alert('Invalid code');
       }
     };
-    update();
-  }
-
-  createNotifications() {
-    this.notifContainer = document.getElementById('notifications');
-  }
-  showNotification(msg) {
-    const div = document.createElement('div');
-    div.className = 'notification';
-    div.textContent = msg;
-    this.notifContainer.append(div);
-    setTimeout(() => {
-      if (this.notifContainer.contains(div)) this.notifContainer.removeChild(div);
-    }, 3000);
   }
 
   bindReset() {
     document.getElementById('reset-button').onclick = () => {
-      if (confirm('Are you sure you want to reset all progress?')) {
+      if (confirm('Are you sure?')) {
         localStorage.removeItem('gameState');
         EventBus.emit('gameReset');
       }
     };
+  }
+
+  showNotification(msg) {
+    const div = document.createElement('div');
+    div.className = 'notification';
+    div.textContent = msg;
+    document.getElementById('notifications').append(div);
+    setTimeout(() => div.remove(), 3000);
   }
 }
