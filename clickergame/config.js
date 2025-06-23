@@ -1,7 +1,7 @@
 // config.js
 
 export const CONFIG = {
-  canvasSize: 500,
+  canvasSize:    500,
   rotationSpeed: 0.005,
   blockDuration: 3000
 };
@@ -14,11 +14,13 @@ export const RESOURCES = [
   'people','energy','science','faith','chaos'
 ];
 
+// Убрали Magnet, добавили Roll и MysteryBox
 export const BUFF_DEFS = [
-  { id: 'frenzy',    name: '🔥 Frenzy',             duration: 15 },
-  { id: 'lucky',     name: '💎 Lucky Zone',         duration: 10 },
-  { id: 'magnet',    name: '🧲 Magnet',             duration: 10 },
-  { id: 'waterfall', name: '⚙️ Resource Waterfall', duration: 10 }
+  { id: 'frenzy',     name: '🔥 Frenzy',             duration: 15 },
+  { id: 'lucky',      name: '💎 Lucky Zone',         duration: 10 },
+  { id: 'waterfall',  name: '⚙️ Resource Waterfall', duration: 10 },
+  { id: 'roll',       name: '🎰 Roll',               duration: null },
+  { id: 'mysteryBox', name: '📦 Mystery Box',        duration: null }
 ];
 
 export const DEBUFF_DEFS = [
