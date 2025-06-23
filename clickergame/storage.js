@@ -3,11 +3,16 @@ import { RESOURCES } from './config.js';
 
 const DEFAULT_STATE = {
   blockedUntil: 0,
-  combo: { lastZone: null, count: 0, deadline: 0 },
+  combo: {
+    lastZone:  null,
+    count:     0,
+    deadline:  0,
+    lastAngle: null
+  },
   resources: RESOURCES.reduce((o, k) => (o[k] = 0, o), {}),
-  buffs: [],
-  debuffs: [],
-  flags: {},
+  buffs:     [],
+  debuffs:   [],
+  flags:     {},
   lastTimestamp: Date.now()
 };
 

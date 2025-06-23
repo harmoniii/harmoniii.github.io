@@ -14,7 +14,6 @@ export const RESOURCES = [
   'people','energy','science','faith','chaos'
 ];
 
-// Баффы/дебаффы описываем только метаданными — логику применяем в FeatureManager
 export const BUFF_DEFS = [
   { id: 'frenzy',    name: '🔥 Frenzy',             duration: 15 },
   { id: 'lucky',     name: '💎 Lucky Zone',         duration: 10 },
