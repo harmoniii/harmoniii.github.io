@@ -2,7 +2,7 @@
 import { EventBus } from './eventBus.js';
 import { UPGRADE_DEFS, SKILL_TREE_DEFS, LOCALES } from './config.js';
 
-export class UIManager {
+export default class UIManager {
   constructor(state) {
     this.state = state;
     this.locale = LOCALES['en'];
@@ -23,7 +23,6 @@ export class UIManager {
     EventBus.subscribe('zonesShuffled', () => this.showNotification('Zones Shuffled'));
   }
 
-  // Создание и обновление счёта
   createScore() {
     this.scoreEl = document.getElementById('score-container');
     this.updateScore();
@@ -32,7 +31,6 @@ export class UIManager {
     this.scoreEl.textContent = `${this.locale.score}: ${Math.floor(this.state.score)}`;
   }
 
-  // Апгрейды
   createUpgrades() {
     this.upgContainer = document.getElementById('upgrades-container');
     this.upgradeButtons = {};
@@ -57,7 +55,6 @@ export class UIManager {
     this.updateScore();
   }
 
-  // Достижения
   createAchievements() {
     this.achContainer = document.getElementById('achievements-container');
   }
@@ -69,7 +66,6 @@ export class UIManager {
     this.showNotification(`Unlocked: ${name}`);
   }
 
-  // Навыки (Skill Tree)
   createSkills() {
     this.skillsContainer = document.getElementById('levels-container');
     this.spEl = document.createElement('div');
@@ -97,7 +93,6 @@ export class UIManager {
     });
   }
 
-  // Блокирующий оверлей
   createBlockOverlay() {
     this.overlay = document.getElementById('block-overlay');
     this.timerEl = document.getElementById('block-timer');
@@ -116,7 +111,6 @@ export class UIManager {
     update();
   }
 
-  // Уведомления
   createNotifications() {
     this.notifContainer = document.getElementById('notifications');
   }
@@ -130,13 +124,10 @@ export class UIManager {
     }, 3000);
   }
 
-  // Сброс прогресса
   bindReset() {
     document.getElementById('reset-button').onclick = () => {
-      localStorage.clear();
+      localStorage.removeItem('gameState');
       window.location.reload();
     };
   }
 }
-
-export default UIManager;
