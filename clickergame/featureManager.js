@@ -11,6 +11,7 @@ export class FeatureManager {
   }
 
   initZones() {
+    // Исправление 1: Правильная очистка обработчиков
     if (this.clickHandler) {
       EventBus._handlers.click = (EventBus._handlers.click || [])
         .filter(h => h !== this.clickHandler);
@@ -22,11 +23,14 @@ export class FeatureManager {
     this.clickHandler = angle => {
       const now = Date.now();
       if (now < this.state.blockedUntil) return;
-      const z = this.zones.find(z => z.contains(angle));
+      
+      // Исправление 2: Нормализация угла для корректного сравнения
+      const normalizedAngle = ((angle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
+      const z = this.zones.find(z => z.contains(normalizedAngle));
       if (!z) return;
 
       // сохраняем угол
-      this.state.combo.lastAngle = angle;
+      this.state.combo.lastAngle = normalizedAngle;
 
       // комбо
       if (this.state.combo.lastZone === z.index && now < this.state.combo.deadline) {
@@ -44,8 +48,8 @@ export class FeatureManager {
       this.state.resources.gold += gain;
       EventBus.emit('resourceChanged', { resource: 'gold', amount: this.state.resources.gold });
 
-      // решаем: бафф/дебафф
-      let chance = 50 + this.state.resources.faith - this.state.resources.chaos;
+      // Исправление 3: Ограничение шанса в разумных пределах
+      let chance = Math.max(5, Math.min(95, 50 + this.state.resources.faith - this.state.resources.chaos));
       if (Math.random() * 100 < chance) {
         this.applyBuff(BUFF_DEFS[Math.floor(Math.random() * BUFF_DEFS.length)]);
       } else {
@@ -61,40 +65,50 @@ export class FeatureManager {
 
   applyBuff(def) {
     const s = this.state;
-    // для неблокирующих мгновенных баффов просто эмитим
     EventBus.emit('buffApplied', def.id);
 
     switch (def.id) {
       case 'frenzy':
-        s.buffs.push(def.id);
-        setTimeout(() => {
-          s.buffs = s.buffs.filter(id => id !== def.id);
-          EventBus.emit('buffExpired', def.id);
-        }, def.duration * 1000);
+        // Исправление 4: Предотвращение дублирования баффов
+        if (!s.buffs.includes(def.id)) {
+          s.buffs.push(def.id);
+          setTimeout(() => {
+            s.buffs = s.buffs.filter(id => id !== def.id);
+            EventBus.emit('buffExpired', def.id);
+          }, def.duration * 1000);
+        }
         break;
 
       case 'lucky':
-        s.buffs.push(def.id);
-        setTimeout(() => {
-          s.buffs = s.buffs.filter(id => id !== def.id);
-          EventBus.emit('buffExpired', def.id);
-        }, def.duration * 1000);
+        if (!s.buffs.includes(def.id)) {
+          s.buffs.push(def.id);
+          setTimeout(() => {
+            s.buffs = s.buffs.filter(id => id !== def.id);
+            EventBus.emit('buffExpired', def.id);
+          }, def.duration * 1000);
+        }
         break;
 
       case 'waterfall':
-        s.buffs.push(def.id);
-        this.buffIntervals.waterfall = setInterval(() => {
-          const pool = RESOURCES.filter(r => r !== 'faith' && r !== 'chaos');
-          const res = pool[Math.floor(Math.random() * pool.length)];
-          s.resources[res]++;
-          EventBus.emit('resourceChanged', { resource: res, amount: s.resources[res] });
-        }, 1000);
-        setTimeout(() => {
+        // Исправление 5: Очистка предыдущего интервала
+        if (this.buffIntervals.waterfall) {
           clearInterval(this.buffIntervals.waterfall);
-          delete this.buffIntervals.waterfall;
-          s.buffs = s.buffs.filter(id => id !== def.id);
-          EventBus.emit('buffExpired', def.id);
-        }, def.duration * 1000);
+        }
+        if (!s.buffs.includes(def.id)) {
+          s.buffs.push(def.id);
+          this.buffIntervals.waterfall = setInterval(() => {
+            const pool = RESOURCES.filter(r => r !== 'faith' && r !== 'chaos');
+            const res = pool[Math.floor(Math.random() * pool.length)];
+            s.resources[res]++;
+            EventBus.emit('resourceChanged', { resource: res, amount: s.resources[res] });
+          }, 1000);
+          setTimeout(() => {
+            clearInterval(this.buffIntervals.waterfall);
+            delete this.buffIntervals.waterfall;
+            s.buffs = s.buffs.filter(id => id !== def.id);
+            EventBus.emit('buffExpired', def.id);
+          }, def.duration * 1000);
+        }
         break;
 
       case 'roll':
@@ -125,7 +139,6 @@ export class FeatureManager {
           message += `-${amt3} ${res3}`;
           EventBus.emit('resourceChanged', { resource: res3, amount: s.resources[res3] });
         }
-        EventBus.emit('buffExpired', def.id);
         this.showTempNotification(message);
         break;
 
@@ -138,20 +151,26 @@ export class FeatureManager {
           const r = poolM[Math.floor(Math.random() * poolM.length)];
           if (!opts.includes(r)) opts.push(r);
         }
+        
+        // Исправление 6: Более надежный пользовательский ввод
         const choice = prompt(
           `📦 Mystery Box! Choose resource to gain +5:\n` +
           opts.map((r,i) => `${i+1}: ${r}`).join('\n')
         );
-        const idx = parseInt(choice) - 1;
-        if (idx >= 0 && idx < opts.length) {
-          const picked = opts[idx];
-          s.resources[picked] += 5;
-          EventBus.emit('resourceChanged', { resource: picked, amount: s.resources[picked] });
-          this.showTempNotification(`+5 ${picked}`);
+        
+        if (choice !== null) { // проверяем что пользователь не нажал Cancel
+          const idx = parseInt(choice.trim()) - 1;
+          if (idx >= 0 && idx < opts.length && !isNaN(idx)) {
+            const picked = opts[idx];
+            s.resources[picked] += 5;
+            EventBus.emit('resourceChanged', { resource: picked, amount: s.resources[picked] });
+            this.showTempNotification(`+5 ${picked}`);
+          } else {
+            this.showTempNotification('Invalid selection');
+          }
         } else {
-          this.showTempNotification('No selection');
+          this.showTempNotification('Cancelled');
         }
-        EventBus.emit('buffExpired', def.id);
         break;
     }
   }
@@ -163,30 +182,36 @@ export class FeatureManager {
     if (def.id === 'explosion') {
       const pool = RESOURCES.filter(r => r !== 'faith' && r !== 'chaos');
       const res = pool[Math.floor(Math.random() * pool.length)];
+      const oldAmount = s.resources[res];
       s.resources[res] = Math.max(0, Math.floor(s.resources[res] * 0.9));
       EventBus.emit('resourceChanged', { resource: res, amount: s.resources[res] });
-      EventBus.emit('debuffExpired', def.id);
+      this.showTempNotification(`💣 Lost ${oldAmount - s.resources[res]} ${res}`);
       return;
     }
 
-    s.debuffs = s.debuffs || [];
-    s.debuffs.push(def.id);
+    // Исправление 7: Инициализация массива debuffs
+    if (!s.debuffs) s.debuffs = [];
+    
+    // Исправление 8: Предотвращение дублирования дебаффов
+    if (!s.debuffs.includes(def.id)) {
+      s.debuffs.push(def.id);
 
-    if (def.id === 'rapid') {
-      this._oldSpeed = CONFIG.rotationSpeed;
-      CONFIG.rotationSpeed *= 5;
-    }
-    if (def.id === 'lock') {
-      s.blockedUntil = Date.now() + def.duration * 1000;
-    }
-
-    setTimeout(() => {
-      s.debuffs = s.debuffs.filter(id => id !== def.id);
-      EventBus.emit('debuffExpired', def.id);
       if (def.id === 'rapid') {
-        CONFIG.rotationSpeed = this._oldSpeed;
+        this._oldSpeed = CONFIG.rotationSpeed;
+        CONFIG.rotationSpeed *= 5;
       }
-    }, (def.duration || 0) * 1000);
+      if (def.id === 'lock') {
+        s.blockedUntil = Date.now() + def.duration * 1000;
+      }
+
+      setTimeout(() => {
+        s.debuffs = s.debuffs.filter(id => id !== def.id);
+        EventBus.emit('debuffExpired', def.id);
+        if (def.id === 'rapid') {
+          CONFIG.rotationSpeed = this._oldSpeed || 0.005; // fallback значение
+        }
+      }, (def.duration || 0) * 1000);
+    }
   }
 
   shuffleZones() {
@@ -194,12 +219,13 @@ export class FeatureManager {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [arr[i], arr[j]] = [arr[j], arr[i]];
+      // Исправление 9: Правильное обновление индексов после перестановки
       arr[i].index = i;
       arr[j].index = j;
     }
   }
 
   showTempNotification(msg) {
-    EventBus.emit('buffApplied', msg);  // переиспользуем канал для всплывашек
+    EventBus.emit('buffApplied', msg);
   }
 }
