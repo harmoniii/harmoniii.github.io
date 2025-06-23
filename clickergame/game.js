@@ -1,65 +1,55 @@
-// Основной игровой цикл
+// game.js
+import { CONFIG } from './config.js';
+import { EventBus } from './eventBus.js';
+import { FeatureManager } from './featureManager.js';
+import { loadState, saveState } from './storage.js';
+import { UIManager } from './ui.js';
+
+let state = loadState();
+state.featureMgr = new FeatureManager(state);
+
+const ui = new UIManager(state);
+
+// Handle canvas
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-let state = loadState();
-
-// Привязка UI
-bindUI(state);
-
 let angle = 0;
 
-function gameLoop() {
-  // Отрисовка
-  ctx.clearRect(0, 0, CONFIG.canvasSize, CONFIG.canvasSize);
-  zones.forEach(zone => {
+// Input
+function getClickAngle(e) {
+  const rect=canvas.getBoundingClientRect();
+  const x=e.clientX-rect.left-canvas.width/2;
+  const y=e.clientY-rect.top-canvas.height/2;
+  return Math.atan2(y,x)-angle;
+}
+canvas.addEventListener('click',e=>EventBus.emit('click',getClickAngle(e)));
+canvas.addEventListener('touchstart',e=>EventBus.emit('click',getClickAngle(e.touches[0])));
+
+// Main loop
+function loop() {
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // Draw zones
+  const total=2*Math.PI;
+  state.featureMgr.zones.forEach(z=>{
     ctx.beginPath();
-    ctx.moveTo(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2);
+    ctx.moveTo(canvas.width/2,canvas.height/2);
+    const step = total/ZONE_DEFS.length;
     ctx.arc(
-      CONFIG.canvasSize / 2,
-      CONFIG.canvasSize / 2,
-      CONFIG.canvasSize / 2 - 10,
-      zone.startAngle + angle,
-      zone.endAngle + angle
+      canvas.width/2,canvas.height/2,
+      canvas.width/2-10,
+      z.index*step+angle,
+      (z.index+1)*step+angle
     );
     ctx.closePath();
-    ctx.fillStyle = (zone.type === 'block') ? 'red' : 'green';
+    ctx.fillStyle = z.def.color;
     ctx.fill();
   });
-
-  // Пассивный доход
-  upgrades.passiveIncome.apply(state);
-
-  // Обновление UI и сохранение
-  updateScore(state.score);
+  // passive and save
+  // passive applied in FeatureManager constructor
   saveState(state);
-
-  // Вращение
-  angle += CONFIG.rotationSpeed;
-  requestAnimationFrame(gameLoop);
+  angle+=CONFIG.rotationSpeed;
+  requestAnimationFrame(loop);
 }
 
-// Обработка кликов
-canvas.addEventListener('click', (e) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left - CONFIG.canvasSize / 2;
-  const y = e.clientY - rect.top - CONFIG.canvasSize / 2;
-  const clickAngle = Math.atan2(y, x) - angle;
-
-  if (Date.now() < state.blockedUntil) {
-    // Игрок заблокирован
-    return;
-  }
-
-  const zone = zones.find(z => z.contains(clickAngle));
-  if (zone) {
-    if (zone.type === 'block') {
-      state.blockedUntil = Date.now() + CONFIG.blockDuration;
-    } else if (zone.type === 'score') {
-      state.score += state.clickValueBase;
-    }
-    saveState(state);
-  }
-});
-
-// Запуск игры
-gameLoop();
+// Start
+loop();

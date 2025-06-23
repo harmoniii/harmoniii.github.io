@@ -1,23 +1,81 @@
+:root {
+  --primary-color: #4CAF50;
+  --block-color: #f44336;
+  --bg-color: #fafafa;
+  --text-color: #333;
+  --overlay-bg: rgba(0,0,0,0.5);
+}
 body {
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-family: sans-serif;
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: sans-serif;
+  margin: 0;
+  padding: 1rem;
+}
+#game-container {
+  position: relative;
 }
 #score-container {
-  margin: 10px;
-  font-size: 24px;
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 #gameCanvas {
-  border: 1px solid #000;
+  border: 2px solid var(--text-color);
 }
-#upgrades-container {
-  margin: 10px;
+#block-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--overlay-bg);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 2rem;
 }
-#upgrades-container button:disabled {
+#upgrades-container, #achievements-container, #levels-container {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+}
+.upgrade-button, .achievement-item, .level-item {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--text-color);
+  border-radius: 0.25rem;
+  background: white;
+  cursor: pointer;
+}
+.upgrade-button.disabled, .level-item.disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-#reset-button {
-  margin: 10px;
+#notifications {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.notification {
+  background: var(--primary-color);
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  animation: fadeout 3s forwards;
+}
+@keyframes fadeout {
+  0% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (max-width: 600px) {
+  #gameCanvas { width: 100%; height: auto; }
 }
