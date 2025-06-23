@@ -100,8 +100,13 @@ export class FeatureManager {
       const saved = this.state.achievements && this.state.achievements[def.id];
       return { ...def, unlocked: saved ? saved.unlocked : false };
     });
+    
+    // Подписываемся на события для проверки достижений
     EventBus.subscribe('scored', () => this.checkAchievements());
     EventBus.subscribe('upgradeApplied', () => this.checkAchievements());
+    
+    // Проверяем достижения при инициализации (для загруженного состояния)
+    this.checkAchievements();
   }
 
   checkAchievements() {

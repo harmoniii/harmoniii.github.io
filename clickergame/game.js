@@ -69,7 +69,7 @@ function loop() {
     ctx.moveTo(canvas.width / 2, canvas.height / 2);
     ctx.arc(
       canvas.width / 2,
-      canvas.height / 2,
+      canvas.width / 2,
       canvas.width / 2 - 10,
       z.index * step + angle,
       (z.index + 1) * step + angle
