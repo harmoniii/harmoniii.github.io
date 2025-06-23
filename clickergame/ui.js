@@ -11,7 +11,7 @@ export default class UIManager {
 
     EventBus.subscribe('resourceChanged', () => this.updateResources());
     EventBus.subscribe('comboChanged',    () => this.updateResources());
-    EventBus.subscribe('buffApplied',     id => this.showNotification(`Buff: ${id}`));
+    EventBus.subscribe('buffApplied',     id => this.showNotification(id));
     EventBus.subscribe('debuffApplied',   id => this.showNotification(`Debuff: ${id}`));
 
     setInterval(() => saveState(this.state), 5000);
