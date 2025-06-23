@@ -9,47 +9,42 @@ export const CONFIG = {
 
 export const ZONE_DEFS = [
   {
-    type: 'block',
-    random: true, // для идентификации
+    type: 'random',
     generate: () => {
       const colors = ['#FFC107', '#E91E63', '#9C27B0', '#00BCD4', '#8BC34A'];
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const score = Math.floor(Math.random() * 6) - 1; // от 1 до 6
+      const score = Math.floor(Math.random() * 2) + 1; // 1–2
       return { type: 'score', color, score };
     }
   },
   {
-    type: 'score',
-    random: true, // для идентификации
+    type: 'random',
     generate: () => {
       const colors = ['#FFC107', '#E91E63', '#9C27B0', '#00BCD4', '#8BC34A'];
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const score = Math.floor(Math.random() * 2) + 1; // от 1 до 6
+      const score = Math.floor(Math.random() * 4) + 1; // 1–4
       return { type: 'score', color, score };
     }
   },
   {
-    type: 'score',
-    random: true, // для идентификации
+    type: 'random',
     generate: () => {
       const colors = ['#FFC107', '#E91E63', '#9C27B0', '#00BCD4', '#8BC34A'];
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const score = Math.floor(Math.random() * 4) + 1; // от 1 до 6
+      const score = Math.floor(Math.random() * 6) + 1; // 1–6
       return { type: 'score', color, score };
     }
   },
   {
-    type: 'score',
-    random: true, // для идентификации
+    type: 'random',
     generate: () => {
       const colors = ['#FFC107', '#E91E63', '#9C27B0', '#00BCD4', '#8BC34A'];
       const color = colors[Math.floor(Math.random() * colors.length)];
-      const score = Math.floor(Math.random() * 100) - 1; // от 1 до 6
+      const score = Math.floor(Math.random() * 10) + 1; // 1–10
       return { type: 'score', color, score };
     }
   }
 ];
-
 
 export const UPGRADE_DEFS = [
   {
