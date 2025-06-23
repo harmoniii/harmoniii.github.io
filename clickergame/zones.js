@@ -1,39 +1,16 @@
-// Логика зон
-class Zone {
-  /**
-   * @param {number} startAngle - Начальный угол в радианах
-   * @param {number} endAngle   - Конечный угол в радианах
-   * @param {string} type       - 'score' или 'block'
-   * @param {number} value      - очки за клик (для 'score')
-   */
-  constructor(startAngle, endAngle, type, value = 1) {
-    this.startAngle = startAngle;
-    this.endAngle = endAngle;
-    this.type = type;
-    this.value = value;
-  }
+// zones.js
+import { ZONE_DEFS, CONFIG } from './config.js';
 
-  contains(angle) {
-    const a = (angle + Math.PI * 2) % (Math.PI * 2);
-    const start = (this.startAngle + Math.PI * 2) % (Math.PI * 2);
-    const end = (this.endAngle + Math.PI * 2) % (Math.PI * 2);
-    if (start < end) {
-      return a >= start && a < end;
-    } else {
-      return a >= start || a < end;
-    }
+export class Zone {
+  constructor(def, index) {
+    this.def = def;
+    this.index = index;
+  }
+  contains(angle, totalAngle) {
+    const step = totalAngle / ZONE_DEFS.length;
+    const start = step * this.index;
+    const end = start + step;
+    const a = (angle % (2*Math.PI) + 2*Math.PI) % (2*Math.PI);
+    return a >= start && a < end;
   }
 }
-
-// Инициализация зон
-const zones = [];
-(function initZones() {
-  const angleStep = (Math.PI * 2) / CONFIG.numZones;
-  for (let i = 0; i < CONFIG.numZones; i++) {
-    const start = i * angleStep;
-    const end = start + angleStep;
-    const type = (i === 0) ? 'block' : 'score'; // первая зона блокирующая
-    const value = (type === 'score') ? 1 : 0;
-    zones.push(new Zone(start, end, type, value));
-  }
-})();
