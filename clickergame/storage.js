@@ -18,6 +18,18 @@ function xorDecode(data, key) {
   return res;
 }
 
+const DEFAULT_STATE = {
+  score: 0,
+  clickValueBase: 1,
+  passive: { amount: 0, interval: Infinity },
+  blockedUntil: 0,
+  totalClicks: 0,
+  lastTimestamp: Date.now(),
+  lastPassiveTick: Date.now(),
+  skillPoints: 0,
+  flags: {}
+};
+
 export function saveState(state) {
   const { featureMgr, ...toSave } = state;
   const json = JSON.stringify(toSave);
@@ -30,18 +42,9 @@ export function loadState() {
     const enc = localStorage.getItem('gameState');
     if (!enc) throw 'no data';
     const json = xorDecode(enc, CONFIG.storageSecret);
-    return JSON.parse(json);
+    const loaded = JSON.parse(json);
+    return { ...DEFAULT_STATE, ...loaded };
   } catch {
-    return {
-      score: 0,
-      clickValueBase: 1,
-      passive: { amount: 0, interval: Infinity },
-      blockedUntil: 0,
-      totalClicks: 0,
-      lastTimestamp: Date.now(),
-      lastPassiveTick: Date.now(),
-      skillPoints: 0,
-      flags: {}
-    };
+    return { ...DEFAULT_STATE };
   }
 }
