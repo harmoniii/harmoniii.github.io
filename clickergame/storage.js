@@ -19,7 +19,6 @@ function xorDecode(data, key) {
 }
 
 export function saveState(state) {
-  // Исключаем featureMgr, чтобы избежать циклических ссылок
   const { featureMgr, ...toSave } = state;
   const json = JSON.stringify(toSave);
   const enc = xorEncode(json, CONFIG.storageSecret);
@@ -39,7 +38,10 @@ export function loadState() {
       passive: { amount: 0, interval: Infinity },
       blockedUntil: 0,
       totalClicks: 0,
-      lastTimestamp: Date.now()
+      lastTimestamp: Date.now(),
+      lastPassiveTick: Date.now(),
+      skillPoints: 0,
+      flags: {}
     };
   }
 }
