@@ -30,8 +30,8 @@ export class FeatureManager {
     const defs = (this.state.flags && this.state.flags.removeBlock)
       ? ZONE_DEFS.filter(d => d.type !== 'block')
       : ZONE_DEFS;
-    const resolvedDefs = defs.map(def => def.generate ? def.generate() : def);
-    this.zones = defs.map((def, i) => new Zone(def, i, defs.length));
+      const resolvedDefs = defs.map(def => def.generate ? def.generate() : def);
+      this.zones = resolvedDefs.map((def, i) => new Zone(def, i, resolvedDefs.length));
     
     // Сохраняем ссылку на обработчик для последующего удаления
     this.clickHandler = (angle) => {
