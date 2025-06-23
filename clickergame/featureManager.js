@@ -30,7 +30,7 @@ export class FeatureManager {
         this.state.totalClicks++;
         EventBus.emit('scored', { gain: z.def.score });
       }
-      // shuffle zones positions after click
+      // Shuffle zones after each click
       this.shuffleZones();
       EventBus.emit('zonesShuffled');
     });
@@ -87,6 +87,7 @@ export class FeatureManager {
         sk.purchased = true;
         sk.apply(this.state);
         EventBus.emit('skillPurchased', { id });
+        EventBus.emit('skillPointsChanged', this.state.skillPoints);
       }
     });
   }
