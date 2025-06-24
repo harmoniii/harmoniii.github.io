@@ -1,4 +1,4 @@
-// ui.js
+// ui.js - Исправленная версия
 import { EventBus }            from './eventBus.js';
 import { SKILL_CATEGORIES,
          SKILL_DEFS,
@@ -10,6 +10,7 @@ import { BUFF_DEFS,
 export default class UIManager {
   constructor(state) {
     this.state = state;
+    this.currentPanel = null; // ИСПРАВЛЕНИЕ: добавлено отсутствующее свойство
     this.initElements();
     this.bindControls();
     this.bindEvents();
@@ -77,6 +78,19 @@ export default class UIManager {
     EventBus.subscribe('buffApplied',       id => this.showNotification(id));
     EventBus.subscribe('debuffApplied',     id => this.showNotification(`Debuff: ${id}`));
     EventBus.subscribe('mysteryBox',        opts => this.showMysteryModal(opts));
+    
+    // ИСПРАВЛЕНИЕ: добавляем подписку на события зданий и навыков для обновления панелей
+    EventBus.subscribe('buildingBought', () => {
+      if (this.currentPanel === 'buildings') {
+        this.showBuildings(); // Обновляем панель зданий
+      }
+    });
+    
+    EventBus.subscribe('skillBought', () => {
+      if (this.currentPanel === 'skills') {
+        this.showSkills(); // Обновляем панель навыков
+      }
+    });
   }
 
   updateResources() {
@@ -103,7 +117,7 @@ export default class UIManager {
     this.resourcesRight.appendChild(combo);
     // Skill Points
     const sp = document.createElement('div');
-    sp.textContent = `Skill Points: ${this.state.skillPoints}`;
+    sp.textContent = `Skill Points: ${this.state.skillPoints || 0}`; // ИСПРАВЛЕНИЕ: защита от undefined
     this.resourcesRight.appendChild(sp);
   }
 
@@ -142,17 +156,38 @@ export default class UIManager {
   showBuildings() {
     this.currentPanel = 'buildings';
     this.panel.innerHTML = '';
+    
+    // ИСПРАВЛЕНИЕ: используем правильный метод для получения информации о здании
     BUILDING_DEFS.forEach(def => {
-      const priceText = Object.entries(def.price)
-        .map(([r,a]) => `${a} ${r}`).join(', ');
+      const buildingInfo = this.state.buildingManager.getBuildingInfo(def.id);
+      if (!buildingInfo) return;
+      
+      const currentLevel = buildingInfo.currentLevel;
+      const nextPrice = buildingInfo.nextPrice;
+      const canAfford = buildingInfo.canAfford;
+      const isMaxLevel = buildingInfo.isMaxLevel;
+      
       const btn = document.createElement('button');
-      btn.textContent = `${def.img} ${def.name}: ${def.description} — цена ${priceText}`;
-      btn.disabled = !this.state.buildingManager.canAfford(def.id);
+      
+      if (isMaxLevel) {
+        btn.textContent = `${def.img} ${def.name} (MAX LEVEL ${currentLevel}) - ${def.description}`;
+        btn.disabled = true;
+      } else {
+        const priceText = Object.entries(nextPrice)
+          .map(([r,a]) => `${a} ${r}`).join(', ');
+        btn.textContent = `${def.img} ${def.name} (Lv.${currentLevel}) - ${def.description} — цена: ${priceText}`;
+        btn.disabled = !canAfford;
+      }
+      
       btn.addEventListener('click', () => {
         if (this.state.buildingManager.buyBuilding(def.id)) {
-          EventBus.emit('buildingBought', def.id);
-        } else this.showNotification('Недостаточно ресурсов');
+          this.showNotification(`${def.name} улучшен до уровня ${this.state.buildingManager.getBuildingInfo(def.id).currentLevel}`);
+          this.showBuildings(); // Обновляем панель
+        } else {
+          this.showNotification('Недостаточно ресурсов');
+        }
       });
+      
       this.panel.appendChild(btn);
       this.panel.appendChild(document.createElement('br'));
     });
@@ -162,20 +197,37 @@ export default class UIManager {
   showSkills() {
     this.currentPanel = 'skills';
     this.panel.innerHTML = '';
+    
+    // ИСПРАВЛЕНИЕ: используем правильный метод для получения информации о навыке
     SKILL_DEFS.forEach(def => {
-      const lvl = this.state.skillManager.getSkillLevel(def.id) || 0;
-      const cost = Math.floor(def.baseCost * Math.pow(def.costMultiplier, lvl));
+      const skillInfo = this.state.skillManager.getSkillInfo(def.id);
+      if (!skillInfo) return;
+      
+      const currentLevel = skillInfo.currentLevel;
+      const nextCost = skillInfo.nextCost;
+      const canAfford = skillInfo.canAfford;
+      const isMaxLevel = skillInfo.isMaxLevel;
+      
       const btn = document.createElement('button');
-      btn.textContent = `${def.icon} ${def.name} (Lv.${lvl}/${def.maxLevel}) — цена ${cost}`;
-      btn.disabled = cost > this.state.skillPoints || lvl >= def.maxLevel;
+      
+      if (isMaxLevel) {
+        btn.textContent = `${def.icon} ${def.name} (MAX LEVEL ${currentLevel}) - ${def.description}`;
+        btn.disabled = true;
+      } else {
+        btn.textContent = `${def.icon} ${def.name} (Lv.${currentLevel}/${def.maxLevel}) — цена: ${nextCost} SP`;
+        btn.disabled = !canAfford;
+      }
+      
       btn.title = def.description;
       btn.addEventListener('click', () => {
         if (this.state.skillManager.buySkill(def.id)) {
-          this.showNotification(`${def.name} улучшен`);
+          this.showNotification(`${def.name} улучшен до уровня ${this.state.skillManager.getSkillInfo(def.id).currentLevel}`);
+          this.showSkills(); // Обновляем панель
         } else {
           this.showNotification('Недостаточно Skill Points');
         }
       });
+      
       this.panel.appendChild(btn);
       this.panel.appendChild(document.createElement('br'));
     });
@@ -195,7 +247,9 @@ export default class UIManager {
       this.infoModal.appendChild(p);
     });
     this.infoModal.appendChild(document.createElement('hr'));
-    this.infoModal.appendChild(document.createElement('h3')).textContent = 'Дебаффы';
+    const debuffTitle = document.createElement('h3');
+    debuffTitle.textContent = 'Дебаффы';
+    this.infoModal.appendChild(debuffTitle);
     DEBUFF_DEFS.forEach(d => {
       const p = document.createElement('p');
       p.textContent = `${d.name} — ${d.description}`;
@@ -205,14 +259,16 @@ export default class UIManager {
   }
 
   showMysteryModal(opts) {
-    this.mysteryModal.innerHTML = '<h3>📦 Mystery Box</h3>';
+    this.mysteryModal.innerHTML = '<h3>📦 Mystery Box</h3><p>Выберите награду:</p>';
     opts.forEach(r => {
       const btn = document.createElement('button');
-      btn.textContent = `${this.getEmoji(r)} +5`;
+      btn.textContent = `${this.getEmoji(r)} +5 ${r}`;
+      btn.style.margin = '5px';
       btn.addEventListener('click', () => {
         this.state.resources[r] += 5;
         EventBus.emit('resourceChanged', { resource: r, amount: this.state.resources[r] });
         this.mysteryModal.classList.add('hidden');
+        this.showNotification(`Получено: +5 ${r}`);
       });
       this.mysteryModal.appendChild(btn);
       this.mysteryModal.appendChild(document.createElement('br'));
