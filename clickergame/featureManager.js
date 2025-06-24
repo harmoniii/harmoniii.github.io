@@ -46,19 +46,28 @@ export class FeatureManager {
       this.state.resources.gold += gain;
       EventBus.emit('resourceChanged', { resource: 'gold', amount: this.state.resources.gold });
 
-      const { baseChance, chanceRange } = CONFIG;      // вариация в диапазоне [-min, +max]
-      const minVar = -chanceRange.min;
-      const maxVar = chanceRange.max;
-      const variation = Math.random() * (maxVar - minVar) + minVar;
-      let buffChance = baseChance
-                      + (this.state.resources.faith - this.state.resources.chaos)
-                      + variation;
-      buffChance = Math.max(0, Math.min(100, buffChance));
-      if (Math.random() * 100 < buffChance) {
-        this.applyBuff(BUFF_DEFS[Math.floor(Math.random() * BUFF_DEFS.length)]);
-      } else {
-        this.applyDebuff(DEBUFF_DEFS[Math.floor(Math.random() * DEBUFF_DEFS.length)]);
-      }
+      const { baseChance, chanceRange } = CONFIG;
+
+  // 1) Шанс вообще получить эффект (бафф или дебафф)
+  if (Math.random() * 100 >= baseChance) {
+    // не попали в 10% — выходим, никакого эффекта не будет
+    return;
+  }
+
+  // 2) Раз в 10% случаев делаем бафф/дебафф, дальше решаем, что именно
+  const minVar   = -chanceRange.min;
+  const maxVar   =  chanceRange.max;
+  const variation = Math.random() * (maxVar - minVar) + minVar;
+  let buffChance = baseChance
+                   (this.state.resources.faith - this.state.resources.chaos)
+                   variation;
+  buffChance = Math.max(0, Math.min(100, buffChance));
+
+  if (Math.random() * 100 < buffChance) {
+    this.applyBuff();
+  } else {
+    this.applyDebuff();
+  }
 
       // Шанс смены зоны-мишени
       if (z.index === this.state.targetZone
