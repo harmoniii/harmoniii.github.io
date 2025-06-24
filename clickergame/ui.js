@@ -259,12 +259,37 @@ export default class UIManager {
         this.showSkills();
       }
     });
-
+  
     EventBus.subscribe('resourceBought', () => {
       if (this.currentPanel === 'market') {
         this.showMarket();
       }
     });
+  
+    // НОВЫЕ события для навыков
+    EventBus.subscribe('criticalHit', (data) => {
+      this.showSkillNotification('💥 Critical Strike!', `Double damage: ${data.damage} gold`);
+    });
+  
+    EventBus.subscribe('bonusResourceFound', (data) => {
+      this.showSkillNotification('🔍 Resource Found!', `+${data.amount} ${data.resource}`);
+    });
+  
+    EventBus.subscribe('missProtectionUsed', () => {
+      this.showSkillNotification('🎯 Steady Hand!', 'Combo protected from miss');
+    });
+  }
+  
+  // Новый метод для уведомлений о навыках
+  showSkillNotification(title, description) {
+    const div = document.createElement('div');
+    div.className = 'notification skill-notification';
+    div.innerHTML = `
+      <div class="skill-notification-title">${title}</div>
+      <div class="skill-notification-desc">${description}</div>
+    `;
+    this.notifications.appendChild(div);
+    setTimeout(() => div.remove(), 4000);
   }
 
   updateResources() {
