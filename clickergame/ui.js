@@ -1,4 +1,4 @@
-// ui.js - Исправленная версия с правильным Reset
+// ui.js - версия с ультимативным Reset
 import { EventBus }            from './eventBus.js';
 import { SKILL_CATEGORIES,
          SKILL_DEFS,
@@ -70,29 +70,174 @@ export default class UIManager {
         this.showNotification('Неверный код сохранения');
       }
     });
-    // ИСПРАВЛЕНИЕ: Reset теперь просто перезагружает страницу после очистки
+    
+    // УЛЬТИМАТИВНЫЙ RESET - полный сброс всего
     this.btnReset.addEventListener('click', () => {
-      if (confirm('Сбросить игру? Весь прогресс будет потерян навсегда!')) {
-        try {
-          // Очищаем все возможные ключи localStorage связанные с игрой
-          localStorage.removeItem('gameState');
-          localStorage.clear(); // Полная очистка на всякий случай
-          
-          // Показываем уведомление
-          this.showNotification('Игра сброшена! Перезагрузка...');
-          
-          // Небольшая задержка для показа уведомления, затем перезагрузка
-          setTimeout(() => {
-            window.location.reload(true); // Принудительная перезагрузка с сервера
-          }, 1000);
-          
-        } catch (error) {
-          console.error('Reset error:', error);
-          // Если что-то пошло не так, все равно перезагружаем
-          window.location.reload(true);
+      if (confirm('🔥 ПОЛНЫЙ СБРОС ИГРЫ 🔥\n\nЭто удалит ВСЕ данные навсегда!\nВы уверены?')) {
+        if (confirm('⚠️ ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ ⚠️\n\nВесь прогресс будет потерян!\nПродолжить сброс?')) {
+          this.performUltimateReset();
         }
       }
     });
+  }
+
+  // Ультимативная функция сброса
+  performUltimateReset() {
+    try {
+      console.log('🔥 Начинаем ультимативный сброс...');
+      
+      // 1. Показываем уведомление
+      this.showNotification('🔥 СБРОС ИГРЫ - Удаляем все данные...');
+      
+      // 2. Останавливаем ВСЕ интервалы в игре
+      this.stopAllIntervals();
+      
+      // 3. Очищаем EventBus полностью
+      if (EventBus && EventBus._handlers) {
+        EventBus._handlers = {};
+      }
+      
+      // 4. ПОЛНАЯ очистка localStorage - все возможные способы
+      this.clearAllStorage();
+      
+      // 5. Сбрасываем состояние в памяти
+      this.resetInMemoryState();
+      
+      // 6. Принудительная перезагрузка через несколько способов
+      setTimeout(() => {
+        this.showNotification('🔄 Перезагрузка страницы...');
+        
+        // Попробуем несколько способов перезагрузки
+        this.forcePageReload();
+        
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Ошибка при сбросе:', error);
+      // Если что-то пошло не так - принудительная перезагрузка
+      this.forcePageReload();
+    }
+  }
+
+  // Останавливаем все возможные интервалы
+  stopAllIntervals() {
+    try {
+      // Останавливаем интервалы менеджеров
+      if (this.state.buildingManager) {
+        this.state.buildingManager.stopAllProduction();
+      }
+      if (this.state.skillManager) {
+        this.state.skillManager.stopAllGeneration();
+      }
+      if (this.state.featureMgr && this.state.featureMgr.buffIntervals) {
+        Object.values(this.state.featureMgr.buffIntervals).forEach(interval => {
+          if (interval) clearInterval(interval);
+        });
+      }
+      
+      // Очищаем все возможные интервалы в window
+      const highestTimeoutId = setTimeout(() => {}, 0);
+      for (let i = 0; i < highestTimeoutId; i++) {
+        clearTimeout(i);
+        clearInterval(i);
+      }
+      
+      console.log('✅ Все интервалы остановлены');
+    } catch (error) {
+      console.warn('Предупреждение при остановке интервалов:', error);
+    }
+  }
+
+  // Максимально агрессивная очистка storage
+  clearAllStorage() {
+    try {
+      // 1. Удаляем конкретный ключ игры
+      localStorage.removeItem('gameState');
+      
+      // 2. Удаляем все возможные ключи, связанные с игрой
+      const possibleKeys = [
+        'gameState', 'game-state', 'advanced-clicker', 'clicker-game',
+        'buildings', 'skills', 'resources', 'combo', 'achievements'
+      ];
+      
+      possibleKeys.forEach(key => {
+        localStorage.removeItem(key);
+        sessionStorage.removeItem(key);
+      });
+      
+      // 3. ПОЛНАЯ очистка localStorage (ЯДЕРНЫЙ ВАРИАНТ)
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // 4. Очистка IndexedDB если есть
+      if ('indexedDB' in window) {
+        indexedDB.deleteDatabase('gameData');
+      }
+      
+      // 5. Очистка cookies связанных с игрой
+      document.cookie.split(";").forEach(function(c) { 
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+      });
+      
+      console.log('🗑️ Все хранилища очищены');
+    } catch (error) {
+      console.warn('Предупреждение при очистке storage:', error);
+    }
+  }
+
+  // Сброс состояния в памяти
+  resetInMemoryState() {
+    try {
+      // Обнуляем состояние
+      if (this.state) {
+        Object.keys(this.state).forEach(key => {
+          delete this.state[key];
+        });
+      }
+      
+      // Удаляем глобальные переменные если есть
+      if (window.gameState) delete window.gameState;
+      if (window.state) delete window.state;
+      
+      console.log('🧠 Состояние в памяти сброшено');
+    } catch (error) {
+      console.warn('Предупреждение при сбросе состояния:', error);
+    }
+  }
+
+  // Принудительная перезагрузка страницы
+  forcePageReload() {
+    try {
+      // Способ 1: Стандартная перезагрузка с очисткой кеша
+      if (window.location && window.location.reload) {
+        window.location.reload(true);
+        return;
+      }
+      
+      // Способ 2: Перенаправление на ту же страницу
+      if (window.location && window.location.href) {
+        window.location.href = window.location.href;
+        return;
+      }
+      
+      // Способ 3: Замена текущей страницы
+      if (window.location && window.location.replace) {
+        window.location.replace(window.location.href);
+        return;
+      }
+      
+      // Способ 4: Полная перезагрузка
+      if (window.location) {
+        window.location = window.location;
+        return;
+      }
+      
+    } catch (error) {
+      console.error('Не удалось перезагрузить страницу:', error);
+      
+      // Крайний случай - показываем инструкцию пользователю
+      alert('❌ Автоматическая перезагрузка не удалась.\n\n🔄 Пожалуйста, перезагрузите страницу вручную (F5 или Ctrl+R)');
+    }
   }
 
   bindEvents() {
