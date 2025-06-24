@@ -1,4 +1,4 @@
-// storage.js
+// storage.js - Обновленная версия с поддержкой новых модулей
 import { RESOURCES } from './config.js';
 import { BUILDING_DEFS } from './buildings.js';
 import { SKILL_DEFS } from './skills.js';
@@ -33,11 +33,27 @@ const DEFAULT_STATE = {
   skillStates: {
     missProtectionCharges: 0,
     autoClickerActive: false
+  },
+  
+  // Новые поля для эффектов
+  effectStates: {
+    starPowerClicks: 0,
+    shieldBlocks: 0,
+    heavyClickRequired: {},
+    reverseDirection: 1,
+    frozenCombo: false
+  },
+  
+  // Новые поля для маркета
+  market: {
+    dailyDeals: [],
+    purchaseHistory: [],
+    reputation: 0
   }
 };
 
 export function saveState(state) {
-  const { featureMgr, buildingManager, skillManager, ...toSave } = state;
+  const { featureMgr, buildingManager, skillManager, marketManager, CONFIG, ...toSave } = state;
   try {
     localStorage.setItem('gameState', btoa(JSON.stringify(toSave)));
   } catch (error) {
@@ -57,7 +73,7 @@ export function loadState() {
     
     // Копируем основные поля
     Object.keys(loaded).forEach(key => {
-      if (key !== 'buildings' && key !== 'skills' && key !== 'skillStates') {
+      if (!['buildings', 'skills', 'skillStates', 'effectStates', 'market'].includes(key)) {
         mergedState[key] = loaded[key];
       }
     });
@@ -85,9 +101,19 @@ export function loadState() {
       mergedState.skillStates = { ...DEFAULT_STATE.skillStates, ...loaded.skillStates };
     }
     
+    // Объединяем состояния эффектов
+    if (loaded.effectStates) {
+      mergedState.effectStates = { ...DEFAULT_STATE.effectStates, ...loaded.effectStates };
+    }
+    
+    // Объединяем состояние маркета
+    if (loaded.market) {
+      mergedState.market = { ...DEFAULT_STATE.market, ...loaded.market };
+    }
+    
     // Убеждаемся что skill points есть
     if (typeof loaded.skillPoints === 'number') {
-      mergedState.skillPoints = loaded.skillPoints;
+      mergedState.skillPoints = Math.floor(loaded.skillPoints);
     }
     
     return mergedState;
