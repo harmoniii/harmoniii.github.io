@@ -1,11 +1,9 @@
-// ui.js - версия с ультимативным Reset + меню Информация + индикаторы баффов
-import { EventBus }            from './eventBus.js';
-import { SKILL_CATEGORIES,
-         SKILL_DEFS,
-         SkillManager }         from './skills.js';
-import { BUILDING_DEFS }        from './buildings.js';
-import { BUFF_DEFS,
-         DEBUFF_DEFS }          from './config.js';
+// ui.js - Обновленная версия с новыми модулями
+import { EventBus } from './eventBus.js';
+import { SKILL_CATEGORIES, SKILL_DEFS, SkillManager } from './skills.js';
+import { BUILDING_DEFS } from './buildings.js';
+import { BUFF_DEFS, DEBUFF_DEFS } from './buffs.js';
+import { MARKET_CATEGORIES } from './market.js';
 
 export default class UIManager {
   constructor(state) {
@@ -61,6 +59,7 @@ export default class UIManager {
       delete copy.featureMgr;
       delete copy.buildingManager;
       delete copy.skillManager;
+      delete copy.marketManager;
       prompt('Copy save code:', btoa(JSON.stringify(copy)));
     });
     // Load
@@ -110,10 +109,7 @@ export default class UIManager {
       // 6. Принудительная перезагрузка через несколько способов
       setTimeout(() => {
         this.showNotification('🔄 Перезагрузка страницы...');
-        
-        // Попробуем несколько способов перезагрузки
         this.forcePageReload();
-        
       }, 1500);
       
     } catch (error) {
@@ -133,10 +129,8 @@ export default class UIManager {
       if (this.state.skillManager) {
         this.state.skillManager.stopAllGeneration();
       }
-      if (this.state.featureMgr && this.state.featureMgr.buffIntervals) {
-        Object.values(this.state.featureMgr.buffIntervals).forEach(interval => {
-          if (interval) clearInterval(interval);
-        });
+      if (this.state.featureMgr) {
+        this.state.featureMgr.stopAllEffects();
       }
       
       // Очищаем все возможные интервалы в window
@@ -177,11 +171,6 @@ export default class UIManager {
       if ('indexedDB' in window) {
         indexedDB.deleteDatabase('gameData');
       }
-      
-      // 5. Очистка cookies связанных с игрой
-      document.cookie.split(";").forEach(function(c) { 
-        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
-      });
       
       console.log('🗑️ Все хранилища очищены');
     } catch (error) {
@@ -301,23 +290,50 @@ export default class UIManager {
     EventBus.subscribe('resourceChanged',   () => this.updateResources());
     EventBus.subscribe('comboChanged',      () => this.updateResources());
     EventBus.subscribe('skillPointsChanged',() => this.updateResources());
-    EventBus.subscribe('buffApplied',       id => {
-      this.showNotification(`✨ Buff: ${id}`);
+    
+    // ИСПРАВЛЕНО: обработка новых событий с объектами
+    EventBus.subscribe('buffApplied', data => {
+      if (typeof data === 'object' && data.name) {
+        this.showNotification(`✨ Buff: ${data.name}`);
+      } else {
+        this.showNotification(`✨ Buff: ${data}`);
+      }
       this.updateEffectIndicators();
     });
-    EventBus.subscribe('debuffApplied',     id => {
-      this.showNotification(`💀 Debuff: ${id}`);
+    
+    EventBus.subscribe('debuffApplied', data => {
+      if (typeof data === 'object' && data.name) {
+        this.showNotification(`💀 Debuff: ${data.name}`);
+      } else {
+        this.showNotification(`💀 Debuff: ${data}`);
+      }
       this.updateEffectIndicators();
     });
-    EventBus.subscribe('buffExpired',       id => {
-      this.showNotification(`⏰ Buff expired: ${id}`);
+    
+    EventBus.subscribe('buffExpired', data => {
+      if (typeof data === 'object' && data.name) {
+        this.showNotification(`⏰ Buff expired: ${data.name}`);
+      } else {
+        this.showNotification(`⏰ Buff expired: ${data}`);
+      }
       this.updateEffectIndicators();
     });
-    EventBus.subscribe('debuffExpired',     id => {
-      this.showNotification(`⏰ Debuff expired: ${id}`);
+    
+    EventBus.subscribe('debuffExpired', data => {
+      if (typeof data === 'object' && data.name) {
+        this.showNotification(`⏰ Debuff expired: ${data.name}`);
+      } else {
+        this.showNotification(`⏰ Debuff expired: ${data}`);
+      }
       this.updateEffectIndicators();
     });
-    EventBus.subscribe('mysteryBox',        opts => this.showMysteryModal(opts));
+
+    // Обработка временных уведомлений
+    EventBus.subscribe('tempNotification', message => {
+      this.showNotification(message);
+    });
+    
+    EventBus.subscribe('mysteryBox', opts => this.showMysteryModal(opts));
     
     EventBus.subscribe('buildingBought', () => {
       if (this.currentPanel === 'buildings') {
@@ -331,7 +347,7 @@ export default class UIManager {
       }
     });
   
-    EventBus.subscribe('resourceBought', () => {
+    EventBus.subscribe('itemPurchased', () => {
       if (this.currentPanel === 'market') {
         this.showMarket();
       }
@@ -540,51 +556,52 @@ export default class UIManager {
     description.style.fontSize = '1.1rem';
     description.style.color = '#666';
     description.innerHTML = `
-      <p>💰 Цена за 1 единицу любого ресурса: <strong>2000 золота</strong></p>
-      <p>Нажмите на ресурс для мгновенной покупки</p>
+      <p>💰 Торговля ресурсами и особыми предметами</p>
+      <p>Репутация: <strong>${this.state.marketManager ? this.state.marketManager.getMarketReputation() : 0}</strong></p>
     `;
     this.panel.appendChild(description);
 
-    const marketSection = document.createElement('div');
-    marketSection.className = 'category-section';
-    marketSection.innerHTML = '<h3>🏪 Доступные ресурсы</h3>';
+    // Получаем категории товаров
+    const categories = this.state.marketManager ? 
+      this.state.marketManager.getItemsByCategory() : {};
 
-    // Список ресурсов для покупки
-    const marketResources = ['wood', 'stone', 'food', 'water', 'iron'];
-    const resourcesGrid = document.createElement('div');
-    resourcesGrid.style.display = 'grid';
-    resourcesGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
-    resourcesGrid.style.gap = '1rem';
-
-    marketResources.forEach(resource => {
-      const resourceCard = this.createMarketResourceCard(resource);
-      resourcesGrid.appendChild(resourceCard);
+    Object.entries(categories).forEach(([categoryId, items]) => {
+      const categorySection = document.createElement('div');
+      categorySection.className = 'category-section';
+      categorySection.innerHTML = `<h3>${MARKET_CATEGORIES[categoryId] || categoryId}</h3>`;
+      
+      const itemsGrid = document.createElement('div');
+      itemsGrid.className = 'market-grid';
+      
+      items.forEach(item => {
+        const itemCard = this.createMarketItemCard(item);
+        itemsGrid.appendChild(itemCard);
+      });
+      
+      categorySection.appendChild(itemsGrid);
+      this.panel.appendChild(categorySection);
     });
 
-    marketSection.appendChild(resourcesGrid);
-    this.panel.appendChild(marketSection);
     this.panel.classList.remove('hidden');
   }
 
-  createMarketResourceCard(resource) {
+  createMarketItemCard(item) {
     const card = document.createElement('div');
     card.className = 'item-card market-card';
     
-    const currentGold = this.state.resources.gold || 0;
-    const canAfford = currentGold >= 2000;
-    
     card.innerHTML = `
       <div class="item-header">
-        <span class="item-icon">${this.getEmoji(resource)}</span>
-        <span class="item-name">${resource.charAt(0).toUpperCase() + resource.slice(1)}</span>
+        <span class="item-icon">${item.icon}</span>
+        <span class="item-name">${item.name}</span>
       </div>
-      <div class="item-description">
-        Купить 1 единицу ${resource}
+      <div class="item-description">${item.description}</div>
+      <div class="item-details">
+        <div>💰 Цена: ${item.priceText}</div>
+        <div>🎁 Награда: ${item.rewardText}</div>
       </div>
       <div class="item-footer">
-        <span class="price">Цена: 2000 🪙</span>
-        <button class="buy-button ${canAfford ? '' : 'disabled'}" 
-                ${canAfford ? '' : 'disabled'}>
+        <button class="buy-button ${item.canAfford ? '' : 'disabled'}" 
+                ${item.canAfford ? '' : 'disabled'}>
           Купить
         </button>
       </div>
@@ -592,27 +609,15 @@ export default class UIManager {
 
     const buyButton = card.querySelector('.buy-button');
     buyButton.addEventListener('click', () => {
-      if (this.buyResource(resource)) {
-        this.showNotification(`Куплено: +1 ${resource}`);
+      if (this.state.marketManager && this.state.marketManager.buyItem(item.id)) {
+        this.showNotification(`Куплено: ${item.name}`);
         this.showMarket(); // Обновляем панель
       } else {
-        this.showNotification('Недостаточно золота!');
+        this.showNotification('Недостаточно ресурсов!');
       }
     });
 
     return card;
-  }
-
-  buyResource(resource) {
-    const cost = 2000;
-    if (this.state.resources.gold >= cost) {
-      this.state.resources.gold -= cost;
-      this.state.resources[resource] += 1;
-      EventBus.emit('resourceChanged');
-      EventBus.emit('resourceBought', { resource, cost });
-      return true;
-    }
-    return false;
   }
 
   showBuildings() {

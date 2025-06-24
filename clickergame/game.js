@@ -1,8 +1,9 @@
-// game.js - исправленная версия без проблемного gameReset
+// game.js - исправленная версия с новыми модулями
 import { EventBus }       from './eventBus.js';
 import { FeatureManager } from './featureManager.js';
 import { BuildingManager } from './buildings.js';
 import { SkillManager }   from './skills.js';
+import { MarketManager }  from './market.js';
 import { loadState, saveState } from './storage.js';
 import UIManager          from './ui.js';
 import { CONFIG }         from './config.js';
@@ -11,14 +12,16 @@ let state = loadState();
 
 // Инициализация менеджеров
 let fm = new FeatureManager(state);
-state.featureMgr = fm;
 let bm = new BuildingManager(state);
 let sm = new SkillManager(state);
+let mm = new MarketManager(state);
 
 // Добавляем менеджеры в состояние
 state.featureMgr = fm;
 state.buildingManager = bm;
 state.skillManager = sm;
+state.marketManager = mm;
+state.CONFIG = CONFIG; // Добавляем CONFIG для BuffManager
 
 // Инициализируем UI
 new UIManager(state);
@@ -41,8 +44,6 @@ canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   EventBus.emit('click', getClickAngle(e.touches[0]));
 });
-
-// УДАЛЕН проблемный обработчик gameReset, который мешал сбросу
 
 // Система награды skill points за достижения
 let lastComboCheck = 0;
