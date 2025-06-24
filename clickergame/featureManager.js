@@ -5,6 +5,9 @@ import { CONFIG, ZONE_COUNT, BUFF_DEFS, DEBUFF_DEFS, RESOURCES } from './config.
 export class FeatureManager {
   constructor(state) {
     this.state = state;
+    if (typeof this.state.targetZone !== 'number') {
+          this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
+        }
     this.buffIntervals = {};
     this.initZones();
   }
@@ -28,7 +31,7 @@ export class FeatureManager {
 
       // комбо
       this.state.combo.lastAngle = normalizedAngle;
-      if (this.state.combo.lastZone === z.index && now < this.state.combo.deadline) {
+      if (z.index === this.state.targetZone && now < this.state.combo.deadline) {
         this.state.combo.count++;
       } else {
         this.state.combo.count = 1;
@@ -43,32 +46,26 @@ export class FeatureManager {
       this.state.resources.gold += gain;
       EventBus.emit('resourceChanged', { resource: 'gold', amount: this.state.resources.gold });
 
-      // ——— Новая логика двух рандомов ———
-      // 1) Будет ли вообще эффект?
-      const { chanceRange } = CONFIG;
-      const effectThreshold = Math.random() * (chanceRange.max - chanceRange.min) + chanceRange.min;
-      if (Math.random() * 100 < effectThreshold) {
-        // 2) Бафф или дебаф по faith/chaos
-        const faith = this.state.resources.faith;
-        const chaos = this.state.resources.chaos;
-        const buffProb = Math.max(0, Math.min(100, 50 + faith - chaos));
-
-        if (Math.random() * 100 < buffProb) {
-          // выпадает бафф
-          const def = BUFF_DEFS[Math.floor(Math.random() * BUFF_DEFS.length)];
-          this.applyBuff(def);
-        } else {
-          // выпадает дебафф
-          const def = DEBUFF_DEFS[Math.floor(Math.random() * DEBUFF_DEFS.length)];
-          this.applyDebuff(def);
-        }
+      const { baseChance, chanceRange } = CONFIG;      // вариация в диапазоне [-min, +max]
+      const minVar = -chanceRange.min;
+      const maxVar = chanceRange.max;
+      const variation = Math.random() * (maxVar - minVar) + minVar;
+      let buffChance = baseChance
+                      + (this.state.resources.faith - this.state.resources.chaos)
+                      + variation;
+      buffChance = Math.max(0, Math.min(100, buffChance));
+      if (Math.random() * 100 < buffChance) {
+        this.applyBuff(BUFF_DEFS[Math.floor(Math.random() * BUFF_DEFS.length)]);
+      } else {
+        this.applyDebuff(DEBUFF_DEFS[Math.floor(Math.random() * DEBUFF_DEFS.length)]);
       }
 
       // Шанс смены зоны-мишени
-if (Math.random() * 100 < CONFIG.zoneShuffleChance) {
-  this.shuffleZones();
-  EventBus.emit('zonesShuffled');
-}
+      if (z.index === this.state.targetZone
+                  && Math.random() * 100 < CONFIG.zoneShuffleChance) {
+                this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
+                EventBus.emit('zonesShuffled', this.state.targetZone);
+              }
     };
 
     EventBus.subscribe('click', this.clickHandler);

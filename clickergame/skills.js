@@ -324,18 +324,18 @@ export class SkillManager {
     this.state.skillStates.autoClickerActive = true;
     
     this.intervals.autoClicker = setInterval(() => {
-      const lastZone = this.state.combo.lastZone;
-      const fm = this.state.featureMgr;
-      if (lastZone != null && fm) {
-        const zone = fm.zones[lastZone];
-        // выбираем случайный угол внутри зоны
-        const start = zone.getStartAngle();
-        const end = zone.getEndAngle();
-        const clickAngle = start + Math.random() * (end - start);
-        EventBus.emit('click', clickAngle);
-        }
-      }, 10000 / level); // скорость клика растёт с уровнем
-  }
+            const target = this.state.targetZone;
+            const fm     = this.state.featureMgr;
+            if (typeof target === 'number' && fm) {
+              const zone = fm.zones.find(z => z.index === target);
+              if (zone) {
+                const start = zone.getStartAngle();
+                const end   = zone.getEndAngle();
+                const clickAngle = start + Math.random() * (end - start);
+                EventBus.emit('click', clickAngle);
+              }
+            }
+          }, 10000 / level);}
 
   // Получить бонус от навыков
   getSkillBonus(type, target = null) {
