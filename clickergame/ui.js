@@ -1,4 +1,4 @@
-// ui.js - Полностью исправленная версия
+// ui.js - Финальная исправленная версия с Reset и Маркетом
 import { EventBus }            from './eventBus.js';
 import { SKILL_CATEGORIES,
          SKILL_DEFS,
@@ -20,6 +20,7 @@ export default class UIManager {
   initElements() {
     this.btnBuildings    = document.getElementById('toggle-buildings');
     this.btnSkills       = document.getElementById('toggle-skills');
+    this.btnMarket       = document.getElementById('toggle-market');
     this.btnInfo         = document.getElementById('info-button');
     this.resourcesLeft   = document.getElementById('resources-left');
     this.resourcesRight  = document.getElementById('resources-right');
@@ -40,6 +41,10 @@ export default class UIManager {
     // Skills
     this.btnSkills.addEventListener('click', () => {
       this.currentPanel === 'skills' ? this.hidePanel() : this.showSkills();
+    });
+    // Market
+    this.btnMarket.addEventListener('click', () => {
+      this.currentPanel === 'market' ? this.hidePanel() : this.showMarket();
     });
     // Buff/Debuff info
     this.btnInfo.addEventListener('click', () => this.showInfoModal());
@@ -65,10 +70,24 @@ export default class UIManager {
         this.showNotification('Неверный код сохранения');
       }
     });
-    // ИСПРАВЛЕНИЕ: Reset теперь очищает localStorage и перезагружает
+    // ИСПРАВЛЕНИЕ: Reset теперь полностью сбрасывает игру
     this.btnReset.addEventListener('click', () => {
-      if (confirm('Сбросить игру? Все прогресс будет потерян!')) {
+      if (confirm('Сбросить игру? Весь прогресс будет потерян навсегда!')) {
+        // Очищаем localStorage
         localStorage.removeItem('gameState');
+        
+        // Останавливаем все интервалы
+        if (this.state.buildingManager) {
+          this.state.buildingManager.stopAllProduction();
+        }
+        if (this.state.skillManager) {
+          this.state.skillManager.stopAllGeneration();
+        }
+        
+        // Очищаем EventBus
+        EventBus._handlers = {};
+        
+        // Перезагружаем страницу для полного сброса
         location.reload();
       }
     });
@@ -91,6 +110,12 @@ export default class UIManager {
     EventBus.subscribe('skillBought', () => {
       if (this.currentPanel === 'skills') {
         this.showSkills();
+      }
+    });
+
+    EventBus.subscribe('resourceBought', () => {
+      if (this.currentPanel === 'market') {
+        this.showMarket();
       }
     });
   }
@@ -117,7 +142,7 @@ export default class UIManager {
     const combo = document.createElement('div');
     combo.textContent = `Комбо: ${this.state.combo.count}`;
     this.resourcesRight.appendChild(combo);
-    // ИСПРАВЛЕНИЕ: Skill Points теперь отображаются как целое число
+    // Skill Points отображаются как целое число
     const sp = document.createElement('div');
     sp.textContent = `Skill Points: ${Math.floor(this.state.skillPoints || 0)}`;
     this.resourcesRight.appendChild(sp);
@@ -155,7 +180,92 @@ export default class UIManager {
     if (this.tooltip) this.tooltip.style.display = 'none';
   }
 
-  // ИСПРАВЛЕНИЕ: Новый дизайн панели зданий с подробным описанием
+  // Новая функция: Маркет
+  showMarket() {
+    this.currentPanel = 'market';
+    this.panel.innerHTML = '<h2>🛒 Маркет</h2>';
+    
+    const description = document.createElement('div');
+    description.style.textAlign = 'center';
+    description.style.marginBottom = '2rem';
+    description.style.fontSize = '1.1rem';
+    description.style.color = '#666';
+    description.innerHTML = `
+      <p>💰 Цена за 1 единицу любого ресурса: <strong>2000 золота</strong></p>
+      <p>Нажмите на ресурс для мгновенной покупки</p>
+    `;
+    this.panel.appendChild(description);
+
+    const marketSection = document.createElement('div');
+    marketSection.className = 'category-section';
+    marketSection.innerHTML = '<h3>🏪 Доступные ресурсы</h3>';
+
+    // Список ресурсов для покупки
+    const marketResources = ['wood', 'stone', 'food', 'water', 'iron'];
+    const resourcesGrid = document.createElement('div');
+    resourcesGrid.style.display = 'grid';
+    resourcesGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+    resourcesGrid.style.gap = '1rem';
+
+    marketResources.forEach(resource => {
+      const resourceCard = this.createMarketResourceCard(resource);
+      resourcesGrid.appendChild(resourceCard);
+    });
+
+    marketSection.appendChild(resourcesGrid);
+    this.panel.appendChild(marketSection);
+    this.panel.classList.remove('hidden');
+  }
+
+  createMarketResourceCard(resource) {
+    const card = document.createElement('div');
+    card.className = 'item-card market-card';
+    
+    const currentGold = this.state.resources.gold || 0;
+    const canAfford = currentGold >= 2000;
+    
+    card.innerHTML = `
+      <div class="item-header">
+        <span class="item-icon">${this.getEmoji(resource)}</span>
+        <span class="item-name">${resource.charAt(0).toUpperCase() + resource.slice(1)}</span>
+      </div>
+      <div class="item-description">
+        Купить 1 единицу ${resource}
+      </div>
+      <div class="item-footer">
+        <span class="price">Цена: 2000 🪙</span>
+        <button class="buy-button ${canAfford ? '' : 'disabled'}" 
+                ${canAfford ? '' : 'disabled'}>
+          Купить
+        </button>
+      </div>
+    `;
+
+    const buyButton = card.querySelector('.buy-button');
+    buyButton.addEventListener('click', () => {
+      if (this.buyResource(resource)) {
+        this.showNotification(`Куплено: +1 ${resource}`);
+        this.showMarket(); // Обновляем панель
+      } else {
+        this.showNotification('Недостаточно золота!');
+      }
+    });
+
+    return card;
+  }
+
+  buyResource(resource) {
+    const cost = 2000;
+    if (this.state.resources.gold >= cost) {
+      this.state.resources.gold -= cost;
+      this.state.resources[resource] += 1;
+      EventBus.emit('resourceChanged');
+      EventBus.emit('resourceBought', { resource, cost });
+      return true;
+    }
+    return false;
+  }
+
   showBuildings() {
     this.currentPanel = 'buildings';
     this.panel.innerHTML = '<h2>🏗️ Строения</h2>';
@@ -252,7 +362,6 @@ export default class UIManager {
     return card;
   }
 
-  // ИСПРАВЛЕНИЕ: Новый дизайн панели навыков с подробным описанием
   showSkills() {
     this.currentPanel = 'skills';
     this.panel.innerHTML = '<h2>🎯 Навыки</h2>';
