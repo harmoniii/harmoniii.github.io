@@ -1,4 +1,3 @@
-// featureManager.js
 import { EventBus } from './eventBus.js';
 import { Zone }      from './zones.js';
 import { CONFIG, ZONE_COUNT, BUFF_DEFS, DEBUFF_DEFS, RESOURCES } from './config.js';
@@ -11,7 +10,6 @@ export class FeatureManager {
   }
 
   initZones() {
-    // Исправление 1: Правильная очистка обработчиков
     if (this.clickHandler) {
       EventBus._handlers.click = (EventBus._handlers.click || [])
         .filter(h => h !== this.clickHandler);
@@ -24,22 +22,19 @@ export class FeatureManager {
       const now = Date.now();
       if (now < this.state.blockedUntil) return;
       
-      // Исправление 2: Нормализация угла для корректного сравнения
       const normalizedAngle = ((angle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
       const z = this.zones.find(z => z.contains(normalizedAngle));
       if (!z) return;
 
-      // сохраняем угол
-      this.state.combo.lastAngle = normalizedAngle;
-
       // комбо
+      this.state.combo.lastAngle = normalizedAngle;
       if (this.state.combo.lastZone === z.index && now < this.state.combo.deadline) {
         this.state.combo.count++;
       } else {
         this.state.combo.count = 1;
       }
-      this.state.combo.lastZone  = z.index;
-      this.state.combo.deadline  = now + 5000;
+      this.state.combo.lastZone = z.index;
+      this.state.combo.deadline = now + CONFIG.comboTimeout;
       EventBus.emit('comboChanged', this.state.combo.count);
 
       // золото (frenzy удваивает)
@@ -48,12 +43,25 @@ export class FeatureManager {
       this.state.resources.gold += gain;
       EventBus.emit('resourceChanged', { resource: 'gold', amount: this.state.resources.gold });
 
-      // Исправление 3: Ограничение шанса в разумных пределах
-      let chance = Math.max(5, Math.min(95, 50 + this.state.resources.faith - this.state.resources.chaos));
-      if (Math.random() * 100 < chance) {
-        this.applyBuff(BUFF_DEFS[Math.floor(Math.random() * BUFF_DEFS.length)]);
-      } else {
-        this.applyDebuff(DEBUFF_DEFS[Math.floor(Math.random() * DEBUFF_DEFS.length)]);
+      // ——— Новая логика двух рандомов ———
+      // 1) Будет ли вообще эффект?
+      const { chanceRange } = CONFIG;
+      const effectThreshold = Math.random() * (chanceRange.max - chanceRange.min) + chanceRange.min;
+      if (Math.random() * 100 < effectThreshold) {
+        // 2) Бафф или дебаф по faith/chaos
+        const faith = this.state.resources.faith;
+        const chaos = this.state.resources.chaos;
+        const buffProb = Math.max(0, Math.min(100, 50 + faith - chaos));
+
+        if (Math.random() * 100 < buffProb) {
+          // выпадает бафф
+          const def = BUFF_DEFS[Math.floor(Math.random() * BUFF_DEFS.length)];
+          this.applyBuff(def);
+        } else {
+          // выпадает дебафф
+          const def = DEBUFF_DEFS[Math.floor(Math.random() * DEBUFF_DEFS.length)];
+          this.applyDebuff(def);
+        }
       }
 
       this.shuffleZones();
