@@ -1,4 +1,4 @@
-// ui.js - версия с ультимативным Reset
+// ui.js - версия с ультимативным Reset + меню Информация + индикаторы баффов
 import { EventBus }            from './eventBus.js';
 import { SKILL_CATEGORIES,
          SKILL_DEFS,
@@ -15,6 +15,7 @@ export default class UIManager {
     this.bindControls();
     this.bindEvents();
     this.updateResources();
+    this.createEffectIndicators();
   }
 
   initElements() {
@@ -46,8 +47,11 @@ export default class UIManager {
     this.btnMarket.addEventListener('click', () => {
       this.currentPanel === 'market' ? this.hidePanel() : this.showMarket();
     });
-    // Buff/Debuff info
-    this.btnInfo.addEventListener('click', () => this.showInfoModal());
+    // Info - теперь отдельное меню вместо модалки
+    this.btnInfo.addEventListener('click', () => {
+      this.currentPanel === 'info' ? this.hidePanel() : this.showInfo();
+    });
+    
     // Close modals on click
     this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
     this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
@@ -240,12 +244,79 @@ export default class UIManager {
     }
   }
 
+  // Создание индикаторов эффектов
+  createEffectIndicators() {
+    // Создаем контейнер для индикаторов если его нет
+    if (!document.getElementById('effect-indicators')) {
+      const indicatorContainer = document.createElement('div');
+      indicatorContainer.id = 'effect-indicators';
+      indicatorContainer.className = 'effect-indicators';
+      document.body.appendChild(indicatorContainer);
+    }
+  }
+
+  // Обновление индикаторов эффектов
+  updateEffectIndicators() {
+    const container = document.getElementById('effect-indicators');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Показываем активные баффы
+    if (this.state.buffs && this.state.buffs.length > 0) {
+      this.state.buffs.forEach(buffId => {
+        const buffDef = BUFF_DEFS.find(b => b.id === buffId);
+        if (buffDef) {
+          const indicator = document.createElement('div');
+          indicator.className = 'effect-indicator buff-indicator';
+          indicator.innerHTML = `
+            <span class="effect-icon">${buffDef.name.split(' ')[0]}</span>
+            <span class="effect-name">${buffDef.name}</span>
+          `;
+          indicator.title = buffDef.description;
+          container.appendChild(indicator);
+        }
+      });
+    }
+    
+    // Показываем активные дебаффы
+    if (this.state.debuffs && this.state.debuffs.length > 0) {
+      this.state.debuffs.forEach(debuffId => {
+        const debuffDef = DEBUFF_DEFS.find(d => d.id === debuffId);
+        if (debuffDef) {
+          const indicator = document.createElement('div');
+          indicator.className = 'effect-indicator debuff-indicator';
+          indicator.innerHTML = `
+            <span class="effect-icon">${debuffDef.name.split(' ')[0]}</span>
+            <span class="effect-name">${debuffDef.name}</span>
+          `;
+          indicator.title = debuffDef.description;
+          container.appendChild(indicator);
+        }
+      });
+    }
+  }
+
   bindEvents() {
     EventBus.subscribe('resourceChanged',   () => this.updateResources());
     EventBus.subscribe('comboChanged',      () => this.updateResources());
     EventBus.subscribe('skillPointsChanged',() => this.updateResources());
-    EventBus.subscribe('buffApplied',       id => this.showNotification(id));
-    EventBus.subscribe('debuffApplied',     id => this.showNotification(`Debuff: ${id}`));
+    EventBus.subscribe('buffApplied',       id => {
+      this.showNotification(`✨ Buff: ${id}`);
+      this.updateEffectIndicators();
+    });
+    EventBus.subscribe('debuffApplied',     id => {
+      this.showNotification(`💀 Debuff: ${id}`);
+      this.updateEffectIndicators();
+    });
+    EventBus.subscribe('buffExpired',       id => {
+      this.showNotification(`⏰ Buff expired: ${id}`);
+      this.updateEffectIndicators();
+    });
+    EventBus.subscribe('debuffExpired',     id => {
+      this.showNotification(`⏰ Debuff expired: ${id}`);
+      this.updateEffectIndicators();
+    });
     EventBus.subscribe('mysteryBox',        opts => this.showMysteryModal(opts));
     
     EventBus.subscribe('buildingBought', () => {
@@ -277,6 +348,31 @@ export default class UIManager {
   
     EventBus.subscribe('missProtectionUsed', () => {
       this.showSkillNotification('🎯 Steady Hand!', 'Combo protected from miss');
+    });
+
+    // НОВЫЕ события для эффектов
+    EventBus.subscribe('starPowerUsed', (data) => {
+      this.showSkillNotification('⭐ Star Power!', `+${data.amount} ${data.resource} (${data.remaining} left)`);
+    });
+
+    EventBus.subscribe('slotMachineWin', (data) => {
+      this.showSkillNotification('🎰 Slot Win!', `+${data.amount} ${data.resource}`);
+    });
+
+    EventBus.subscribe('shieldBlock', (data) => {
+      this.showSkillNotification('🛡️ Shield Block!', `Blocked ${data.debuff} (${data.remaining} left)`);
+    });
+
+    EventBus.subscribe('taxCollected', (data) => {
+      this.showNotification(`💸 Tax Collector: -${data.percent}% all resources`);
+    });
+
+    EventBus.subscribe('heavyClickProgress', (data) => {
+      this.showNotification(`⚖️ Heavy Click: ${data.current}/${data.required}`);
+    });
+
+    EventBus.subscribe('ghostClick', () => {
+      this.showNotification('👻 Ghost Click: Ignored!');
     });
   }
   
@@ -318,6 +414,9 @@ export default class UIManager {
     const sp = document.createElement('div');
     sp.textContent = `Skill Points: ${Math.floor(this.state.skillPoints || 0)}`;
     this.resourcesRight.appendChild(sp);
+
+    // Обновляем индикаторы эффектов
+    this.updateEffectIndicators();
   }
 
   createResourceElem(key, val) {
@@ -350,6 +449,84 @@ export default class UIManager {
 
   hideTooltip() {
     if (this.tooltip) this.tooltip.style.display = 'none';
+  }
+
+  // НОВОЕ: Меню информации вместо модалки
+  showInfo() {
+    this.currentPanel = 'info';
+    this.panel.innerHTML = '<h2>📚 Информация об эффектах</h2>';
+    
+    // Секция баффов
+    const buffsSection = document.createElement('div');
+    buffsSection.className = 'category-section';
+    buffsSection.innerHTML = '<h3>✨ Баффы (Положительные эффекты)</h3>';
+    
+    BUFF_DEFS.forEach(buff => {
+      const buffCard = document.createElement('div');
+      buffCard.className = 'item-card buff-card';
+      buffCard.innerHTML = `
+        <div class="item-header">
+          <span class="item-icon">${buff.name.split(' ')[0]}</span>
+          <span class="item-name">${buff.name}</span>
+          <span class="item-level rarity-${buff.rarity}">${buff.rarity}</span>
+        </div>
+        <div class="item-description">${buff.description}</div>
+        <div class="item-details">
+          ${buff.duration ? `<div>⏱️ Длительность: ${buff.duration} секунд</div>` : '<div>⚡ Мгновенный эффект</div>'}
+        </div>
+      `;
+      buffsSection.appendChild(buffCard);
+    });
+    
+    // Секция дебаффов
+    const debuffsSection = document.createElement('div');
+    debuffsSection.className = 'category-section';
+    debuffsSection.innerHTML = '<h3>💀 Дебаффы (Отрицательные эффекты)</h3>';
+    
+    DEBUFF_DEFS.forEach(debuff => {
+      const debuffCard = document.createElement('div');
+      debuffCard.className = 'item-card debuff-card';
+      debuffCard.innerHTML = `
+        <div class="item-header">
+          <span class="item-icon">${debuff.name.split(' ')[0]}</span>
+          <span class="item-name">${debuff.name}</span>
+          <span class="item-level severity-${debuff.severity}">${debuff.severity}</span>
+        </div>
+        <div class="item-description">${debuff.description}</div>
+        <div class="item-details">
+          ${debuff.duration ? `<div>⏱️ Длительность: ${debuff.duration} секунд</div>` : '<div>⚡ Мгновенный эффект</div>'}
+        </div>
+      `;
+      debuffsSection.appendChild(debuffCard);
+    });
+
+    // Секция общих правил
+    const rulesSection = document.createElement('div');
+    rulesSection.className = 'category-section';
+    rulesSection.innerHTML = `
+      <h3>⚖️ Правила получения эффектов</h3>
+      <div class="item-card rules-card">
+        <div class="item-description">
+          <p><strong>Базовый шанс:</strong> 10% на каждый клик получить эффект</p>
+          <p><strong>Влияние ресурсов:</strong></p>
+          <ul>
+            <li>🙏 <strong>Faith</strong> увеличивает шанс баффов</li>
+            <li>🌪️ <strong>Chaos</strong> увеличивает шанс дебаффов</li>
+          </ul>
+          <p><strong>Модификаторы:</strong></p>
+          <ul>
+            <li>💎 <strong>Lucky Zone</strong> бафф: +25% к шансу баффов</li>
+            <li>🍀 <strong>Lucky Charm</strong> навык: увеличивает шанс баффов</li>
+            <li>🛡️ <strong>Shield</strong> бафф: блокирует следующие 3 дебаффа</li>
+          </ul>
+        </div>
+      </div>
+    `;
+
+    this.panel.appendChild(buffsSection);
+    this.panel.appendChild(debuffsSection);
+    this.panel.appendChild(rulesSection);
+    this.panel.classList.remove('hidden');
   }
 
   // Новая функция: Маркет
@@ -654,25 +831,6 @@ export default class UIManager {
   hidePanel() {
     this.currentPanel = null;
     this.panel.classList.add('hidden');
-  }
-
-  showInfoModal() {
-    this.infoModal.innerHTML = '<h3>Баффы</h3>';
-    BUFF_DEFS.forEach(b => {
-      const p = document.createElement('p');
-      p.textContent = `${b.name} — ${b.description}`;
-      this.infoModal.appendChild(p);
-    });
-    this.infoModal.appendChild(document.createElement('hr'));
-    const debuffTitle = document.createElement('h3');
-    debuffTitle.textContent = 'Дебаффы';
-    this.infoModal.appendChild(debuffTitle);
-    DEBUFF_DEFS.forEach(d => {
-      const p = document.createElement('p');
-      p.textContent = `${d.name} — ${d.description}`;
-      this.infoModal.appendChild(p);
-    });
-    this.infoModal.classList.remove('hidden');
   }
 
   showMysteryModal(opts) {

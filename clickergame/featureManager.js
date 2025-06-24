@@ -1,4 +1,4 @@
-// featureManager.js - исправленная версия с работающими навыками
+// featureManager.js - исправленная версия с работающими баффами и новыми эффектами
 import { EventBus } from './eventBus.js';
 import { Zone }      from './zones.js';
 import {
@@ -17,6 +17,19 @@ export class FeatureManager {
       this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
     }
     this.buffIntervals = {};
+    this.debuffIntervals = {};
+    
+    // Инициализация состояний для новых эффектов
+    if (!this.state.effectStates) {
+      this.state.effectStates = {
+        starPowerClicks: 0,
+        shieldBlocks: 0,
+        heavyClickRequired: {},
+        reverseDirection: 1,
+        frozenCombo: false
+      };
+    }
+    
     this.initZones();
   }
 
@@ -34,20 +47,48 @@ export class FeatureManager {
       const now = Date.now();
       if (now < this.state.blockedUntil) return;
 
+      // Ghost Click debuff - 50% шанс игнорировать клик
+      if (this.state.debuffs && this.state.debuffs.includes('ghost') && Math.random() < 0.5) {
+        EventBus.emit('ghostClick');
+        return;
+      }
+
       const normalizedAngle = ((angle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
       const z = this.zones.find(z => z.contains(normalizedAngle));
       if (!z) return;
 
-      // COMBO LOGIC с поддержкой навыков
+      // Heavy Click debuff - требуется несколько кликов
+      if (this.state.debuffs && this.state.debuffs.includes('heavyClick')) {
+        const required = EFFECT_CONFIG.heavyClick.requiredClicks;
+        const zoneKey = `zone_${z.index}`;
+        this.state.effectStates.heavyClickRequired[zoneKey] = 
+          (this.state.effectStates.heavyClickRequired[zoneKey] || 0) + 1;
+        
+        if (this.state.effectStates.heavyClickRequired[zoneKey] < required) {
+          EventBus.emit('heavyClickProgress', {
+            current: this.state.effectStates.heavyClickRequired[zoneKey],
+            required: required
+          });
+          return;
+        } else {
+          // Сбрасываем счетчик после успешного клика
+          this.state.effectStates.heavyClickRequired[zoneKey] = 0;
+        }
+      }
+
+      // COMBO LOGIC с поддержкой навыков и заморозки
       this.state.combo.lastAngle = normalizedAngle;
       
       // Time Stretch (⏰) - увеличение времени комбо
       const extraTime = this.state.skillManager.getSkillBonus('duration', 'combo_timeout');
       const comboTimeout = CONFIG.comboTimeout + extraTime;
       
-      if (z.index === this.state.targetZone && now < this.state.combo.deadline) {
+      // Freeze debuff - комбо не растет
+      const isComboFrozen = this.state.debuffs && this.state.debuffs.includes('freeze');
+      
+      if (z.index === this.state.targetZone && now < this.state.combo.deadline && !isComboFrozen) {
         this.state.combo.count++;
-      } else {
+      } else if (!isComboFrozen) {
         // Steady Hand (🎯) - защита от промаха
         if (z.index !== this.state.targetZone && this.state.skillManager.canUseMissProtection()) {
           this.state.skillManager.useMissProtection();
@@ -67,15 +108,24 @@ export class FeatureManager {
       
       EventBus.emit('comboChanged', this.state.combo.count);
 
-      // GOLD CALCULATION с навыками
-      let gain = effectiveCombo;
+      // GOLD CALCULATION с навыками и баффами
+      let clickMultiplier = 1;
+      
+      // Double Tap buff - каждый клик считается как 2
+      if (this.state.buffs.includes('doubleTap')) {
+        clickMultiplier = 2;
+      }
+      
+      let gain = effectiveCombo * clickMultiplier;
       
       // Golden Touch (💰) - множитель золота
       const goldMultiplier = 1 + this.state.skillManager.getSkillBonus('multiplier', 'gold');
       gain = Math.floor(gain * goldMultiplier);
       
-      // Frenzy buff
-      if (this.state.buffs.includes('frenzy')) gain *= 2;
+      // ИСПРАВЛЕНО: Frenzy buff - удваивает золото
+      if (this.state.buffs.includes('frenzy')) {
+        gain *= 2;
+      }
       
       // Critical Strike (💥) - шанс критического удара
       const critChance = this.state.skillManager.getSkillBonus('chance', 'critical');
@@ -85,6 +135,36 @@ export class FeatureManager {
       }
       
       this.state.resources.gold += gain;
+      
+      // Star Power buff - бонус к случайному ресурсу
+      if (this.state.buffs.includes('starPower') && this.state.effectStates.starPowerClicks > 0) {
+        const resourcePool = RESOURCES.filter(r => r !== 'gold' && r !== 'faith' && r !== 'chaos');
+        const randomResource = resourcePool[Math.floor(Math.random() * resourcePool.length)];
+        const bonusAmount = EFFECT_CONFIG.starPower.bonusAmount;
+        this.state.resources[randomResource] += bonusAmount;
+        this.state.effectStates.starPowerClicks--;
+        
+        EventBus.emit('starPowerUsed', { 
+          resource: randomResource, 
+          amount: bonusAmount,
+          remaining: this.state.effectStates.starPowerClicks
+        });
+        
+        // Если заряды закончились, удаляем бафф
+        if (this.state.effectStates.starPowerClicks <= 0) {
+          this.state.buffs = this.state.buffs.filter(id => id !== 'starPower');
+          EventBus.emit('buffExpired', 'starPower');
+        }
+      }
+      
+      // Slot Machine buff - шанс получить случайный ресурс
+      if (this.state.buffs.includes('slotMachine') && Math.random() < EFFECT_CONFIG.slotMachine.chance) {
+        const resourcePool = RESOURCES.filter(r => r !== 'gold' && r !== 'faith' && r !== 'chaos');
+        const randomResource = resourcePool[Math.floor(Math.random() * resourcePool.length)];
+        const bonusAmount = EFFECT_CONFIG.slotMachine.amount;
+        this.state.resources[randomResource] += bonusAmount;
+        EventBus.emit('slotMachineWin', { resource: randomResource, amount: bonusAmount });
+      }
       
       // Resource Finder (🔍) - шанс получить случайный ресурс
       const bonusChance = this.state.skillManager.getSkillBonus('chance', 'bonus_resource');
@@ -98,13 +178,20 @@ export class FeatureManager {
       
       EventBus.emit('resourceChanged', { resource: 'gold', amount: this.state.resources.gold });
 
-      // ZONE SHUFFLE
+      // ZONE SHUFFLE с учетом Reverse Controls
       if (z.index === this.state.targetZone && Math.random() * 100 < CONFIG.zoneShuffleChance) {
-        this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
+        // Reverse Controls debuff меняет направление движения зоны
+        if (this.state.debuffs && this.state.debuffs.includes('reverseControls')) {
+          // Двигаемся в обратном направлении
+          this.state.targetZone = (this.state.targetZone - 1 + ZONE_COUNT) % ZONE_COUNT;
+        } else {
+          // Обычное случайное движение
+          this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
+        }
         EventBus.emit('zonesShuffled', this.state.targetZone);
       }
 
-      // BUFF / DEBUFF CHANCE с навыками
+      // BUFF / DEBUFF CHANCE с навыками и исправленным Lucky баффом
       const { baseChance, chanceRange } = CONFIG;
       if (Math.random() * 100 < baseChance) {
         const minVar     = -chanceRange.min;
@@ -114,11 +201,14 @@ export class FeatureManager {
         // Lucky Charm (🍀) - увеличение шанса баффов
         const buffChanceBonus = this.state.skillManager.getSkillBonus('chance', 'buff') * 100;
         
+        // ИСПРАВЛЕНО: Lucky buff увеличивает шанс баффов
+        const luckyBonus = this.state.buffs.includes('lucky') ? 25 : 0;
+        
         // Inner Peace (☮️) - снижение влияния хаоса
         const chaosReduction = this.state.skillManager.getSkillBonus('reduction', 'chaos');
         const effectiveChaos = Math.max(0, this.state.resources.chaos * (1 - chaosReduction));
         
-        let buffChance = baseChance + (this.state.resources.faith - effectiveChaos) + variation + buffChanceBonus;
+        let buffChance = baseChance + (this.state.resources.faith - effectiveChaos) + variation + buffChanceBonus + luckyBonus;
         buffChance = Math.max(0, Math.min(100, buffChance));
 
         if (Math.random() * 100 < buffChance) {
@@ -145,6 +235,8 @@ export class FeatureManager {
     switch (def.id) {
       case 'frenzy':
       case 'lucky':
+      case 'doubleTap':
+      case 'slotMachine':
         if (!s.buffs.includes(def.id)) {
           s.buffs.push(def.id);
           const finalDuration = Math.floor(def.duration * durationMultiplier * 1000);
@@ -152,6 +244,37 @@ export class FeatureManager {
             s.buffs = s.buffs.filter(id => id !== def.id);
             EventBus.emit('buffExpired', def.id);
           }, finalDuration);
+        }
+        break;
+
+      case 'speedBoost':
+        if (!s.buffs.includes(def.id)) {
+          s.buffs.push(def.id);
+          this._oldSpeed = CONFIG.rotationSpeed;
+          CONFIG.rotationSpeed *= EFFECT_CONFIG.speedBoost.speedMultiplier;
+          
+          const finalDuration = Math.floor(def.duration * durationMultiplier * 1000);
+          setTimeout(() => {
+            CONFIG.rotationSpeed = this._oldSpeed || 0.005;
+            s.buffs = s.buffs.filter(id => id !== def.id);
+            EventBus.emit('buffExpired', def.id);
+          }, finalDuration);
+        }
+        break;
+
+      case 'starPower':
+        if (!s.buffs.includes(def.id)) {
+          s.buffs.push(def.id);
+          this.state.effectStates.starPowerClicks = EFFECT_CONFIG.starPower.clicksCount;
+          // Этот бафф не имеет таймера, он истекает после использования всех кликов
+        }
+        break;
+
+      case 'shield':
+        if (!s.buffs.includes(def.id)) {
+          s.buffs.push(def.id);
+          this.state.effectStates.shieldBlocks = EFFECT_CONFIG.shield.blocksCount;
+          // Этот бафф не имеет таймера, он истекает после блокировки дебаффов
         }
         break;
 
@@ -220,6 +343,19 @@ export class FeatureManager {
 
   applyDebuff(def) {
     const s = this.state;
+    
+    // Shield buff блокирует дебаффы
+    if (s.buffs.includes('shield') && this.state.effectStates.shieldBlocks > 0) {
+      this.state.effectStates.shieldBlocks--;
+      EventBus.emit('shieldBlock', { debuff: def.id, remaining: this.state.effectStates.shieldBlocks });
+      
+      if (this.state.effectStates.shieldBlocks <= 0) {
+        s.buffs = s.buffs.filter(id => id !== 'shield');
+        EventBus.emit('buffExpired', 'shield');
+      }
+      return;
+    }
+    
     EventBus.emit('debuffApplied', def.id);
 
     if (def.id === 'explosion') {
@@ -253,21 +389,64 @@ export class FeatureManager {
       const debuffReduction = this.state.skillManager.getSkillBonus('reduction', 'debuffs');
       const finalDuration = Math.max(0.5, def.duration * (1 - debuffReduction));
       
+      // Специальные эффекты дебаффов
       if (def.id === 'rapid') {
-        this._oldSpeed     = CONFIG.rotationSpeed;
+        this._oldSpeed = CONFIG.rotationSpeed;
         CONFIG.rotationSpeed *= 5;
       }
+      
       if (def.id === 'lock') {
         s.blockedUntil = Date.now() + finalDuration * 1000;
+      }
+      
+      if (def.id === 'taxCollector') {
+        this.startTaxCollector(finalDuration);
       }
       
       setTimeout(() => {
         s.debuffs = s.debuffs.filter(id => id !== def.id);
         EventBus.emit('debuffExpired', def.id);
+        
         if (def.id === 'rapid') {
           CONFIG.rotationSpeed = this._oldSpeed || 0.005;
         }
+        
+        if (def.id === 'taxCollector') {
+          this.stopTaxCollector();
+        }
+        
+        if (def.id === 'heavyClick') {
+          // Очищаем состояние heavy click
+          this.state.effectStates.heavyClickRequired = {};
+        }
       }, finalDuration * 1000);
+    }
+  }
+
+  startTaxCollector(duration) {
+    if (this.debuffIntervals.taxCollector) {
+      clearInterval(this.debuffIntervals.taxCollector);
+    }
+    
+    this.debuffIntervals.taxCollector = setInterval(() => {
+      const taxPercent = EFFECT_CONFIG.taxCollector.taxPercent;
+      const resourceKeys = Object.keys(this.state.resources);
+      
+      resourceKeys.forEach(resource => {
+        const currentAmount = this.state.resources[resource];
+        const taxAmount = Math.floor(currentAmount * taxPercent);
+        this.state.resources[resource] = Math.max(0, currentAmount - taxAmount);
+      });
+      
+      EventBus.emit('taxCollected', { percent: taxPercent * 100 });
+      EventBus.emit('resourceChanged');
+    }, EFFECT_CONFIG.taxCollector.intervalMs);
+  }
+
+  stopTaxCollector() {
+    if (this.debuffIntervals.taxCollector) {
+      clearInterval(this.debuffIntervals.taxCollector);
+      delete this.debuffIntervals.taxCollector;
     }
   }
 
