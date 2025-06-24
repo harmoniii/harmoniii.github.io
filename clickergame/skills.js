@@ -1,4 +1,4 @@
-// skills.js - Исправленная версия
+// skills.js - Окончательно исправленная версия
 import { EventBus } from './eventBus.js';
 
 export const SKILL_CATEGORIES = {
@@ -203,9 +203,11 @@ export class SkillManager {
       });
     }
     
-    // Инициализируем skill points если их нет
+    // ИСПРАВЛЕНИЕ: Инициализируем skill points как целое число
     if (this.state.skillPoints === undefined) {
       this.state.skillPoints = 0;
+    } else {
+      this.state.skillPoints = Math.floor(this.state.skillPoints);
     }
 
     // Инициализируем специальные состояния
@@ -244,8 +246,8 @@ export class SkillManager {
     const cost = this.calculateCost(def, currentLevel);
     if (this.state.skillPoints < cost) return false;
 
-    // Списываем skill points
-    this.state.skillPoints -= cost;
+    // ИСПРАВЛЕНИЕ: округляем skill points при списании
+    this.state.skillPoints = Math.floor(this.state.skillPoints - cost);
     
     // Повышаем уровень навыка
     this.skills[skillId].level++;
@@ -254,7 +256,7 @@ export class SkillManager {
     this.applySkillEffect(skillId, def);
 
     EventBus.emit('skillBought', { skillId, level: this.skills[skillId].level });
-    EventBus.emit('skillPointsChanged', this.state.skillPoints); // ИСПРАВЛЕНИЕ: уведомляем об изменении
+    EventBus.emit('skillPointsChanged', this.state.skillPoints);
     return true;
   }
 
@@ -292,7 +294,7 @@ export class SkillManager {
       }
     });
     
-    // ИСПРАВЛЕНИЕ: запускаем автокликер если есть уровни
+    // Запускаем автокликер если есть уровни
     const autoClickerLevel = this.skills.autoClicker?.level || 0;
     if (autoClickerLevel > 0) {
       this.startAutoClicker(autoClickerLevel);
@@ -306,7 +308,8 @@ export class SkillManager {
     
     this.intervals[skillId] = setInterval(() => {
       const amount = def.effect.value * level;
-      this.state.skillPoints += amount;
+      // ИСПРАВЛЕНИЕ: округляем до целого числа
+      this.state.skillPoints = Math.floor((this.state.skillPoints || 0) + amount);
       EventBus.emit('skillPointsChanged', this.state.skillPoints);
     }, def.effect.interval);
   }
@@ -330,7 +333,6 @@ export class SkillManager {
     
     this.state.skillStates.autoClickerActive = true;
     
-    // ИСПРАВЛЕНИЕ: добавляем проверки безопасности
     this.intervals.autoClicker = setInterval(() => {
       try {
         const target = this.state.targetZone;
@@ -347,10 +349,9 @@ export class SkillManager {
       } catch (error) {
         console.warn('Auto clicker error:', error);
       }
-    }, Math.max(1000, 10000 / level)); // ИСПРАВЛЕНИЕ: минимальный интервал 1 секунда
+    }, Math.max(1000, 10000 / level));
   }
 
-  // ИСПРАВЛЕНИЕ: добавляем отсутствующий метод
   getSkillLevel(skillId) {
     return this.skills[skillId]?.level || 0;
   }
@@ -359,7 +360,7 @@ export class SkillManager {
   getSkillBonus(type, target = null) {
     let bonus = 0;
     SKILL_DEFS.forEach(def => {
-      const level = this.skills[def.id]?.level || 0; // ИСПРАВЛЕНИЕ: защита от undefined
+      const level = this.skills[def.id]?.level || 0;
       if (level > 0 && def.effect.type === type && 
           (target === null || def.effect.target === target)) {
         bonus += def.effect.value * level;
@@ -409,9 +410,9 @@ export class SkillManager {
     return categories;
   }
 
-  // Добавить skill points (например, за достижения)
+  // ИСПРАВЛЕНИЕ: Добавить skill points как целое число
   addSkillPoints(amount) {
-    this.state.skillPoints += amount;
+    this.state.skillPoints = Math.floor((this.state.skillPoints || 0) + amount);
     EventBus.emit('skillPointsChanged', this.state.skillPoints);
   }
 

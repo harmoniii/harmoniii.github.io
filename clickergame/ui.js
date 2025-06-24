@@ -1,4 +1,4 @@
-// ui.js - Исправленная версия
+// ui.js - Полностью исправленная версия
 import { EventBus }            from './eventBus.js';
 import { SKILL_CATEGORIES,
          SKILL_DEFS,
@@ -10,7 +10,7 @@ import { BUFF_DEFS,
 export default class UIManager {
   constructor(state) {
     this.state = state;
-    this.currentPanel = null; // ИСПРАВЛЕНИЕ: добавлено отсутствующее свойство
+    this.currentPanel = null;
     this.initElements();
     this.bindControls();
     this.bindEvents();
@@ -65,9 +65,12 @@ export default class UIManager {
         this.showNotification('Неверный код сохранения');
       }
     });
-    // Reset — перезагрузка страницы
+    // ИСПРАВЛЕНИЕ: Reset теперь очищает localStorage и перезагружает
     this.btnReset.addEventListener('click', () => {
-      if (confirm('Сбросить игру?')) location.reload();
+      if (confirm('Сбросить игру? Все прогресс будет потерян!')) {
+        localStorage.removeItem('gameState');
+        location.reload();
+      }
     });
   }
 
@@ -79,16 +82,15 @@ export default class UIManager {
     EventBus.subscribe('debuffApplied',     id => this.showNotification(`Debuff: ${id}`));
     EventBus.subscribe('mysteryBox',        opts => this.showMysteryModal(opts));
     
-    // ИСПРАВЛЕНИЕ: добавляем подписку на события зданий и навыков для обновления панелей
     EventBus.subscribe('buildingBought', () => {
       if (this.currentPanel === 'buildings') {
-        this.showBuildings(); // Обновляем панель зданий
+        this.showBuildings();
       }
     });
     
     EventBus.subscribe('skillBought', () => {
       if (this.currentPanel === 'skills') {
-        this.showSkills(); // Обновляем панель навыков
+        this.showSkills();
       }
     });
   }
@@ -115,9 +117,9 @@ export default class UIManager {
     const combo = document.createElement('div');
     combo.textContent = `Комбо: ${this.state.combo.count}`;
     this.resourcesRight.appendChild(combo);
-    // Skill Points
+    // ИСПРАВЛЕНИЕ: Skill Points теперь отображаются как целое число
     const sp = document.createElement('div');
-    sp.textContent = `Skill Points: ${this.state.skillPoints || 0}`; // ИСПРАВЛЕНИЕ: защита от undefined
+    sp.textContent = `Skill Points: ${Math.floor(this.state.skillPoints || 0)}`;
     this.resourcesRight.appendChild(sp);
   }
 
@@ -153,85 +155,219 @@ export default class UIManager {
     if (this.tooltip) this.tooltip.style.display = 'none';
   }
 
+  // ИСПРАВЛЕНИЕ: Новый дизайн панели зданий с подробным описанием
   showBuildings() {
     this.currentPanel = 'buildings';
-    this.panel.innerHTML = '';
+    this.panel.innerHTML = '<h2>🏗️ Строения</h2>';
     
-    // ИСПРАВЛЕНИЕ: используем правильный метод для получения информации о здании
+    // Группируем здания по категориям
+    const categories = {};
     BUILDING_DEFS.forEach(def => {
-      const buildingInfo = this.state.buildingManager.getBuildingInfo(def.id);
-      if (!buildingInfo) return;
-      
-      const currentLevel = buildingInfo.currentLevel;
-      const nextPrice = buildingInfo.nextPrice;
-      const canAfford = buildingInfo.canAfford;
-      const isMaxLevel = buildingInfo.isMaxLevel;
-      
-      const btn = document.createElement('button');
-      
-      if (isMaxLevel) {
-        btn.textContent = `${def.img} ${def.name} (MAX LEVEL ${currentLevel}) - ${def.description}`;
-        btn.disabled = true;
-      } else {
-        const priceText = Object.entries(nextPrice)
-          .map(([r,a]) => `${a} ${r}`).join(', ');
-        btn.textContent = `${def.img} ${def.name} (Lv.${currentLevel}) - ${def.description} — цена: ${priceText}`;
-        btn.disabled = !canAfford;
+      if (!categories[def.category]) {
+        categories[def.category] = [];
       }
+      categories[def.category].push(def);
+    });
+
+    Object.entries(categories).forEach(([category, buildings]) => {
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'category-section';
+      categoryDiv.innerHTML = `<h3>${this.getCategoryName(category)}</h3>`;
       
-      btn.addEventListener('click', () => {
+      buildings.forEach(def => {
+        const buildingInfo = this.state.buildingManager.getBuildingInfo(def.id);
+        if (!buildingInfo) return;
+        
+        const buildingCard = this.createBuildingCard(def, buildingInfo);
+        categoryDiv.appendChild(buildingCard);
+      });
+      
+      this.panel.appendChild(categoryDiv);
+    });
+    
+    this.panel.classList.remove('hidden');
+  }
+
+  createBuildingCard(def, buildingInfo) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    
+    const header = document.createElement('div');
+    header.className = 'item-header';
+    header.innerHTML = `
+      <span class="item-icon">${def.img}</span>
+      <span class="item-name">${def.name}</span>
+      <span class="item-level">Уровень: ${buildingInfo.currentLevel}/${def.maxLevel}</span>
+    `;
+    
+    const description = document.createElement('div');
+    description.className = 'item-description';
+    description.textContent = def.description;
+    
+    const details = document.createElement('div');
+    details.className = 'item-details';
+    
+    if (buildingInfo.productionRate) {
+      details.innerHTML += `<div>📈 Производство: ${buildingInfo.productionRate}</div>`;
+    }
+    
+    if (def.special) {
+      details.innerHTML += `<div>✨ Особое: ${def.special.description || 'Специальный эффект'}</div>`;
+    }
+    
+    const footer = document.createElement('div');
+    footer.className = 'item-footer';
+    
+    if (buildingInfo.isMaxLevel) {
+      footer.innerHTML = '<span class="max-level">🏆 МАКСИМАЛЬНЫЙ УРОВЕНЬ</span>';
+    } else {
+      const priceText = Object.entries(buildingInfo.nextPrice)
+        .map(([r, a]) => `${a} ${this.getEmoji(r)}`)
+        .join(' ');
+      
+      footer.innerHTML = `
+        <span class="price">Цена: ${priceText}</span>
+        <button class="buy-button ${buildingInfo.canAfford ? '' : 'disabled'}" 
+                ${buildingInfo.canAfford ? '' : 'disabled'}>
+          Улучшить
+        </button>
+      `;
+      
+      const buyButton = footer.querySelector('.buy-button');
+      buyButton.addEventListener('click', () => {
         if (this.state.buildingManager.buyBuilding(def.id)) {
-          this.showNotification(`${def.name} улучшен до уровня ${this.state.buildingManager.getBuildingInfo(def.id).currentLevel}`);
-          this.showBuildings(); // Обновляем панель
+          this.showNotification(`${def.name} улучшен!`);
+          this.showBuildings();
         } else {
           this.showNotification('Недостаточно ресурсов');
         }
       });
-      
-      this.panel.appendChild(btn);
-      this.panel.appendChild(document.createElement('br'));
+    }
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    card.appendChild(footer);
+    
+    return card;
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый дизайн панели навыков с подробным описанием
+  showSkills() {
+    this.currentPanel = 'skills';
+    this.panel.innerHTML = '<h2>🎯 Навыки</h2>';
+    
+    // Группируем навыки по категориям
+    const categories = {};
+    SKILL_DEFS.forEach(def => {
+      if (!categories[def.category]) {
+        categories[def.category] = [];
+      }
+      categories[def.category].push(def);
     });
+
+    Object.entries(categories).forEach(([category, skills]) => {
+      const categoryDiv = document.createElement('div');
+      categoryDiv.className = 'category-section';
+      categoryDiv.innerHTML = `<h3>${SKILL_CATEGORIES[category]}</h3>`;
+      
+      skills.forEach(def => {
+        const skillInfo = this.state.skillManager.getSkillInfo(def.id);
+        if (!skillInfo) return;
+        
+        const skillCard = this.createSkillCard(def, skillInfo);
+        categoryDiv.appendChild(skillCard);
+      });
+      
+      this.panel.appendChild(categoryDiv);
+    });
+    
     this.panel.classList.remove('hidden');
   }
 
-  showSkills() {
-    this.currentPanel = 'skills';
-    this.panel.innerHTML = '';
+  createSkillCard(def, skillInfo) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
     
-    // ИСПРАВЛЕНИЕ: используем правильный метод для получения информации о навыке
-    SKILL_DEFS.forEach(def => {
-      const skillInfo = this.state.skillManager.getSkillInfo(def.id);
-      if (!skillInfo) return;
+    const header = document.createElement('div');
+    header.className = 'item-header';
+    header.innerHTML = `
+      <span class="item-icon">${def.icon}</span>
+      <span class="item-name">${def.name}</span>
+      <span class="item-level">Уровень: ${skillInfo.currentLevel}/${def.maxLevel}</span>
+    `;
+    
+    const description = document.createElement('div');
+    description.className = 'item-description';
+    description.textContent = def.description;
+    
+    const details = document.createElement('div');
+    details.className = 'item-details';
+    
+    if (skillInfo.currentLevel > 0) {
+      const currentEffect = (skillInfo.currentEffect * 100).toFixed(1);
+      details.innerHTML += `<div>💪 Текущий эффект: ${currentEffect}%</div>`;
+    }
+    
+    const effectType = this.getEffectTypeDescription(def.effect.type);
+    details.innerHTML += `<div>🎯 Тип: ${effectType}</div>`;
+    
+    const footer = document.createElement('div');
+    footer.className = 'item-footer';
+    
+    if (skillInfo.isMaxLevel) {
+      footer.innerHTML = '<span class="max-level">🏆 МАКСИМАЛЬНЫЙ УРОВЕНЬ</span>';
+    } else {
+      footer.innerHTML = `
+        <span class="price">Цена: ${skillInfo.nextCost} ✨ SP</span>
+        <button class="buy-button ${skillInfo.canAfford ? '' : 'disabled'}" 
+                ${skillInfo.canAfford ? '' : 'disabled'}>
+          Изучить
+        </button>
+      `;
       
-      const currentLevel = skillInfo.currentLevel;
-      const nextCost = skillInfo.nextCost;
-      const canAfford = skillInfo.canAfford;
-      const isMaxLevel = skillInfo.isMaxLevel;
-      
-      const btn = document.createElement('button');
-      
-      if (isMaxLevel) {
-        btn.textContent = `${def.icon} ${def.name} (MAX LEVEL ${currentLevel}) - ${def.description}`;
-        btn.disabled = true;
-      } else {
-        btn.textContent = `${def.icon} ${def.name} (Lv.${currentLevel}/${def.maxLevel}) — цена: ${nextCost} SP`;
-        btn.disabled = !canAfford;
-      }
-      
-      btn.title = def.description;
-      btn.addEventListener('click', () => {
+      const buyButton = footer.querySelector('.buy-button');
+      buyButton.addEventListener('click', () => {
         if (this.state.skillManager.buySkill(def.id)) {
-          this.showNotification(`${def.name} улучшен до уровня ${this.state.skillManager.getSkillInfo(def.id).currentLevel}`);
-          this.showSkills(); // Обновляем панель
+          this.showNotification(`${def.name} изучен!`);
+          this.showSkills();
         } else {
           this.showNotification('Недостаточно Skill Points');
         }
       });
-      
-      this.panel.appendChild(btn);
-      this.panel.appendChild(document.createElement('br'));
-    });
-    this.panel.classList.remove('hidden');
+    }
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    card.appendChild(footer);
+    
+    return card;
+  }
+
+  getCategoryName(category) {
+    const names = {
+      'production': '🏭 Производство',
+      'population': '👥 Население', 
+      'advanced': '🔬 Продвинутые',
+      'special': '✨ Особые'
+    };
+    return names[category] || category;
+  }
+
+  getEffectTypeDescription(type) {
+    const types = {
+      'multiplier': 'Множитель',
+      'chance': 'Шанс',
+      'generation': 'Генерация',
+      'reduction': 'Снижение',
+      'duration': 'Длительность',
+      'automation': 'Автоматизация',
+      'protection': 'Защита',
+      'charges': 'Заряды',
+      'preview': 'Предпросмотр'
+    };
+    return types[type] || type;
   }
 
   hidePanel() {
