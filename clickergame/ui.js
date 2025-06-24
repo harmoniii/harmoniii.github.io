@@ -1,138 +1,129 @@
 // ui.js
-import { EventBus } from './eventBus.js';
-import { saveState } from './storage.js';
+import { EventBus }       from './eventBus.js';
+import { saveState }      from './storage.js';
 import { SKILL_CATEGORIES } from './skills.js';
-import { BUILDING_DEFS } from './buildings.js';
+import { BUILDING_DEFS }    from './buildings.js';
 import { BUFF_DEFS, DEBUFF_DEFS } from './config.js';
 
 export default class UIManager {
   constructor(state) {
     this.state = state;
-    this.currentTab = 'game';
-    this.createLayout();
-    this.bindSaveLoad();
-    this.bindReset();
-    this.bindTabSwitching();
+    this.initLayout();
+    this.bindControls();
+    this.subscribeEvents();
+    this.updateResources();
+  }
+
+  initLayout() {
+    // Навигация сверху
+    this.btnBuildings = document.getElementById('toggle-buildings');
+    this.btnSkills    = document.getElementById('toggle-skills');
+    this.btnInfo      = document.getElementById('info-button');
+
+    // Панели ресурсов и списков
+    this.leftPanel   = document.getElementById('resources-left');
+    this.rightPanel  = document.getElementById('resources-right');
+    this.buildList   = document.getElementById('buildings-list');
+    this.skillList   = document.getElementById('skills-list');
+
+    // Нижние кнопки
+    this.btnLoad     = document.getElementById('load-button');
+    this.btnSave     = document.getElementById('save-button');
+    this.btnReset    = document.getElementById('reset-button');
+
+    // Модалки
+    this.infoModal    = document.getElementById('info-modal');
+    this.mysteryModal = document.getElementById('mystery-modal');
+  }
+
+  bindControls() {
+    // Показ/скрытие списка строений
+    this.btnBuildings.addEventListener('click', () => {
+      const show = this.buildList.style.display !== 'block';
+      this.buildList.style.display = show ? 'block' : 'none';
+      if (show) this.renderBuildings();
+    });
+    // Показ/скрытие списка скиллов
+    this.btnSkills.addEventListener('click', () => {
+      const show = this.skillList.style.display !== 'block';
+      this.skillList.style.display = show ? 'block' : 'none';
+      if (show) this.renderSkills();
+    });
+    // Показ модалки баффов/дебаффов
+    this.btnInfo.addEventListener('click', () => this.showInfoModal());
+    // Закрытие модалок по клику на них
+    this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
+    this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
+
+    // Save / Load / Reset
+    this.btnSave.addEventListener('click', () => {
+      const copy = { ...this.state };
+      delete copy.featureMgr;
+      delete copy.buildingManager;
+      delete copy.skillManager;
+      prompt('Скопируйте код сохранения:', btoa(JSON.stringify(copy)));
+    });
+    this.btnLoad.addEventListener('click', () => {
+      const code = prompt('Вставьте код сохранения:');
+      try {
+        Object.assign(this.state, JSON.parse(atob(code)));
+        EventBus.emit('gameReset');
+        this.showNotification('Игра загружена');
+      } catch {
+        this.showNotification('Неверный код сохранения');
+      }
+    });
+    this.btnReset.addEventListener('click', () => {
+      if (confirm('Сбросить игру?')) {
+        localStorage.removeItem('gameState');
+        EventBus.emit('gameReset');
+      }
+    });
+  }
+
+  subscribeEvents() {
     EventBus.subscribe('resourceChanged', () => this.updateResources());
     EventBus.subscribe('comboChanged',    () => this.updateResources());
     EventBus.subscribe('buffApplied',     id  => this.showNotification(id));
     EventBus.subscribe('debuffApplied',   id  => this.showNotification(`Debuff: ${id}`));
-    EventBus.subscribe('buildingBought',  ()  => this.updateBuildingsTab());
-    EventBus.subscribe('skillBought',     ()  => this.updateSkillsTab());
+    EventBus.subscribe('buildingBought',  ()  => this.updateResources());
+    EventBus.subscribe('skillBought',     ()  => this.updateResources());
     EventBus.subscribe('mysteryBox',      opts => this.showMysteryModal(opts));
   }
 
-  // === Layout & Tabs ===
-
-  createLayout() {
-    // Ресурсы
-    this.leftEl  = document.getElementById('resources-left');
-    this.rightEl = document.getElementById('resources-right');
-    
-    // Таб-система
-    this.createTabSystem();
-    this.updateResources();
-    this.updateActiveTab();
-
-    // Toggle Buildings list
-    document.getElementById('toggle-buildings').addEventListener('click', () => {
-      const pnl = document.getElementById('buildings-list');
-      pnl.style.display = pnl.style.display === 'block' ? 'none' : 'block';
-      if (pnl.style.display === 'block') this.renderBuildings();
-    });
-
-    // Toggle Skills list
-    document.getElementById('toggle-skills').addEventListener('click', () => {
-      const pnl = document.getElementById('skills-list');
-      pnl.style.display = pnl.style.display === 'block' ? 'none' : 'block';
-      if (pnl.style.display === 'block') this.renderSkills();
-    });
-
-    // Info modal for buffs/debuffs
-    document.getElementById('info-button').addEventListener('click', () => {
-      this.showInfoModal();
-    });
-    // Close modals on backdrop click
-    document.getElementById('info-modal').addEventListener('click', () =>
-      document.getElementById('info-modal').classList.add('hidden')
-    );
-    document.getElementById('mystery-modal').addEventListener('click', () =>
-      document.getElementById('mystery-modal').classList.add('hidden')
-    );
-  }
-
-  createTabSystem() {
-    if (document.querySelector('.tabs')) return;
-    const gc = document.getElementById('game-container');
-    const tc = document.createElement('div');
-    tc.className = 'tabs';
-    tc.innerHTML = `
-      <button class="tab-btn active" data-tab="game">Game</button>
-      <button class="tab-btn" data-tab="buildings">Buildings</button>
-      <button class="tab-btn" data-tab="skills">Skills</button>
-    `;
-    gc.prepend(tc);
-  }
-
-  bindTabSwitching() {
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('tab-btn')) {
-        const tab = e.target.dataset.tab;
-        this.switchTab(tab);
-      }
-    });
-    // Delegate building/skill purchases inside tabs as before...
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('buy-building-btn')) {
-        const id = e.target.dataset.building;
-        this.state.buildingManager.buyBuilding(id);
-      }
-      if (e.target.classList.contains('buy-skill-btn')) {
-        const id = e.target.dataset.skill;
-        this.state.skillManager.buySkill(id);
-      }
-    });
-  }
-
-  updateActiveTab() {
-    document.querySelectorAll('.tab-btn').forEach(btn =>
-      btn.classList.toggle('active', btn.dataset.tab === this.currentTab)
-    );
-    document.getElementById('gameCanvas').style.display       = this.currentTab === 'game' ? 'block' : 'none';
-    document.getElementById('buildings-list').style.display   = this.currentTab === 'buildings' ? 'block' : 'none';
-    document.getElementById('skills-list').style.display      = this.currentTab === 'skills' ? 'block' : 'none';
-  }
-
-  switchTab(tab) {
-    this.currentTab = tab;
-    this.updateActiveTab();
-    if (tab === 'buildings') this.renderBuildings();
-    if (tab === 'skills')    this.renderSkills();
-  }
-
-  updateBuildingsTab() {
-    if (this.currentTab === 'buildings') this.renderBuildings();
-  }
-
-  updateSkillsTab() {
-    if (this.currentTab === 'skills') this.renderSkills();
-  }
-
-  // === Resources Display & Tooltips ===
-
   updateResources() {
-    ['left','right'].forEach(side => {
-      const container = document.getElementById(`resources-${side}`);
-      container.innerHTML = '';
-      Object.entries(this.state.resources).forEach(([key, val]) => {
-        const span = document.createElement('span');
-        span.textContent = `${this.getEmoji(key)} ${Number(val).toFixed(1)}`;
-        span.addEventListener('mouseenter', e => this.showTooltip(e, key));
-        span.addEventListener('mouseleave',  () => this.hideTooltip());
-        container.appendChild(span);
-        container.appendChild(document.createElement('br'));
-      });
+    const primary = ['gold','wood','stone','food','water','iron'];
+    // Левая панель: основные ресурсы
+    this.leftPanel.innerHTML  = '';
+    primary.forEach(key => {
+      const val = this.state.resources[key] || 0;
+      const el  = this.createResourceElem(key, val);
+      this.leftPanel.appendChild(el);
+      this.leftPanel.appendChild(document.createElement('br'));
     });
+    // Правая панель: остальные ресурсы + комбо
+    this.rightPanel.innerHTML = '';
+    Object.keys(this.state.resources)
+      .filter(key => !primary.includes(key))
+      .forEach(key => {
+        const val = this.state.resources[key];
+        const el  = this.createResourceElem(key, val);
+        this.rightPanel.appendChild(el);
+        this.rightPanel.appendChild(document.createElement('br'));
+      });
+    // Комбо
+    const combo = document.createElement('div');
+    combo.className = 'combo-counter';
+    combo.textContent = `Комбо: ${this.state.combo.count}`;
+    this.rightPanel.appendChild(combo);
+  }
+
+  createResourceElem(key, val) {
+    const span = document.createElement('span');
+    span.textContent = `${this.getEmoji(key)} ${Number(val).toFixed(1)}`;
+    span.addEventListener('mouseenter', e => this.showTooltip(e, key));
+    span.addEventListener('mouseleave',  () => this.hideTooltip());
+    return span;
   }
 
   getEmoji(res) {
@@ -160,108 +151,79 @@ export default class UIManager {
     if (this.tooltip) this.tooltip.style.display = 'none';
   }
 
-  // === Buildings & Skills Lists ===
-
   renderBuildings() {
-    const pnl = document.getElementById('buildings-list');
-    pnl.innerHTML = '';
+    this.buildList.innerHTML = '';
     BUILDING_DEFS.forEach(b => {
       const btn = document.createElement('button');
-      btn.className = 'buy-building-btn';
-      btn.dataset.building = b.id;
       btn.textContent = `${b.name} (${b.costText})`;
       btn.disabled = !this.state.buildingManager.canAfford(b.id);
-      pnl.appendChild(btn);
+      btn.addEventListener('click', () => {
+        if (this.state.buildingManager.buyBuilding(b.id)) {
+          EventBus.emit('buildingBought', b.id);
+        } else {
+          this.showNotification('Недостаточно ресурсов');
+        }
+      });
+      this.buildList.appendChild(btn);
     });
   }
 
   renderSkills() {
-    const pnl = document.getElementById('skills-list');
-    pnl.innerHTML = '';
-    Object.entries(this.state.skillManager.getSkillsByCategory()).forEach(
-      ([catId, skills]) => {
-        const heading = document.createElement('h4');
-        heading.textContent = SKILL_CATEGORIES[catId];
-        pnl.appendChild(heading);
+    this.skillList.innerHTML = '';
+    Object.entries(this.state.skillManager.getSkillsByCategory())
+      .forEach(([catId, skills]) => {
+        const hdr = document.createElement('h4');
+        hdr.textContent = SKILL_CATEGORIES[catId];
+        this.skillList.appendChild(hdr);
         skills.forEach(s => {
           const btn = document.createElement('button');
-          btn.className = 'buy-skill-btn';
-          btn.dataset.skill = s.id;
           btn.textContent = `${s.icon} ${s.name} (Lv.${s.currentLevel}/${s.maxLevel})`;
           btn.disabled = !s.canAfford;
-          pnl.appendChild(btn);
+          btn.addEventListener('click', () => {
+            if (this.state.skillManager.buySkill(s.id)) {
+              EventBus.emit('skillBought', s.id);
+            } else {
+              this.showNotification('Недостаточно ресурсов');
+            }
+          });
+          this.skillList.appendChild(btn);
         });
-      }
-    );
+      });
   }
 
-  // === Buffs & Debuffs Info ===
-
   showInfoModal() {
-    const m = document.getElementById('info-modal');
-    m.innerHTML = `<h3>Buffs</h3>`;
+    this.infoModal.innerHTML = `<h3>Баффы</h3>`;
     BUFF_DEFS.forEach(b => {
       const p = document.createElement('p');
       p.textContent = `${b.name} — ${b.description}`;
-      m.appendChild(p);
+      this.infoModal.appendChild(p);
     });
-    m.appendChild(document.createElement('hr'));
+    this.infoModal.appendChild(document.createElement('hr'));
     const hdr = document.createElement('h3');
-    hdr.textContent = 'Debuffs';
-    m.appendChild(hdr);
+    hdr.textContent = 'Дебаффы';
+    this.infoModal.appendChild(hdr);
     DEBUFF_DEFS.forEach(d => {
       const p = document.createElement('p');
       p.textContent = `${d.name} — ${d.description}`;
-      m.appendChild(p);
+      this.infoModal.appendChild(p);
     });
-    m.classList.remove('hidden');
+    this.infoModal.classList.remove('hidden');
   }
 
   showMysteryModal(opts) {
-    const m = document.getElementById('mystery-modal');
-    m.innerHTML = `<h3>📦 Mystery Box</h3>`;
+    this.mysteryModal.innerHTML = `<h3>📦 Mystery Box</h3>`;
     opts.forEach(r => {
       const btn = document.createElement('button');
       btn.textContent = `${this.getEmoji(r)} +5`;
       btn.addEventListener('click', () => {
         this.state.resources[r] += 5;
         EventBus.emit('resourceChanged', { resource: r, amount: this.state.resources[r] });
-        m.classList.add('hidden');
+        this.mysteryModal.classList.add('hidden');
       });
-      m.appendChild(btn);
+      this.mysteryModal.appendChild(btn);
     });
-    m.classList.remove('hidden');
+    this.mysteryModal.classList.remove('hidden');
   }
-
-  // === Save / Load / Reset ===
-
-  bindSaveLoad() {
-    document.getElementById('save-button').onclick = () => {
-      const { featureMgr, buildingManager, skillManager, ...toSave } = this.state;
-      prompt('Copy save-code:', btoa(JSON.stringify(toSave)));
-    };
-    document.getElementById('load-button').onclick = () => {
-      const code = prompt('Paste save-code:');
-      try {
-        Object.assign(this.state, JSON.parse(atob(code)));
-        EventBus.emit('gameReset');
-        this.showNotification('Game loaded');
-      } catch {
-        this.showNotification('Invalid save code');
-      }
-    };
-  }
-
-  bindReset() {
-    document.getElementById('reset-button').onclick = () => {
-      if (confirm('Reset game?')) {
-        localStorage.removeItem('gameState');
-        EventBus.emit('gameReset');
-      }
-    };
-  }
-
-  // === Notifications ===
 
   showNotification(msg) {
     const div = document.createElement('div');
