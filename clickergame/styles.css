@@ -1,10 +1,12 @@
-/* styles.css */
+/* styles.css - Обновленная версия */
 /* Сброс отступов и флекс-контейнер */
 body, html {
   margin: 0; padding: 0;
-  font-family: sans-serif;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   display: flex; flex-direction: column; align-items: center;
-  background: #fafafa;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  min-height: 100vh;
+  color: #333;
 }
 
 /* Навигация сверху */
@@ -12,57 +14,340 @@ body, html {
   display: flex; gap: 1rem; margin: 1rem;
 }
 
+#ui-top button {
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border: 2px solid #4CAF50;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+#ui-top button:hover {
+  background: #4CAF50;
+  color: white;
+  transform: translateY(-2px);
+}
+
 /* Основная зона: ресурсы и колесо */
 #game-area {
   display: flex; align-items: center; gap: 2rem;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 1rem;
+  border-radius: 15px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
+
 .resources-panel {
   display: flex; flex-direction: column; align-items: flex-start;
-  min-width: 120px;
+  min-width: 140px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 1rem;
+  border-radius: 10px;
+  font-weight: 500;
 }
+
+.resources-panel span {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.resources-panel span:hover {
+  color: #4CAF50;
+}
+
 #gameCanvas {
-  background: #fff; border: 2px solid #333; border-radius: 50%;
+  background: #fff; 
+  border: 3px solid #333; 
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
 }
 
 /* Динамическая панель */
 .list-panel {
-  width: 90%; max-width: 800px;
-  background: #fff; border: 1px solid #666; border-radius: 4px;
-  padding: 0.5rem; margin: 1rem 0;
-  max-height: 300px; overflow-y: auto;
+  width: 95%; max-width: 1000px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #ddd;
+  border-radius: 15px;
+  padding: 1rem;
+  margin: 1rem 0;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
+
+.list-panel h2 {
+  margin: 0 0 1rem 0;
+  color: #333;
+  text-align: center;
+  font-size: 1.5rem;
+}
+
 .hidden { display: none; }
+
+/* Секции категорий */
+.category-section {
+  margin-bottom: 2rem;
+}
+
+.category-section h3 {
+  color: #4CAF50;
+  border-bottom: 2px solid #4CAF50;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+/* Карточки элементов */
+.item-card {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* Заголовок карточки */
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.item-icon {
+  font-size: 2rem;
+}
+
+.item-name {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  flex-grow: 1;
+}
+
+.item-level {
+  background: #4CAF50;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+/* Описание */
+.item-description {
+  color: #666;
+  font-style: italic;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+}
+
+/* Детали */
+.item-details {
+  background: rgba(255, 255, 255, 0.7);
+  padding: 0.5rem;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.item-details div {
+  margin-bottom: 0.25rem;
+}
+
+.item-details div:last-child {
+  margin-bottom: 0;
+}
+
+/* Подвал карточки */
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.price {
+  font-weight: bold;
+  color: #FF9800;
+  background: rgba(255, 152, 0, 0.1);
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+}
+
+.buy-button {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  min-width: 100px;
+}
+
+.buy-button:hover:not(.disabled) {
+  background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.buy-button.disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.max-level {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #333;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: bold;
+  text-align: center;
+  width: 100%;
+}
 
 /* Кнопки сохранения */
 #controls-bottom {
   display: flex; gap: 1rem; margin-bottom: 1rem;
 }
 
+#controls-bottom button {
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+#controls-bottom button:hover {
+  background: #333;
+  color: white;
+}
+
 /* Уведомления */
 #notifications {
   position: fixed; top: 1rem; right: 1rem;
   display: flex; flex-direction: column; gap: 0.5rem;
+  z-index: 1000;
 }
+
 .notification {
-  background: #333; color: #fff;
-  padding: 0.5rem 1rem; border-radius: 3px;
+  background: linear-gradient(135deg, #333 0%, #555 100%);
+  color: #fff;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* Всплывающие подсказки */
 .tooltip {
-  position: absolute; padding: 0.25rem 0.5rem;
+  position: absolute; padding: 0.5rem 0.75rem;
   background: #333; color: #fff;
-  border-radius: 3px; pointer-events: none;
+  border-radius: 6px; pointer-events: none;
   font-size: 0.8rem; z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Модальные окна */
 .modal {
   position: fixed; top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  background: #fff; border: 2px solid #333; border-radius: 6px;
-  padding: 1rem; max-width: 90%; max-height: 80%;
-  overflow-y: auto; z-index: 2000;
+  background: #fff; 
+  border: 2px solid #333; 
+  border-radius: 12px;
+  padding: 1.5rem; 
+  max-width: 90%; 
+  max-height: 80%;
+  overflow-y: auto; 
+  z-index: 2000;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
 }
+
 .modal.hidden { display: none; }
 .modal::backdrop { background: rgba(0,0,0,0.5); }
+
+.modal h3 {
+  color: #4CAF50;
+  margin-top: 0;
+}
+
+.modal button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.modal button:hover {
+  background: #45a049;
+}
+
+/* Прокрутка */
+.list-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.list-panel::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.list-panel::-webkit-scrollbar-thumb {
+  background: #4CAF50;
+  border-radius: 4px;
+}
+
+.list-panel::-webkit-scrollbar-thumb:hover {
+  background: #45a049;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+  #game-area {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .resources-panel {
+    min-width: auto;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .item-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .buy-button {
+    width: 100%;
+  }
+}
