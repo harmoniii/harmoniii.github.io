@@ -1,4 +1,4 @@
-// game.js
+// game.js - исправленная версия без проблемного gameReset
 import { EventBus }       from './eventBus.js';
 import { FeatureManager } from './featureManager.js';
 import { BuildingManager } from './buildings.js';
@@ -42,33 +42,7 @@ canvas.addEventListener('touchstart', e => {
   EventBus.emit('click', getClickAngle(e.touches[0]));
 });
 
-// Обработчик сброса игры
-EventBus.subscribe('gameReset', () => {
-  // Останавливаем все интервалы
-  if (bm) bm.stopAllProduction();
-  if (sm) sm.stopAllGeneration();
-  
-  // Очищаем обработчики событий
-  EventBus._handlers = {};
-  
-  // Перезагружаем состояние
-  state = loadState();
-  
-  // Пересоздаем менеджеры
-  fm = new FeatureManager(state);
-  bm = new BuildingManager(state);
-  sm = new SkillManager(state);
-  
-  // Обновляем ссылки в состоянии
-  state.featureMgr = fm;
-  state.buildingManager = bm;
-  state.skillManager = sm;
-  
-  // Пересоздаем UI
-  new UIManager(state);
-  
-  angle = 0;
-});
+// УДАЛЕН проблемный обработчик gameReset, который мешал сбросу
 
 // Система награды skill points за достижения
 let lastComboCheck = 0;

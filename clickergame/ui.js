@@ -1,4 +1,4 @@
-// ui.js - Финальная исправленная версия с Reset и Маркетом
+// ui.js - Исправленная версия с правильным Reset
 import { EventBus }            from './eventBus.js';
 import { SKILL_CATEGORIES,
          SKILL_DEFS,
@@ -70,25 +70,27 @@ export default class UIManager {
         this.showNotification('Неверный код сохранения');
       }
     });
-    // ИСПРАВЛЕНИЕ: Reset теперь полностью сбрасывает игру
+    // ИСПРАВЛЕНИЕ: Reset теперь просто перезагружает страницу после очистки
     this.btnReset.addEventListener('click', () => {
       if (confirm('Сбросить игру? Весь прогресс будет потерян навсегда!')) {
-        // Очищаем localStorage
-        localStorage.removeItem('gameState');
-        
-        // Останавливаем все интервалы
-        if (this.state.buildingManager) {
-          this.state.buildingManager.stopAllProduction();
+        try {
+          // Очищаем все возможные ключи localStorage связанные с игрой
+          localStorage.removeItem('gameState');
+          localStorage.clear(); // Полная очистка на всякий случай
+          
+          // Показываем уведомление
+          this.showNotification('Игра сброшена! Перезагрузка...');
+          
+          // Небольшая задержка для показа уведомления, затем перезагрузка
+          setTimeout(() => {
+            window.location.reload(true); // Принудительная перезагрузка с сервера
+          }, 1000);
+          
+        } catch (error) {
+          console.error('Reset error:', error);
+          // Если что-то пошло не так, все равно перезагружаем
+          window.location.reload(true);
         }
-        if (this.state.skillManager) {
-          this.state.skillManager.stopAllGeneration();
-        }
-        
-        // Очищаем EventBus
-        EventBus._handlers = {};
-        
-        // Перезагружаем страницу для полного сброса
-        location.reload();
       }
     });
   }
