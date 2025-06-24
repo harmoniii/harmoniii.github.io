@@ -26,14 +26,14 @@ export const BUFF_DEFS = [
     id: 'frenzy', 
     name: '🔥 Frenzy', 
     duration: 15, 
-    description: 'Double gold gain',
+    description: 'Double gold gain from clicks',
     rarity: 'common'
   },
   { 
     id: 'lucky', 
     name: '💎 Lucky Zone', 
     duration: 10, 
-    description: 'Increased buff chance',
+    description: 'Increased chance of getting buffs',
     rarity: 'common'
   },
   { 
@@ -55,6 +55,42 @@ export const BUFF_DEFS = [
     name: '📦 Mystery Box', 
     duration: null, 
     description: 'Choose from 3 random resources',
+    rarity: 'rare'
+  },
+  // НОВЫЕ БАФФЫ
+  { 
+    id: 'speedBoost', 
+    name: '🏃 Speed Boost', 
+    duration: 12, 
+    description: 'Wheel rotates 50% slower, easier targeting',
+    rarity: 'common'
+  },
+  { 
+    id: 'starPower', 
+    name: '⭐ Star Power', 
+    duration: null, 
+    description: 'Next 10 clicks give +5 bonus to any resource',
+    rarity: 'uncommon'
+  },
+  { 
+    id: 'doubleTap', 
+    name: '🔄 Double Tap', 
+    duration: 12, 
+    description: 'Each click counts as 2 clicks',
+    rarity: 'uncommon'
+  },
+  { 
+    id: 'slotMachine', 
+    name: '🎰 Slot Machine', 
+    duration: 15, 
+    description: 'Each click has 30% chance for random resource',
+    rarity: 'uncommon'
+  },
+  { 
+    id: 'shield', 
+    name: '🛡️ Shield', 
+    duration: null, 
+    description: 'Blocks next 3 debuffs',
     rarity: 'rare'
   }
 ];
@@ -87,6 +123,35 @@ export const DEBUFF_DEFS = [
     duration: 1, 
     description: 'Cannot click for 1 second',
     severity: 'moderate'
+  },
+  // НОВЫЕ ДЕБАФФЫ
+  { 
+    id: 'reverseControls', 
+    name: '🙃 Reverse Controls', 
+    duration: 8, 
+    description: 'Target zone moves in opposite direction',
+    severity: 'moderate'
+  },
+  { 
+    id: 'freeze', 
+    name: '❄️ Freeze', 
+    duration: 10, 
+    description: 'Combo counter frozen, cannot grow',
+    severity: 'moderate'
+  },
+  { 
+    id: 'taxCollector', 
+    name: '💸 Tax Collector', 
+    duration: 9, 
+    description: 'Lose 5% of all resources every 3 seconds',
+    severity: 'severe'
+  },
+  { 
+    id: 'heavyClick', 
+    name: '⚖️ Heavy Click', 
+    duration: 8, 
+    description: 'Need to click zone 3 times to register',
+    severity: 'moderate'
   }
 ];
 
@@ -106,5 +171,27 @@ export const EFFECT_CONFIG = {
   waterfall: {
     intervalMs: 1000,
     amount: 1
+  },
+  // НОВЫЕ ЭФФЕКТЫ
+  speedBoost: {
+    speedMultiplier: 0.5 // 50% от обычной скорости
+  },
+  starPower: {
+    clicksCount: 10,
+    bonusAmount: 5
+  },
+  slotMachine: {
+    chance: 0.3, // 30% шанс
+    amount: 3
+  },
+  shield: {
+    blocksCount: 3
+  },
+  taxCollector: {
+    intervalMs: 3000,
+    taxPercent: 0.05 // 5%
+  },
+  heavyClick: {
+    requiredClicks: 3
   }
 };
