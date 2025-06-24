@@ -1,8 +1,9 @@
 // ui.js
-import { EventBus }  from './eventBus.js';
+import { EventBus } from './eventBus.js';
 import { saveState } from './storage.js';
 import { SKILL_CATEGORIES } from './skills.js';
 import { BUILDING_DEFS } from './buildings.js';
+import { BUFF_DEFS, DEBUFF_DEFS } from './config.js';
 
 export default class UIManager {
   constructor(state) {
@@ -12,68 +13,65 @@ export default class UIManager {
     this.bindSaveLoad();
     this.bindReset();
     this.bindTabSwitching();
-
     EventBus.subscribe('resourceChanged', () => this.updateResources());
-    EventBus.subscribe('comboChanged', () => this.updateResources());
-    EventBus.subscribe('buffApplied', id => this.showNotification(id));
-    EventBus.subscribe('debuffApplied', id => this.showNotification(`Debuff: ${id}`));
-    EventBus.subscribe('buildingBought', data => this.updateBuildingsTab());
-    EventBus.subscribe('skillBought', data => this.updateSkillsTab());
-    EventBus.subscribe('skillPointsChanged', () => this.updateSkillsTab());
-
-    setInterval(() => saveState(this.state), 5000);
+    EventBus.subscribe('comboChanged',    () => this.updateResources());
+    EventBus.subscribe('buffApplied',     id  => this.showNotification(id));
+    EventBus.subscribe('debuffApplied',   id  => this.showNotification(`Debuff: ${id}`));
+    EventBus.subscribe('buildingBought',  ()  => this.updateBuildingsTab());
+    EventBus.subscribe('skillBought',     ()  => this.updateSkillsTab());
+    EventBus.subscribe('mysteryBox',      opts => this.showMysteryModal(opts));
   }
 
+  // === Layout & Tabs ===
+
   createLayout() {
-    this.leftEl = document.getElementById('resources-left');
+    // Ресурсы
+    this.leftEl  = document.getElementById('resources-left');
     this.rightEl = document.getElementById('resources-right');
     
-    // Создаем табы если их нет
+    // Таб-система
     this.createTabSystem();
     this.updateResources();
     this.updateActiveTab();
+
+    // Toggle Buildings list
+    document.getElementById('toggle-buildings').addEventListener('click', () => {
+      const pnl = document.getElementById('buildings-list');
+      pnl.style.display = pnl.style.display === 'block' ? 'none' : 'block';
+      if (pnl.style.display === 'block') this.renderBuildings();
+    });
+
+    // Toggle Skills list
+    document.getElementById('toggle-skills').addEventListener('click', () => {
+      const pnl = document.getElementById('skills-list');
+      pnl.style.display = pnl.style.display === 'block' ? 'none' : 'block';
+      if (pnl.style.display === 'block') this.renderSkills();
+    });
+
+    // Info modal for buffs/debuffs
+    document.getElementById('info-button').addEventListener('click', () => {
+      this.showInfoModal();
+    });
+    // Close modals on backdrop click
+    document.getElementById('info-modal').addEventListener('click', () =>
+      document.getElementById('info-modal').classList.add('hidden')
+    );
+    document.getElementById('mystery-modal').addEventListener('click', () =>
+      document.getElementById('mystery-modal').classList.add('hidden')
+    );
   }
 
   createTabSystem() {
-    // Проверяем есть ли уже табы
     if (document.querySelector('.tabs')) return;
-
-    const gameContainer = document.getElementById('game-container');
-    
-    // Создаем контейнер для табов
-    const tabContainer = document.createElement('div');
-    tabContainer.className = 'tabs';
-    tabContainer.innerHTML = `
+    const gc = document.getElementById('game-container');
+    const tc = document.createElement('div');
+    tc.className = 'tabs';
+    tc.innerHTML = `
       <button class="tab-btn active" data-tab="game">Game</button>
       <button class="tab-btn" data-tab="buildings">Buildings</button>
       <button class="tab-btn" data-tab="skills">Skills</button>
     `;
-    
-    // Вставляем перед game-container
-    gameContainer.parentNode.insertBefore(tabContainer, gameContainer);
-    
-    // Создаем контент для табов
-    const tabContent = document.createElement('div');
-    tabContent.className = 'tab-content';
-    tabContent.innerHTML = `
-      <div class="tab-panel active" id="game-panel">
-        <!-- Здесь будет игровой контент (canvas уже есть) -->
-      </div>
-      <div class="tab-panel" id="buildings-panel">
-        <h3>Buildings</h3>
-        <div id="buildings-list"></div>
-      </div>
-      <div class="tab-panel" id="skills-panel">
-        <h3>Skills (Points: <span id="skill-points">0</span>)</h3>
-        <div id="skills-list"></div>
-      </div>
-    `;
-    
-    // Вставляем после game-container
-    gameContainer.parentNode.insertBefore(tabContent, gameContainer.nextSibling);
-    
-    // Перемещаем game-container в game-panel
-    document.getElementById('game-panel').appendChild(gameContainer);
+    gc.prepend(tc);
   }
 
   bindTabSwitching() {
@@ -83,221 +81,159 @@ export default class UIManager {
         this.switchTab(tab);
       }
     });
-    
-    // Bind building purchase buttons
+    // Delegate building/skill purchases inside tabs as before...
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('buy-building-btn')) {
-        const buildingId = e.target.dataset.building;
-        if (this.state.buildingManager) {
-          this.state.buildingManager.buyBuilding(buildingId);
-        }
+        const id = e.target.dataset.building;
+        this.state.buildingManager.buyBuilding(id);
       }
-    });
-    
-    // Bind skill purchase buttons
-    document.addEventListener('click', (e) => {
       if (e.target.classList.contains('buy-skill-btn')) {
-        const skillId = e.target.dataset.skill;
-        if (this.state.skillManager) {
-          this.state.skillManager.buySkill(skillId);
-        }
+        const id = e.target.dataset.skill;
+        this.state.skillManager.buySkill(id);
       }
     });
-  }
-
-  switchTab(tabName) {
-    this.currentTab = tabName;
-    
-    // Обновляем активные кнопки
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.tab === tabName);
-    });
-    
-    // Обновляем активные панели
-    document.querySelectorAll('.tab-panel').forEach(panel => {
-      panel.classList.toggle('active', panel.id === `${tabName}-panel`);
-    });
-    
-    this.updateActiveTab();
   }
 
   updateActiveTab() {
-    switch (this.currentTab) {
-      case 'buildings':
-        this.updateBuildingsTab();
-        break;
-      case 'skills':
-        this.updateSkillsTab();
-        break;
-    }
+    document.querySelectorAll('.tab-btn').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.tab === this.currentTab)
+    );
+    document.getElementById('gameCanvas').style.display       = this.currentTab === 'game' ? 'block' : 'none';
+    document.getElementById('buildings-list').style.display   = this.currentTab === 'buildings' ? 'block' : 'none';
+    document.getElementById('skills-list').style.display      = this.currentTab === 'skills' ? 'block' : 'none';
+  }
+
+  switchTab(tab) {
+    this.currentTab = tab;
+    this.updateActiveTab();
+    if (tab === 'buildings') this.renderBuildings();
+    if (tab === 'skills')    this.renderSkills();
   }
 
   updateBuildingsTab() {
-    const container = document.getElementById('buildings-list');
-    if (!container || !this.state.buildingManager) return;
-
-    const buildings = this.state.buildingManager.getAllBuildings();
-    const categorized = this.categorizeBuildings(buildings);
-    
-    container.innerHTML = '';
-    
-    Object.entries(categorized).forEach(([category, buildingList]) => {
-      const categoryDiv = document.createElement('div');
-      categoryDiv.className = 'building-category';
-      
-      const categoryTitle = document.createElement('h4');
-      categoryTitle.textContent = this.formatCategoryName(category);
-      categoryDiv.appendChild(categoryTitle);
-      
-      buildingList.forEach(building => {
-        const buildingDiv = document.createElement('div');
-        buildingDiv.className = `building-item ${building.canAfford ? 'affordable' : 'expensive'}`;
-        
-        const priceText = building.nextPrice ? 
-          Object.entries(building.nextPrice)
-            .map(([res, amt]) => `${amt} ${res}`)
-            .join(', ') : 'MAX';
-            
-        buildingDiv.innerHTML = `
-          <div class="building-header">
-            <span class="building-icon">${building.img}</span>
-            <span class="building-name">${building.name}</span>
-            <span class="building-level">Lv.${building.currentLevel}/${building.maxLevel}</span>
-          </div>
-          <div class="building-description">${building.description}</div>
-          ${building.productionRate ? `<div class="building-production">Production: ${building.productionRate}</div>` : ''}
-          <div class="building-footer">
-            <span class="building-price">${priceText}</span>
-            ${!building.isMaxLevel ? 
-              `<button class="buy-building-btn ${building.canAfford ? '' : 'disabled'}" 
-                       data-building="${building.id}" 
-                       ${building.canAfford ? '' : 'disabled'}>
-                 Buy
-               </button>` : 
-              '<span class="max-level">MAX</span>'
-            }
-          </div>
-        `;
-        
-        categoryDiv.appendChild(buildingDiv);
-      });
-      
-      container.appendChild(categoryDiv);
-    });
-  }
-
-  categorizeBuildings(buildings) {
-    const categories = {
-      production: [],
-      population: [],
-      advanced: [],
-      special: []
-    };
-    
-    buildings.forEach(building => {
-      const category = building.category || 'production';
-      if (categories[category]) {
-        categories[category].push(building);
-      }
-    });
-    
-    return categories;
+    if (this.currentTab === 'buildings') this.renderBuildings();
   }
 
   updateSkillsTab() {
-    const container = document.getElementById('skills-list');
-    const pointsSpan = document.getElementById('skill-points');
-    
-    if (!container || !this.state.skillManager) return;
-    
-    // Обновляем количество очков навыков
-    if (pointsSpan) {
-      pointsSpan.textContent = Math.floor(this.state.skillPoints || 0);
-    }
+    if (this.currentTab === 'skills') this.renderSkills();
+  }
 
-    const skillsByCategory = this.state.skillManager.getSkillsByCategory();
-    
-    container.innerHTML = '';
-    
-    Object.entries(skillsByCategory).forEach(([categoryId, skills]) => {
-      const categoryDiv = document.createElement('div');
-      categoryDiv.className = 'skill-category';
-      
-      const categoryTitle = document.createElement('h4');
-      categoryTitle.textContent = SKILL_CATEGORIES[categoryId];
-      categoryDiv.appendChild(categoryTitle);
-      
-      skills.forEach(skill => {
-        const skillDiv = document.createElement('div');
-        skillDiv.className = `skill-item ${skill.canAfford ? 'affordable' : 'expensive'}`;
-        
-        const costText = skill.nextCost !== null ? `${skill.nextCost} SP` : 'MAX';
-        
-        skillDiv.innerHTML = `
-          <div class="skill-header">
-            <span class="skill-icon">${skill.icon}</span>
-            <span class="skill-name">${skill.name}</span>
-            <span class="skill-level">Lv.${skill.currentLevel}/${skill.maxLevel}</span>
-          </div>
-          <div class="skill-description">${skill.description}</div>
-          <div class="skill-effect">Current effect: ${this.formatSkillEffect(skill)}</div>
-          <div class="skill-footer">
-            <span class="skill-cost">${costText}</span>
-            ${!skill.isMaxLevel ? 
-              `<button class="buy-skill-btn ${skill.canAfford ? '' : 'disabled'}" 
-                       data-skill="${skill.id}" 
-                       ${skill.canAfford ? '' : 'disabled'}>
-                 Upgrade
-               </button>` : 
-              '<span class="max-level">MAX</span>'
-            }
-          </div>
-        `;
-        
-        categoryDiv.appendChild(skillDiv);
+  // === Resources Display & Tooltips ===
+
+  updateResources() {
+    ['left','right'].forEach(side => {
+      const container = document.getElementById(`resources-${side}`);
+      container.innerHTML = '';
+      Object.entries(this.state.resources).forEach(([key, val]) => {
+        const span = document.createElement('span');
+        span.textContent = `${this.getEmoji(key)} ${Number(val).toFixed(1)}`;
+        span.addEventListener('mouseenter', e => this.showTooltip(e, key));
+        span.addEventListener('mouseleave',  () => this.hideTooltip());
+        container.appendChild(span);
+        container.appendChild(document.createElement('br'));
       });
-      
-      container.appendChild(categoryDiv);
     });
   }
 
-  formatSkillEffect(skill) {
-    const effect = skill.currentEffect;
-    
-    switch (skill.effect.type) {
-      case 'multiplier':
-        return `+${(effect * 100).toFixed(0)}%`;
-      case 'chance':
-        return `${(effect * 100).toFixed(1)}%`;
-      case 'duration':
-        return `+${(effect / 1000).toFixed(1)}s`;
-      case 'reduction':
-        return `-${(effect * 100).toFixed(0)}%`;
-      case 'generation':
-        return `+${effect.toFixed(2)}/min`;
-      case 'charges':
-        return `+${effect} charges`;
-      case 'protection':
-        return `${(effect * 100).toFixed(0)}% protection`;
-      default:
-        return `${effect}x`;
+  getEmoji(res) {
+    const map = {
+      gold: '🪙', wood: '🌲', stone: '🪨', food: '🍎',
+      water: '💧', iron: '⛓️', people: '👥', energy: '⚡',
+      science: '🔬', faith: '🙏', chaos: '🌪️'
+    };
+    return map[res] || res;
+  }
+
+  showTooltip(e, key) {
+    if (!this.tooltip) {
+      this.tooltip = document.createElement('div');
+      this.tooltip.className = 'tooltip';
+      document.body.appendChild(this.tooltip);
     }
+    this.tooltip.textContent = key;
+    this.tooltip.style.top     = `${e.pageY + 10}px`;
+    this.tooltip.style.left    = `${e.pageX + 10}px`;
+    this.tooltip.style.display = 'block';
   }
 
-  formatCategoryName(category) {
-    return category.charAt(0).toUpperCase() + category.slice(1);
+  hideTooltip() {
+    if (this.tooltip) this.tooltip.style.display = 'none';
   }
 
-  updateResources() {
-    const r = this.state.resources;
-    const fmt = v => Number(v).toFixed(1);
-    this.leftEl.innerHTML = 
-      `🪙 ${fmt(r.gold)}<br>🌲 ${fmt(r.wood)}<br>🪨 ${fmt(r.stone)}<br>` +
-      `🍞 ${fmt(r.food)}<br>💧 ${fmt(r.water)}<br>⚙️ ${fmt(r.iron)}`;
-    this.rightEl.innerHTML = 
-      `👥 ${fmt(r.people)}<br>🔋 ${fmt(r.energy)}<br>🧠 ${fmt(r.science)}<br>` +
-      `✝️ ${fmt(r.faith)}<br>☠️ ${fmt(r.chaos)}<br>Combo: ${this.state.combo.count}`;
+  // === Buildings & Skills Lists ===
+
+  renderBuildings() {
+    const pnl = document.getElementById('buildings-list');
+    pnl.innerHTML = '';
+    BUILDING_DEFS.forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = 'buy-building-btn';
+      btn.dataset.building = b.id;
+      btn.textContent = `${b.name} (${b.costText})`;
+      btn.disabled = !this.state.buildingManager.canAfford(b.id);
+      pnl.appendChild(btn);
+    });
   }
+
+  renderSkills() {
+    const pnl = document.getElementById('skills-list');
+    pnl.innerHTML = '';
+    Object.entries(this.state.skillManager.getSkillsByCategory()).forEach(
+      ([catId, skills]) => {
+        const heading = document.createElement('h4');
+        heading.textContent = SKILL_CATEGORIES[catId];
+        pnl.appendChild(heading);
+        skills.forEach(s => {
+          const btn = document.createElement('button');
+          btn.className = 'buy-skill-btn';
+          btn.dataset.skill = s.id;
+          btn.textContent = `${s.icon} ${s.name} (Lv.${s.currentLevel}/${s.maxLevel})`;
+          btn.disabled = !s.canAfford;
+          pnl.appendChild(btn);
+        });
+      }
+    );
+  }
+
+  // === Buffs & Debuffs Info ===
+
+  showInfoModal() {
+    const m = document.getElementById('info-modal');
+    m.innerHTML = `<h3>Buffs</h3>`;
+    BUFF_DEFS.forEach(b => {
+      const p = document.createElement('p');
+      p.textContent = `${b.name} — ${b.description}`;
+      m.appendChild(p);
+    });
+    m.appendChild(document.createElement('hr'));
+    const hdr = document.createElement('h3');
+    hdr.textContent = 'Debuffs';
+    m.appendChild(hdr);
+    DEBUFF_DEFS.forEach(d => {
+      const p = document.createElement('p');
+      p.textContent = `${d.name} — ${d.description}`;
+      m.appendChild(p);
+    });
+    m.classList.remove('hidden');
+  }
+
+  showMysteryModal(opts) {
+    const m = document.getElementById('mystery-modal');
+    m.innerHTML = `<h3>📦 Mystery Box</h3>`;
+    opts.forEach(r => {
+      const btn = document.createElement('button');
+      btn.textContent = `${this.getEmoji(r)} +5`;
+      btn.addEventListener('click', () => {
+        this.state.resources[r] += 5;
+        EventBus.emit('resourceChanged', { resource: r, amount: this.state.resources[r] });
+        m.classList.add('hidden');
+      });
+      m.appendChild(btn);
+    });
+    m.classList.remove('hidden');
+  }
+
+  // === Save / Load / Reset ===
 
   bindSaveLoad() {
     document.getElementById('save-button').onclick = () => {
@@ -309,20 +245,23 @@ export default class UIManager {
       try {
         Object.assign(this.state, JSON.parse(atob(code)));
         EventBus.emit('gameReset');
+        this.showNotification('Game loaded');
       } catch {
-        alert('Invalid code');
+        this.showNotification('Invalid save code');
       }
     };
   }
 
   bindReset() {
     document.getElementById('reset-button').onclick = () => {
-      if (confirm('Reset?')) {
+      if (confirm('Reset game?')) {
         localStorage.removeItem('gameState');
         EventBus.emit('gameReset');
       }
     };
   }
+
+  // === Notifications ===
 
   showNotification(msg) {
     const div = document.createElement('div');
