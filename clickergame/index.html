@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -9,23 +10,20 @@
 <body>
   <!-- Навигация сверху -->
   <div id="ui-top">
-    <button id="toggle-buildings">Buildings</button>
-    <button id="toggle-skills">Skills</button>
-    <button id="info-button">Info</button>
+    <button id="toggle-buildings">Строения</button>
+    <button id="toggle-skills">Скиллы</button>
+    <button id="info-button">Информация</button>
   </div>
 
   <!-- Игровая зона: ресурсы слева, колесо, ресурсы справа -->
   <div id="game-area">
     <div id="resources-left" class="resources-panel"></div>
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
     <div id="resources-right" class="resources-panel"></div>
   </div>
 
-  <!-- Списки строений и скиллов -->
-  <div id="lists-area">
-    <div id="buildings-list" class="list-panel"></div>
-    <div id="skills-list"   class="list-panel"></div>
-  </div>
+  <!-- Панель, которая меняется в зависимости от кнопки -->
+  <div id="panel-container" class="list-panel hidden"></div>
 
   <!-- Кнопки управления сохранением -->
   <div id="controls-bottom">
@@ -40,6 +38,6 @@
   <div id="info-modal"    class="modal hidden"></div>
 
   <script type="module" src="game.js"></script>
-  Alpha v0.4 UI Fixes
+  Alpha V0.4.1. UI Fixes
 </body>
 </html>
