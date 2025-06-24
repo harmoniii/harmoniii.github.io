@@ -1,70 +1,61 @@
 // ui.js
-import { EventBus }       from './eventBus.js';
-import { saveState }      from './storage.js';
-import { SKILL_CATEGORIES } from './skills.js';
-import { BUILDING_DEFS }    from './buildings.js';
-import { BUFF_DEFS, DEBUFF_DEFS } from './config.js';
+import { EventBus }            from './eventBus.js';
+import { SKILL_CATEGORIES,
+         SKILL_DEFS,
+         SkillManager }         from './skills.js';
+import { BUILDING_DEFS }        from './buildings.js';
+import { BUFF_DEFS,
+         DEBUFF_DEFS }          from './config.js';
 
 export default class UIManager {
   constructor(state) {
     this.state = state;
-    this.initLayout();
+    this.initElements();
     this.bindControls();
-    this.subscribeEvents();
+    this.bindEvents();
     this.updateResources();
   }
 
-  initLayout() {
-    // Навигация сверху
-    this.btnBuildings = document.getElementById('toggle-buildings');
-    this.btnSkills    = document.getElementById('toggle-skills');
-    this.btnInfo      = document.getElementById('info-button');
-
-    // Панели ресурсов и списков
-    this.leftPanel   = document.getElementById('resources-left');
-    this.rightPanel  = document.getElementById('resources-right');
-    this.buildList   = document.getElementById('buildings-list');
-    this.skillList   = document.getElementById('skills-list');
-
-    // Нижние кнопки
-    this.btnLoad     = document.getElementById('load-button');
-    this.btnSave     = document.getElementById('save-button');
-    this.btnReset    = document.getElementById('reset-button');
-
-    // Модалки
-    this.infoModal    = document.getElementById('info-modal');
-    this.mysteryModal = document.getElementById('mystery-modal');
+  initElements() {
+    this.btnBuildings    = document.getElementById('toggle-buildings');
+    this.btnSkills       = document.getElementById('toggle-skills');
+    this.btnInfo         = document.getElementById('info-button');
+    this.resourcesLeft   = document.getElementById('resources-left');
+    this.resourcesRight  = document.getElementById('resources-right');
+    this.panel           = document.getElementById('panel-container');
+    this.btnLoad         = document.getElementById('load-button');
+    this.btnSave         = document.getElementById('save-button');
+    this.btnReset        = document.getElementById('reset-button');
+    this.notifications   = document.getElementById('notifications');
+    this.infoModal       = document.getElementById('info-modal');
+    this.mysteryModal    = document.getElementById('mystery-modal');
   }
 
   bindControls() {
-    // Показ/скрытие списка строений
+    // Buildings
     this.btnBuildings.addEventListener('click', () => {
-      const show = this.buildList.style.display !== 'block';
-      this.buildList.style.display = show ? 'block' : 'none';
-      if (show) this.renderBuildings();
+      this.currentPanel === 'buildings' ? this.hidePanel() : this.showBuildings();
     });
-    // Показ/скрытие списка скиллов
+    // Skills
     this.btnSkills.addEventListener('click', () => {
-      const show = this.skillList.style.display !== 'block';
-      this.skillList.style.display = show ? 'block' : 'none';
-      if (show) this.renderSkills();
+      this.currentPanel === 'skills' ? this.hidePanel() : this.showSkills();
     });
-    // Показ модалки баффов/дебаффов
+    // Buff/Debuff info
     this.btnInfo.addEventListener('click', () => this.showInfoModal());
-    // Закрытие модалок по клику на них
+    // Close modals on click
     this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
     this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
-
-    // Save / Load / Reset
+    // Save
     this.btnSave.addEventListener('click', () => {
       const copy = { ...this.state };
       delete copy.featureMgr;
       delete copy.buildingManager;
       delete copy.skillManager;
-      prompt('Скопируйте код сохранения:', btoa(JSON.stringify(copy)));
+      prompt('Copy save code:', btoa(JSON.stringify(copy)));
     });
+    // Load
     this.btnLoad.addEventListener('click', () => {
-      const code = prompt('Вставьте код сохранения:');
+      const code = prompt('Paste save code:');
       try {
         Object.assign(this.state, JSON.parse(atob(code)));
         EventBus.emit('gameReset');
@@ -73,49 +64,47 @@ export default class UIManager {
         this.showNotification('Неверный код сохранения');
       }
     });
+    // Reset — перезагрузка страницы
     this.btnReset.addEventListener('click', () => {
-      if (confirm('Сбросить игру?')) {
-        localStorage.removeItem('gameState');
-        EventBus.emit('gameReset');
-      }
+      if (confirm('Сбросить игру?')) location.reload();
     });
   }
 
-  subscribeEvents() {
-    EventBus.subscribe('resourceChanged', () => this.updateResources());
-    EventBus.subscribe('comboChanged',    () => this.updateResources());
-    EventBus.subscribe('buffApplied',     id  => this.showNotification(id));
-    EventBus.subscribe('debuffApplied',   id  => this.showNotification(`Debuff: ${id}`));
-    EventBus.subscribe('buildingBought',  ()  => this.updateResources());
-    EventBus.subscribe('skillBought',     ()  => this.updateResources());
-    EventBus.subscribe('mysteryBox',      opts => this.showMysteryModal(opts));
+  bindEvents() {
+    EventBus.subscribe('resourceChanged',   () => this.updateResources());
+    EventBus.subscribe('comboChanged',      () => this.updateResources());
+    EventBus.subscribe('skillPointsChanged',() => this.updateResources());
+    EventBus.subscribe('buffApplied',       id => this.showNotification(id));
+    EventBus.subscribe('debuffApplied',     id => this.showNotification(`Debuff: ${id}`));
+    EventBus.subscribe('mysteryBox',        opts => this.showMysteryModal(opts));
   }
 
   updateResources() {
-    const primary = ['gold','wood','stone','food','water','iron'];
-    // Левая панель: основные ресурсы
-    this.leftPanel.innerHTML  = '';
-    primary.forEach(key => {
+    // Сброс
+    this.resourcesLeft.innerHTML  = '';
+    this.resourcesRight.innerHTML = '';
+    // Основные
+    ['gold','wood','stone','food','water','iron'].forEach(key => {
       const val = this.state.resources[key] || 0;
-      const el  = this.createResourceElem(key, val);
-      this.leftPanel.appendChild(el);
-      this.leftPanel.appendChild(document.createElement('br'));
+      this.resourcesLeft.appendChild(this.createResourceElem(key, val));
+      this.resourcesLeft.appendChild(document.createElement('br'));
     });
-    // Правая панель: остальные ресурсы + комбо
-    this.rightPanel.innerHTML = '';
+    // Остальные
     Object.keys(this.state.resources)
-      .filter(key => !primary.includes(key))
+      .filter(key => !['gold','wood','stone','food','water','iron'].includes(key))
       .forEach(key => {
         const val = this.state.resources[key];
-        const el  = this.createResourceElem(key, val);
-        this.rightPanel.appendChild(el);
-        this.rightPanel.appendChild(document.createElement('br'));
+        this.resourcesRight.appendChild(this.createResourceElem(key, val));
+        this.resourcesRight.appendChild(document.createElement('br'));
       });
     // Комбо
     const combo = document.createElement('div');
-    combo.className = 'combo-counter';
     combo.textContent = `Комбо: ${this.state.combo.count}`;
-    this.rightPanel.appendChild(combo);
+    this.resourcesRight.appendChild(combo);
+    // Skill Points
+    const sp = document.createElement('div');
+    sp.textContent = `Skill Points: ${this.state.skillPoints}`;
+    this.resourcesRight.appendChild(sp);
   }
 
   createResourceElem(key, val) {
@@ -127,12 +116,11 @@ export default class UIManager {
   }
 
   getEmoji(res) {
-    const map = {
+    return {
       gold: '🪙', wood: '🌲', stone: '🪨', food: '🍎',
       water: '💧', iron: '⛓️', people: '👥', energy: '⚡',
-      science: '🔬', faith: '🙏', chaos: '🌪️'
-    };
-    return map[res] || res;
+      science: '🔬', faith: '🙏', chaos: '🌪️', skillPoints: '✨'
+    }[res] || res;
   }
 
   showTooltip(e, key) {
@@ -151,57 +139,63 @@ export default class UIManager {
     if (this.tooltip) this.tooltip.style.display = 'none';
   }
 
-  renderBuildings() {
-    this.buildList.innerHTML = '';
-    BUILDING_DEFS.forEach(b => {
+  showBuildings() {
+    this.currentPanel = 'buildings';
+    this.panel.innerHTML = '';
+    BUILDING_DEFS.forEach(def => {
+      const priceText = Object.entries(def.price)
+        .map(([r,a]) => `${a} ${r}`).join(', ');
       const btn = document.createElement('button');
-      btn.textContent = `${b.name} (${b.costText})`;
-      btn.disabled = !this.state.buildingManager.canAfford(b.id);
+      btn.textContent = `${def.img} ${def.name}: ${def.description} — цена ${priceText}`;
+      btn.disabled = !this.state.buildingManager.canAfford(def.id);
       btn.addEventListener('click', () => {
-        if (this.state.buildingManager.buyBuilding(b.id)) {
-          EventBus.emit('buildingBought', b.id);
-        } else {
-          this.showNotification('Недостаточно ресурсов');
-        }
+        if (this.state.buildingManager.buyBuilding(def.id)) {
+          EventBus.emit('buildingBought', def.id);
+        } else this.showNotification('Недостаточно ресурсов');
       });
-      this.buildList.appendChild(btn);
+      this.panel.appendChild(btn);
+      this.panel.appendChild(document.createElement('br'));
     });
+    this.panel.classList.remove('hidden');
   }
 
-  renderSkills() {
-    this.skillList.innerHTML = '';
-    Object.entries(this.state.skillManager.getSkillsByCategory())
-      .forEach(([catId, skills]) => {
-        const hdr = document.createElement('h4');
-        hdr.textContent = SKILL_CATEGORIES[catId];
-        this.skillList.appendChild(hdr);
-        skills.forEach(s => {
-          const btn = document.createElement('button');
-          btn.textContent = `${s.icon} ${s.name} (Lv.${s.currentLevel}/${s.maxLevel})`;
-          btn.disabled = !s.canAfford;
-          btn.addEventListener('click', () => {
-            if (this.state.skillManager.buySkill(s.id)) {
-              EventBus.emit('skillBought', s.id);
-            } else {
-              this.showNotification('Недостаточно ресурсов');
-            }
-          });
-          this.skillList.appendChild(btn);
-        });
+  showSkills() {
+    this.currentPanel = 'skills';
+    this.panel.innerHTML = '';
+    SKILL_DEFS.forEach(def => {
+      const lvl = this.state.skillManager.getSkillLevel(def.id) || 0;
+      const cost = Math.floor(def.baseCost * Math.pow(def.costMultiplier, lvl));
+      const btn = document.createElement('button');
+      btn.textContent = `${def.icon} ${def.name} (Lv.${lvl}/${def.maxLevel}) — цена ${cost}`;
+      btn.disabled = cost > this.state.skillPoints || lvl >= def.maxLevel;
+      btn.title = def.description;
+      btn.addEventListener('click', () => {
+        if (this.state.skillManager.buySkill(def.id)) {
+          this.showNotification(`${def.name} улучшен`);
+        } else {
+          this.showNotification('Недостаточно Skill Points');
+        }
       });
+      this.panel.appendChild(btn);
+      this.panel.appendChild(document.createElement('br'));
+    });
+    this.panel.classList.remove('hidden');
+  }
+
+  hidePanel() {
+    this.currentPanel = null;
+    this.panel.classList.add('hidden');
   }
 
   showInfoModal() {
-    this.infoModal.innerHTML = `<h3>Баффы</h3>`;
+    this.infoModal.innerHTML = '<h3>Баффы</h3>';
     BUFF_DEFS.forEach(b => {
       const p = document.createElement('p');
       p.textContent = `${b.name} — ${b.description}`;
       this.infoModal.appendChild(p);
     });
     this.infoModal.appendChild(document.createElement('hr'));
-    const hdr = document.createElement('h3');
-    hdr.textContent = 'Дебаффы';
-    this.infoModal.appendChild(hdr);
+    this.infoModal.appendChild(document.createElement('h3')).textContent = 'Дебаффы';
     DEBUFF_DEFS.forEach(d => {
       const p = document.createElement('p');
       p.textContent = `${d.name} — ${d.description}`;
@@ -211,7 +205,7 @@ export default class UIManager {
   }
 
   showMysteryModal(opts) {
-    this.mysteryModal.innerHTML = `<h3>📦 Mystery Box</h3>`;
+    this.mysteryModal.innerHTML = '<h3>📦 Mystery Box</h3>';
     opts.forEach(r => {
       const btn = document.createElement('button');
       btn.textContent = `${this.getEmoji(r)} +5`;
@@ -221,6 +215,7 @@ export default class UIManager {
         this.mysteryModal.classList.add('hidden');
       });
       this.mysteryModal.appendChild(btn);
+      this.mysteryModal.appendChild(document.createElement('br'));
     });
     this.mysteryModal.classList.remove('hidden');
   }
@@ -229,7 +224,7 @@ export default class UIManager {
     const div = document.createElement('div');
     div.className = 'notification';
     div.textContent = msg;
-    document.getElementById('notifications').appendChild(div);
+    this.notifications.appendChild(div);
     setTimeout(() => div.remove(), 3000);
   }
 }
