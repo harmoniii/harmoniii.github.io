@@ -11,6 +11,7 @@ let state = loadState();
 
 // Инициализация менеджеров
 let fm = new FeatureManager(state);
+state.featureMgr = fm;
 let bm = new BuildingManager(state);
 let sm = new SkillManager(state);
 
@@ -132,7 +133,7 @@ function loop() {
     ctx.stroke();
     
     // Подсветка целевого
-    if (state.combo.lastZone === z.index) {
+    if (state.targetZone === z.index) {
       ctx.strokeStyle = 'red';
       ctx.lineWidth = 4;
       ctx.beginPath();
@@ -145,7 +146,7 @@ function loop() {
     // Предварительный показ следующей зоны (если есть навык)
     if (sm && sm.skills.zonePreview && sm.skills.zonePreview.level > 0) {
       // Показываем следующую зону после текущей
-      const nextZone = (state.combo.lastZone + 1) % fm.zones.length;
+      const nextZone = (state.targetZone + 1) % fm.zones.length;
       if (nextZone === z.index) {
         ctx.strokeStyle = 'yellow';
         ctx.lineWidth = 2;
