@@ -290,12 +290,13 @@ export default class UIManager {
 
   updateResources() {
     const r = this.state.resources;
+    const fmt = v => Number(v).toFixed(1);
     this.leftEl.innerHTML = 
-      `🪙 ${r.gold}<br>🌲 ${r.wood}<br>🪨 ${r.stone}<br>` +
-      `🍞 ${r.food}<br>💧 ${r.water}<br>⚙️ ${r.iron}`;
+      `🪙 ${fmt(r.gold)}<br>🌲 ${fmt(r.wood)}<br>🪨 ${fmt(r.stone)}<br>` +
+      `🍞 ${fmt(r.food)}<br>💧 ${fmt(r.water)}<br>⚙️ ${fmt(r.iron)}`;
     this.rightEl.innerHTML = 
-      `👥 ${r.people}<br>🔋 ${r.energy}<br>🧠 ${r.science}<br>` +
-      `✝️ ${r.faith}<br>☠️ ${r.chaos}<br>Combo: ${this.state.combo.count}`;
+      `👥 ${fmt(r.people)}<br>🔋 ${fmt(r.energy)}<br>🧠 ${fmt(r.science)}<br>` +
+      `✝️ ${fmt(r.faith)}<br>☠️ ${fmt(r.chaos)}<br>Combo: ${this.state.combo.count}`;
   }
 
   bindSaveLoad() {

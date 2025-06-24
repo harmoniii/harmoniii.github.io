@@ -7,9 +7,10 @@ export const CONFIG = {
   // Новые настройки баланса
   comboTimeout: 5000,
   maxComboMultiplier: 10, // ограничение на множитель комбо
-  baseChance: 50, // базовый шанс получить бафф
-  chanceRange: { min: 5, max: 25 } // пределы шанса
-};
+  baseChance: 50,             // базовый шанс получить бафф
+  chanceRange: { min: 5, max: 25 }, // пределы шанса
+  zoneShuffleChance: 75       // % шанс, что после клика зона-мишень действительно поменяется
+  };
 
 export const ZONE_COUNT = 8;
 export const ZONE_DEFS = Array.from({ length: ZONE_COUNT }, () => ({ type: 'random' }));
