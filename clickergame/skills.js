@@ -1,4 +1,4 @@
-// skills.js
+// skills.js - Исправленная версия
 import { EventBus } from './eventBus.js';
 
 export const SKILL_CATEGORIES = {
@@ -254,6 +254,7 @@ export class SkillManager {
     this.applySkillEffect(skillId, def);
 
     EventBus.emit('skillBought', { skillId, level: this.skills[skillId].level });
+    EventBus.emit('skillPointsChanged', this.state.skillPoints); // ИСПРАВЛЕНИЕ: уведомляем об изменении
     return true;
   }
 
@@ -290,6 +291,12 @@ export class SkillManager {
         this.applySkillEffect(def.id, def);
       }
     });
+    
+    // ИСПРАВЛЕНИЕ: запускаем автокликер если есть уровни
+    const autoClickerLevel = this.skills.autoClicker?.level || 0;
+    if (autoClickerLevel > 0) {
+      this.startAutoClicker(autoClickerLevel);
+    }
   }
 
   startSkillPointGeneration(skillId, def, level) {
@@ -323,25 +330,36 @@ export class SkillManager {
     
     this.state.skillStates.autoClickerActive = true;
     
+    // ИСПРАВЛЕНИЕ: добавляем проверки безопасности
     this.intervals.autoClicker = setInterval(() => {
-            const target = this.state.targetZone;
-            const fm     = this.state.featureMgr;
-            if (typeof target === 'number' && fm) {
-              const zone = fm.zones.find(z => z.index === target);
-              if (zone) {
-                const start = zone.getStartAngle();
-                const end   = zone.getEndAngle();
-                const clickAngle = start + Math.random() * (end - start);
-                EventBus.emit('click', clickAngle);
-              }
-            }
-          }, 10000 / level);}
+      try {
+        const target = this.state.targetZone;
+        const fm = this.state.featureMgr;
+        if (typeof target === 'number' && fm && fm.zones) {
+          const zone = fm.zones.find(z => z.index === target);
+          if (zone) {
+            const start = zone.getStartAngle();
+            const end = zone.getEndAngle();
+            const clickAngle = start + Math.random() * (end - start);
+            EventBus.emit('click', clickAngle);
+          }
+        }
+      } catch (error) {
+        console.warn('Auto clicker error:', error);
+      }
+    }, Math.max(1000, 10000 / level)); // ИСПРАВЛЕНИЕ: минимальный интервал 1 секунда
+  }
+
+  // ИСПРАВЛЕНИЕ: добавляем отсутствующий метод
+  getSkillLevel(skillId) {
+    return this.skills[skillId]?.level || 0;
+  }
 
   // Получить бонус от навыков
   getSkillBonus(type, target = null) {
     let bonus = 0;
     SKILL_DEFS.forEach(def => {
-      const level = this.skills[def.id].level;
+      const level = this.skills[def.id]?.level || 0; // ИСПРАВЛЕНИЕ: защита от undefined
       if (level > 0 && def.effect.type === type && 
           (target === null || def.effect.target === target)) {
         bonus += def.effect.value * level;
