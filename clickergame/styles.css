@@ -1,55 +1,118 @@
-/* styles.css */
-/* — добавляем сетку для списков */
-.lists-container {
+/* Общие стили */
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #fafafa;
+}
+
+/* Сверху: кнопки навигации */
+#ui-top {
+  display: flex;
+  gap: 1rem;
+  margin: 1rem;
+}
+
+/* Основная игровая зона: ресурсы и колесо */
+#game-area {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+}
+
+.resources-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 120px;
+}
+
+/* Canvas-колесо */
+#gameCanvas {
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 50%;
+}
+
+/* Списки под колесом */
+#lists-area {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  column-gap: 1rem;
-  margin-top: 1rem;
-  width: 100%;
+  gap: 1rem;
+  width: 90%;
   max-width: 800px;
+  margin: 1rem 0;
 }
-/* панели по умолчанию скрыты */
+
 .list-panel {
-  display: none;
   background: #fff;
+  border: 1px solid #666;
+  border-radius: 4px;
   padding: 0.5rem;
-  border: 1px solid var(--text);
-  border-radius: 0.25rem;
   max-height: 200px;
   overflow-y: auto;
 }
 
-/* тултип при наведении */
+/* Кнопки управления внизу */
+#controls-bottom {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+/* Уведомления */
+#notifications {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.notification {
+  background: #333;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 3px;
+}
+
+/* Всплывающие подсказки */
 .tooltip {
   position: absolute;
   padding: 0.25rem 0.5rem;
-  background: var(--text);
-  color: var(--bg);
-  border-radius: 0.25rem;
+  background: #333;
+  color: #fff;
+  border-radius: 3px;
   pointer-events: none;
   font-size: 0.8rem;
   z-index: 1000;
 }
 
-/* модалки */
+/* Модальные окна */
 .modal {
   position: fixed;
   top: 50%;
   left: 50%;
-  transform: translate(-50%,-50%);
+  transform: translate(-50%, -50%);
   background: #fff;
-  border: 2px solid var(--text);
+  border: 2px solid #333;
+  border-radius: 6px;
   padding: 1rem;
-  border-radius: 0.5rem;
   max-width: 90%;
   max-height: 80%;
   overflow-y: auto;
   z-index: 2000;
 }
+
 .modal.hidden {
   display: none;
 }
-/* затемнение фона */
+
+/* Затемнение фона под модалкой */
 .modal::backdrop {
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
 }
