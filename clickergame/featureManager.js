@@ -64,8 +64,11 @@ export class FeatureManager {
         }
       }
 
-      this.shuffleZones();
-      EventBus.emit('zonesShuffled');
+      // Шанс смены зоны-мишени
+if (Math.random() * 100 < CONFIG.zoneShuffleChance) {
+  this.shuffleZones();
+  EventBus.emit('zonesShuffled');
+}
     };
 
     EventBus.subscribe('click', this.clickHandler);
