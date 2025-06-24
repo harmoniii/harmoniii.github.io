@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,12 +13,28 @@
     <canvas id="gameCanvas"></canvas>
     <div id="resources-right" class="res-col"></div>
     <div id="notifications"></div>
+
+    <!-- новые списки под колесом -->
+    <div id="lists-container" class="lists-container">
+      <div id="buildings-list" class="list-panel"></div>
+      <div id="skills-list"   class="list-panel"></div>
+    </div>
   </div>
+
   <div class="controls">
+    <button id="toggle-buildings">Buildings</button>
+    <button id="toggle-skills">Skills</button>
+    <button id="info-button">(i)</button>
     <button id="reset-button">Reset</button>
     <button id="save-button">Save</button>
     <button id="load-button">Load</button>
   </div>
+
+  <!-- модалка для mysteryBox -->
+  <div id="mystery-modal" class="modal hidden"></div>
+  <!-- модалка для описания баффов/дебаффов -->
+  <div id="info-modal"    class="modal hidden"></div>
+
   <script type="module" src="game.js"></script>
 </body>
 </html>
