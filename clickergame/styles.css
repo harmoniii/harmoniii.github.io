@@ -626,3 +626,346 @@ body, html {
     box-shadow: 0 4px 12px rgba(244, 67, 54, 0.8);
   }
 }
+
+/* Кнопки управления сохранением */
+#controls-bottom {
+  display: flex; 
+  gap: 1rem; 
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+}
+
+#controls-bottom button {
+  padding: 0.75rem 1.5rem;
+  background: #fff;
+  border: 2px solid #333;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  min-width: 120px;
+  position: relative;
+  overflow: hidden;
+}
+
+#controls-bottom button:hover {
+  background: #333;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Стили для кнопки Load */
+#load-button {
+  border-color: #2196F3;
+  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+  color: white;
+}
+
+#load-button:hover {
+  background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
+/* Стили для кнопки Save */
+#save-button {
+  border-color: #4CAF50;
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+}
+
+#save-button:hover {
+  background: linear-gradient(135deg, #45a049 0%, #388E3C 100%);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+/* ИСПРАВЛЕНИЕ: Ядерная кнопка сброса с предупреждающим дизайном */
+#reset-button {
+  border-color: #ff4444;
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  color: white;
+  position: relative;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-width: 3px;
+  box-shadow: 
+    0 0 20px rgba(255, 68, 68, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+#reset-button::before {
+  content: '☢️💀';
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2em;
+  animation: dangerPulse 2s ease-in-out infinite;
+}
+
+#reset-button:hover {
+  background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%);
+  box-shadow: 
+    0 0 30px rgba(255, 68, 68, 0.6),
+    0 4px 15px rgba(255, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: #ff0000;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+  animation: nuclearGlow 0.5s ease-in-out infinite alternate;
+}
+
+#reset-button:active {
+  background: linear-gradient(135deg, #cc0000 0%, #990000 100%);
+  transform: translateY(1px);
+  box-shadow: 
+    0 0 40px rgba(255, 68, 68, 0.8),
+    0 2px 8px rgba(255, 0, 0, 0.6),
+    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Анимации для кнопки сброса */
+@keyframes dangerPulse {
+  0%, 100% { 
+    opacity: 1; 
+    transform: translateY(-50%) scale(1); 
+  }
+  50% { 
+    opacity: 0.7; 
+    transform: translateY(-50%) scale(1.1); 
+  }
+}
+
+@keyframes nuclearGlow {
+  0% { 
+    box-shadow: 
+      0 0 30px rgba(255, 68, 68, 0.6),
+      0 4px 15px rgba(255, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  100% { 
+    box-shadow: 
+      0 0 40px rgba(255, 68, 68, 0.9),
+      0 4px 20px rgba(255, 0, 0, 0.7),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+}
+
+/* Дополнительные стили для безопасности */
+#reset-button::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 10px,
+    rgba(255, 255, 0, 0.1) 10px,
+    rgba(255, 255, 0, 0.1) 20px
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#reset-button:hover::after {
+  opacity: 1;
+  animation: warningStripes 1s linear infinite;
+}
+
+@keyframes warningStripes {
+  0% { transform: translateX(-20px); }
+  100% { transform: translateX(20px); }
+}
+
+/* Специальные уведомления для сброса */
+.nuclear-notification {
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
+  border: 2px solid #ff0000 !important;
+  box-shadow: 
+    0 4px 20px rgba(255, 68, 68, 0.5),
+    0 0 30px rgba(255, 0, 0, 0.3) !important;
+  animation: nuclearNotification 0.5s ease-out;
+}
+
+@keyframes nuclearNotification {
+  0% {
+    transform: translateX(100%) rotate(5deg) scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(0) rotate(-2deg) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Модальное окно подтверждения сброса */
+.nuclear-confirmation-modal {
+  background: radial-gradient(circle, #1a0000 0%, #000000 100%) !important;
+  border: 3px solid #ff4444 !important;
+  box-shadow: 
+    0 0 50px rgba(255, 68, 68, 0.8),
+    inset 0 0 20px rgba(255, 0, 0, 0.2) !important;
+  color: #ff6666 !important;
+}
+
+.nuclear-confirmation-modal h3 {
+  color: #ff4444 !important;
+  text-shadow: 0 0 10px rgba(255, 68, 68, 0.8) !important;
+  animation: dangerFlicker 1s ease-in-out infinite;
+}
+
+@keyframes dangerFlicker {
+  0%, 100% { text-shadow: 0 0 10px rgba(255, 68, 68, 0.8); }
+  50% { text-shadow: 0 0 20px rgba(255, 68, 68, 1); }
+}
+
+/* Стили для экрана полного сброса */
+.total-destruction-screen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background: radial-gradient(circle, 
+    rgba(255, 68, 68, 0.2) 0%, 
+    rgba(0, 0, 0, 0.9) 50%, 
+    #000000 100%) !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  backdrop-filter: blur(10px) !important;
+}
+
+.destruction-message {
+  background: linear-gradient(135deg, #330000 0%, #000000 100%) !important;
+  border: 3px solid #ff4444 !important;
+  border-radius: 20px !important;
+  padding: 40px !important;
+  text-align: center !important;
+  color: #ff6666 !important;
+  font-family: 'Courier New', monospace !important;
+  box-shadow: 
+    0 0 50px rgba(255, 68, 68, 0.8),
+    inset 0 0 20px rgba(255, 0, 0, 0.2) !important;
+  animation: destructionPulse 2s ease-in-out infinite;
+}
+
+@keyframes destructionPulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 
+      0 0 50px rgba(255, 68, 68, 0.8),
+      inset 0 0 20px rgba(255, 0, 0, 0.2);
+  }
+  50% { 
+    transform: scale(1.02);
+    box-shadow: 
+      0 0 60px rgba(255, 68, 68, 1),
+      inset 0 0 30px rgba(255, 0, 0, 0.4);
+  }
+}
+
+/* Особые эффекты для текста уничтожения */
+.destruction-title {
+  font-size: 2.5em !important;
+  font-weight: 900 !important;
+  margin-bottom: 20px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 3px !important;
+  text-shadow: 
+    0 0 20px rgba(255, 68, 68, 1),
+    0 0 40px rgba(255, 0, 0, 0.8) !important;
+  animation: titleFlicker 1.5s ease-in-out infinite;
+}
+
+@keyframes titleFlicker {
+  0%, 100% { 
+    opacity: 1;
+    text-shadow: 
+      0 0 20px rgba(255, 68, 68, 1),
+      0 0 40px rgba(255, 0, 0, 0.8);
+  }
+  25%, 75% { 
+    opacity: 0.8;
+    text-shadow: 
+      0 0 30px rgba(255, 68, 68, 1),
+      0 0 60px rgba(255, 0, 0, 1);
+  }
+  50% { 
+    opacity: 0.9;
+    text-shadow: 
+      0 0 25px rgba(255, 68, 68, 1),
+      0 0 50px rgba(255, 0, 0, 0.9);
+  }
+}
+
+/* Кнопка перезагрузки в экране уничтожения */
+.destruction-reload-button {
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
+  border: 2px solid #ff6666 !important;
+  color: white !important;
+  padding: 15px 30px !important;
+  border-radius: 10px !important;
+  font-size: 1.2em !important;
+  font-weight: bold !important;
+  cursor: pointer !important;
+  margin-top: 30px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  transition: all 0.3s ease !important;
+  box-shadow: 
+    0 4px 15px rgba(255, 68, 68, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.destruction-reload-button:hover {
+  background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 
+    0 6px 20px rgba(255, 68, 68, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+  #controls-bottom {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  #controls-bottom button {
+    width: 100%;
+    min-width: auto;
+    padding: 1rem;
+  }
+  
+  #reset-button::before {
+    left: 15px;
+    font-size: 1em;
+  }
+  
+  .destruction-message {
+    margin: 20px !important;
+    padding: 20px !important;
+  }
+  
+  .destruction-title {
+    font-size: 1.8em !important;
+    letter-spacing: 1px !important;
+  }
+}
