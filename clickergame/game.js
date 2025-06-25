@@ -1,14 +1,9 @@
 // game.js - Полная исправленная версия с улучшенной инициализацией и управлением ресурсами
-import { EventBus } from './eventBus.js';
-import { FeatureManager } from './featureManager.js';
-import { BuildingManager } from './buildings.js';
-import { SkillManager } from './skills.js';
-import { MarketManager } from './market.js';
-import { loadState, saveState } from './storage.js';
-import UIManager from './ui.js';
-import { CONFIG, GAME_CONSTANTS } from './config.js';
+import { GameCore } from './core/GameCore.js';
+import { eventBus, GameEvents } from './core/GameEvents.js';
 
-// ИСПРАВЛЕНИЕ 2: Глобальные переменные для отслеживания компонентов
+// Глобальные переменные для отладки
+let gameCore = null;
 let gameState = null;
 let managers = {
   feature: null,
