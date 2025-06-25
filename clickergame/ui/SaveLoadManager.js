@@ -1,4 +1,4 @@
-// ui/SaveLoadManager.js - УПРОЩЕННАЯ и надежная версия
+// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 
@@ -8,7 +8,7 @@ export class SaveLoadManager extends CleanupMixin {
     this.gameState = gameState;
   }
 
-  // УПРОЩЕННОЕ СОХРАНЕНИЕ - просто JSON в base64
+  // ИСПРАВЛЕННОЕ СОХРАНЕНИЕ - корректно сохраняет здания и навыки
   performSave() {
     try {
       console.log('💾 Starting save...');
@@ -17,16 +17,37 @@ export class SaveLoadManager extends CleanupMixin {
         throw new Error('Game state not available');
       }
 
-      // Получаем чистые данные из gameState
+      // ИСПРАВЛЕНИЕ: Получаем данные напрямую из gameState с валидацией
       const saveData = {
-        resources: {...(this.gameState.resources || {})},
-        combo: {...(this.gameState.combo || {count: 0, deadline: 0})},
-        skillPoints: this.gameState.skillPoints || 0,
+        resources: this.gameState.resources ? {...this.gameState.resources} : {},
+        combo: this.gameState.combo ? {...this.gameState.combo} : {count: 0, deadline: 0, lastZone: null, lastAngle: null},
+        skillPoints: Math.floor(this.gameState.skillPoints || 0),
         targetZone: this.gameState.targetZone || 0,
-        buildings: {...(this.gameState.buildings || {})},
-        skills: {...(this.gameState.skills || {})},
-        skillStates: {...(this.gameState.skillStates || {})},
-        market: {...(this.gameState.market || {})},
+        previousTargetZone: this.gameState.previousTargetZone || 0,
+        
+        // ИСПРАВЛЕНИЕ: Правильное сохранение зданий
+        buildings: this.gameState.buildings ? 
+          Object.fromEntries(
+            Object.entries(this.gameState.buildings).map(([id, building]) => [
+              id, {
+                level: Math.floor(building.level || 0),
+                active: Boolean(building.active)
+              }
+            ])
+          ) : {},
+        
+        // ИСПРАВЛЕНИЕ: Правильное сохранение навыков
+        skills: this.gameState.skills ? 
+          Object.fromEntries(
+            Object.entries(this.gameState.skills).map(([id, skill]) => [
+              id, {
+                level: Math.floor(skill.level || 0)
+              }
+            ])
+          ) : {},
+        
+        skillStates: this.gameState.skillStates ? {...this.gameState.skillStates} : {},
+        market: this.gameState.market ? {...this.gameState.market} : {},
         timestamp: Date.now(),
         version: '1.0'
       };
@@ -46,7 +67,7 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // УПРОЩЕННАЯ ЗАГРУЗКА - сразу применяем без перезагрузки
+  // ИСПРАВЛЕННАЯ ЗАГРУЗКА - корректно применяет здания и навыки
   performLoad() {
     try {
       const code = prompt('🔄 Paste your save code:');
@@ -79,7 +100,7 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // ПРИМЕНЕНИЕ ДАННЫХ СРАЗУ К ИГРОВОМУ СОСТОЯНИЮ
+  // ИСПРАВЛЕННОЕ ПРИМЕНЕНИЕ ДАННЫХ - корректно восстанавливает здания и навыки
   applySaveData(saveData) {
     console.log('📥 Applying save data to game state...');
     
@@ -87,14 +108,14 @@ export class SaveLoadManager extends CleanupMixin {
       // Обновляем ресурсы
       if (saveData.resources) {
         Object.keys(this.gameState.resources).forEach(resource => {
-          this.gameState.resources[resource] = saveData.resources[resource] || 0;
+          this.gameState.resources[resource] = Math.max(0, saveData.resources[resource] || 0);
         });
       }
 
       // Обновляем комбо
       if (saveData.combo) {
         this.gameState.combo = {
-          count: saveData.combo.count || 0,
+          count: Math.max(0, saveData.combo.count || 0),
           deadline: saveData.combo.deadline || 0,
           lastZone: saveData.combo.lastZone || null,
           lastAngle: saveData.combo.lastAngle || null
@@ -102,31 +123,37 @@ export class SaveLoadManager extends CleanupMixin {
       }
 
       // Обновляем skill points
-      this.gameState.skillPoints = Math.max(0, saveData.skillPoints || 0);
+      this.gameState.skillPoints = Math.max(0, Math.floor(saveData.skillPoints || 0));
 
       // Обновляем зоны
       this.gameState.targetZone = saveData.targetZone || 0;
       this.gameState.previousTargetZone = saveData.previousTargetZone || 0;
 
-      // Обновляем здания
-      if (saveData.buildings) {
+      // ИСПРАВЛЕНИЕ: Правильное восстановление зданий
+      if (saveData.buildings && this.gameState.buildings) {
+        console.log('📥 Restoring buildings...');
         Object.keys(this.gameState.buildings).forEach(buildingId => {
           if (saveData.buildings[buildingId]) {
+            const savedBuilding = saveData.buildings[buildingId];
             this.gameState.buildings[buildingId] = {
-              level: Math.max(0, saveData.buildings[buildingId].level || 0),
-              active: Boolean(saveData.buildings[buildingId].active)
+              level: Math.max(0, Math.floor(savedBuilding.level || 0)),
+              active: Boolean(savedBuilding.active)
             };
+            console.log(`Restored building ${buildingId}: level ${this.gameState.buildings[buildingId].level}`);
           }
         });
       }
 
-      // Обновляем навыки
-      if (saveData.skills) {
+      // ИСПРАВЛЕНИЕ: Правильное восстановление навыков
+      if (saveData.skills && this.gameState.skills) {
+        console.log('📥 Restoring skills...');
         Object.keys(this.gameState.skills).forEach(skillId => {
           if (saveData.skills[skillId]) {
+            const savedSkill = saveData.skills[skillId];
             this.gameState.skills[skillId] = {
-              level: Math.max(0, saveData.skills[skillId].level || 0)
+              level: Math.max(0, Math.floor(savedSkill.level || 0))
             };
+            console.log(`Restored skill ${skillId}: level ${this.gameState.skills[skillId].level}`);
           }
         });
       }
@@ -164,7 +191,7 @@ export class SaveLoadManager extends CleanupMixin {
       eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
       eventBus.emit(GameEvents.COMBO_CHANGED, this.gameState.combo);
 
-      // Перезапускаем менеджеры если нужно
+      // КРИТИЧЕСКИ ВАЖНО: Перезапускаем менеджеры после загрузки
       this.restartManagers();
 
       console.log('✅ Save data applied successfully');
@@ -175,31 +202,44 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // ПЕРЕЗАПУСК МЕНЕДЖЕРОВ ПОСЛЕ ЗАГРУЗКИ
+  // ИСПРАВЛЕННЫЙ ПЕРЕЗАПУСК МЕНЕДЖЕРОВ - обязательно после загрузки
   restartManagers() {
     try {
-      // Перезапускаем производство зданий
+      console.log('🔄 Restarting managers...');
+
+      // ИСПРАВЛЕНИЕ: Перезапускаем производство зданий
       if (this.gameState.buildingManager) {
+        // Останавливаем старое производство
+        this.gameState.buildingManager.stopAllProduction();
+        // Запускаем новое производство согласно загруженным данным
         this.gameState.buildingManager.startProduction();
+        console.log('✅ Building production restarted');
       }
 
-      // Перезапускаем генерацию навыков
+      // ИСПРАВЛЕНИЕ: Перезапускаем генерацию навыков
       if (this.gameState.skillManager) {
+        // Останавливаем старую генерацию
+        if (typeof this.gameState.skillManager.stopAllGeneration === 'function') {
+          this.gameState.skillManager.stopAllGeneration();
+        }
+        // Запускаем новую генерацию согласно загруженным данным
         this.gameState.skillManager.startGeneration();
+        console.log('✅ Skill generation restarted');
       }
 
       // Обновляем UI
       if (this.gameState.managers && this.gameState.managers.ui) {
         this.gameState.managers.ui.forceUpdate();
+        console.log('✅ UI updated');
       }
 
-      console.log('✅ Managers restarted');
+      console.log('✅ All managers restarted');
     } catch (error) {
       console.warn('⚠️ Some managers failed to restart:', error);
     }
   }
 
-  // ПРОСТОЙ СБРОС ИГРЫ
+  // ИСПРАВЛЕННЫЙ СБРОС ИГРЫ - корректно сбрасывает все
   performReset() {
     const confirmed = confirm(`🔄 RESET GAME
 
@@ -218,7 +258,7 @@ Are you sure?`);
     try {
       console.log('🔄 Resetting game...');
       
-      // Создаем пустое состояние
+      // ИСПРАВЛЕНИЕ: Создаем полностью пустое состояние с правильной структурой
       const emptyData = {
         resources: {
           gold: 0, wood: 0, stone: 0, food: 0, water: 0, iron: 0,
@@ -227,8 +267,22 @@ Are you sure?`);
         combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
         skillPoints: 0,
         targetZone: 0,
-        buildings: {},
-        skills: {},
+        previousTargetZone: 0,
+        
+        // ИСПРАВЛЕНИЕ: Сбрасываем здания правильно
+        buildings: Object.fromEntries(
+          Object.keys(this.gameState.buildings || {}).map(id => [
+            id, { level: 0, active: false }
+          ])
+        ),
+        
+        // ИСПРАВЛЕНИЕ: Сбрасываем навыки правильно
+        skills: Object.fromEntries(
+          Object.keys(this.gameState.skills || {}).map(id => [
+            id, { level: 0 }
+          ])
+        ),
+        
         skillStates: { missProtectionCharges: 0, autoClickerActive: false },
         market: { dailyDeals: [], purchaseHistory: [], reputation: 0 },
         timestamp: Date.now(),
@@ -344,6 +398,8 @@ Are you sure?`);
         resources: { gold: 100, wood: 50 },
         skillPoints: 10,
         combo: { count: 5 },
+        buildings: { sawmill: { level: 3, active: true } },
+        skills: { goldMultiplier: { level: 2 } },
         timestamp: Date.now(),
         version: '1.0'
       };

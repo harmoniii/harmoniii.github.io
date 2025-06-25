@@ -1,4 +1,4 @@
-/* styles.css - Полная исправленная версия */
+/* styles.css - ИСПРАВЛЕННАЯ версия с отдельным индикатором комбо */
 
 /* Сброс отступов и флекс-контейнер */
 body, html {
@@ -8,11 +8,9 @@ body, html {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
   color: #333;
-  /* ИСПРАВЛЕНИЕ: Стабильная ширина скроллбара */
   overflow-y: scroll;
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильная обертка для всего контента */
 body::before {
   content: '';
   position: fixed;
@@ -27,7 +25,7 @@ body::before {
 /* Навигация сверху */
 #ui-top {
   display: flex; gap: 1rem; margin: 1rem;
-  flex-wrap: wrap; /* для адаптивности */
+  flex-wrap: wrap;
   justify-content: center;
 }
 
@@ -49,7 +47,6 @@ body::before {
   transform: translateY(-2px);
 }
 
-/* Специальные цвета для разных кнопок */
 #toggle-market {
   border-color: #FF9800;
 }
@@ -66,30 +63,140 @@ body::before {
   background: #2196F3;
 }
 
-/* ИСПРАВЛЕНИЕ: Фиксированная основная зона игры */
+/* ИСПРАВЛЕНИЕ: Основная зона игры с отдельным индикатором комбо */
 #game-area {
   display: flex; 
+  flex-direction: column;
   align-items: center; 
-  gap: 2rem;
+  gap: 1rem;
   background: rgba(255, 255, 255, 0.9);
   padding: 1rem;
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  /* ИСПРАВЛЕНИЕ: Фиксированная позиция для стабильности */
   position: relative;
   z-index: 1;
-  /* ИСПРАВЛЕНИЕ: Минимальные размеры для предотвращения сжатия */
-  min-height: 540px;
   width: fit-content;
   margin: 0 auto;
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильные панели ресурсов */
+/* ИСПРАВЛЕНИЕ: Контейнер для игрового колеса и ресурсов */
+.game-wheel-container {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  width: 100%;
+  justify-content: center;
+}
+
+/* ИСПРАВЛЕНИЕ: Новый индикатор комбо над колесом */
+.combo-indicator {
+  position: relative;
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  border: 3px solid #FF8C00;
+  border-radius: 25px;
+  padding: 15px 30px;
+  margin-bottom: 1rem;
+  box-shadow: 
+    0 8px 20px rgba(255, 165, 0, 0.4),
+    inset 0 2px 10px rgba(255, 255, 255, 0.3);
+  text-align: center;
+  min-width: 200px;
+  animation: comboGlow 2s ease-in-out infinite alternate;
+}
+
+.combo-indicator .combo-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #8B4513;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.combo-indicator .combo-value {
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #B8860B;
+  text-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.3),
+    0 0 10px rgba(255, 215, 0, 0.8);
+  line-height: 1;
+  display: block;
+}
+
+.combo-indicator .combo-bonus {
+  font-size: 0.9rem;
+  color: #8B4513;
+  opacity: 0.8;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+/* Анимация свечения для комбо */
+@keyframes comboGlow {
+  0% {
+    box-shadow: 
+      0 8px 20px rgba(255, 165, 0, 0.4),
+      inset 0 2px 10px rgba(255, 255, 255, 0.3),
+      0 0 15px rgba(255, 215, 0, 0.3);
+  }
+  100% {
+    box-shadow: 
+      0 8px 25px rgba(255, 165, 0, 0.6),
+      inset 0 2px 10px rgba(255, 255, 255, 0.5),
+      0 0 25px rgba(255, 215, 0, 0.6);
+  }
+}
+
+/* Особые состояния комбо */
+.combo-indicator.combo-high {
+  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
+  border-color: #FF4757;
+  animation: comboHighGlow 1s ease-in-out infinite alternate;
+}
+
+.combo-indicator.combo-perfect {
+  background: linear-gradient(135deg, #A8E6CF 0%, #88D8A3 100%);
+  border-color: #4ECDC4;
+  animation: comboPerfectGlow 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes comboHighGlow {
+  0% {
+    box-shadow: 
+      0 8px 20px rgba(255, 107, 107, 0.5),
+      inset 0 2px 10px rgba(255, 255, 255, 0.4),
+      0 0 20px rgba(255, 71, 87, 0.4);
+  }
+  100% {
+    box-shadow: 
+      0 12px 30px rgba(255, 107, 107, 0.7),
+      inset 0 2px 10px rgba(255, 255, 255, 0.6),
+      0 0 30px rgba(255, 71, 87, 0.7);
+  }
+}
+
+@keyframes comboPerfectGlow {
+  0% {
+    box-shadow: 
+      0 8px 20px rgba(168, 230, 207, 0.5),
+      inset 0 2px 10px rgba(255, 255, 255, 0.4),
+      0 0 20px rgba(78, 205, 196, 0.4);
+  }
+  100% {
+    box-shadow: 
+      0 12px 30px rgba(168, 230, 207, 0.7),
+      inset 0 2px 10px rgba(255, 255, 255, 0.6),
+      0 0 30px rgba(78, 205, 196, 0.7);
+  }
+}
+
+/* Панели ресурсов */
 .resources-panel {
   display: flex; 
   flex-direction: column; 
   align-items: flex-start;
-  /* ИСПРАВЛЕНИЕ: Фиксированная ширина */
   width: 140px;
   min-width: 140px;
   max-width: 140px;
@@ -97,9 +204,7 @@ body::before {
   padding: 1rem;
   border-radius: 10px;
   font-weight: 500;
-  /* ИСПРАВЛЕНИЕ: Предотвращаем сжатие */
   flex-shrink: 0;
-  /* ИСПРАВЛЕНИЕ: Фиксированная высота */
   min-height: 480px;
   overflow-y: auto;
 }
@@ -113,21 +218,19 @@ body::before {
   color: #4CAF50;
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильное позиционирование canvas */
+/* Игровое колесо */
 #gameCanvas {
   background: #fff; 
   border: 3px solid #333; 
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-  /* ИСПРАВЛЕНИЕ: Предотвращаем смещение */
   display: block;
   flex-shrink: 0;
-  /* ИСПРАВЛЕНИЕ: Фиксированные размеры */
   width: 500px !important;
   height: 500px !important;
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильные индикаторы эффектов - не влияют на layout */
+/* Индикаторы эффектов */
 .effect-indicators {
   position: fixed;
   top: 100px;
@@ -137,12 +240,11 @@ body::before {
   gap: 0.5rem;
   z-index: 900;
   max-width: 200px;
-  /* ИСПРАВЛЕНИЕ: Предотвращаем влияние на основной layout */
   pointer-events: none;
 }
 
 .effect-indicator {
-  pointer-events: auto; /* Восстанавливаем для самих индикаторов */
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -153,9 +255,8 @@ body::before {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
   cursor: help;
-  /* ИСПРАВЛЕНИЕ: Стабильное позиционирование */
   position: relative;
-  transform: translateZ(0); /* Включаем аппаратное ускорение */
+  transform: translateZ(0);
 }
 
 .effect-indicator:hover {
@@ -187,7 +288,7 @@ body::before {
   text-overflow: ellipsis;
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильная динамическая панель */
+/* Динамическая панель */
 .list-panel {
   width: 95%; 
   max-width: 1000px;
@@ -195,11 +296,10 @@ body::before {
   border: 1px solid #ddd;
   border-radius: 15px;
   padding: 1rem;
-  margin: 1rem auto; /* Центрируем */
+  margin: 1rem auto;
   max-height: 400px;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  /* ИСПРАВЛЕНИЕ: Стабильное позиционирование */
   position: relative;
   z-index: 2;
 }
@@ -241,7 +341,6 @@ body::before {
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
 }
 
-/* Специальные стили для разных типов карточек */
 .market-card {
   background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
   border-color: #FF9800;
@@ -302,7 +401,6 @@ body::before {
   font-weight: bold;
 }
 
-/* Специальные стили для редкости и серьезности */
 .rarity-common {
   background: #9E9E9E;
 }
@@ -405,7 +503,6 @@ body::before {
   opacity: 0.6;
 }
 
-/* Специальные кнопки для маркета */
 .market-card .buy-button {
   background: linear-gradient(135deg, #FF9800 0%, #f57c00 100%);
 }
@@ -432,7 +529,7 @@ body::before {
   margin-top: 1rem;
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильные уведомления - не влияют на layout */
+/* Уведомления */
 #notifications {
   position: fixed; 
   top: 1rem; 
@@ -441,13 +538,12 @@ body::before {
   flex-direction: column; 
   gap: 0.5rem;
   z-index: 1000;
-  /* ИСПРАВЛЕНИЕ: Предотвращаем влияние на основной layout */
   pointer-events: none;
   max-width: 300px;
 }
 
 .notification {
-  pointer-events: auto; /* Восстанавливаем для самих уведомлений */
+  pointer-events: auto;
   background: linear-gradient(135deg, #333 0%, #555 100%);
   color: #fff;
   padding: 0.75rem 1rem;
@@ -456,9 +552,8 @@ body::before {
   animation: slideIn 0.3s ease;
   max-width: 300px;
   word-wrap: break-word;
-  /* ИСПРАВЛЕНИЕ: Стабильное позиционирование */
   position: relative;
-  transform: translateZ(0); /* Включаем аппаратное ускорение */
+  transform: translateZ(0);
 }
 
 @keyframes slideIn {
@@ -481,7 +576,7 @@ body::before {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* ИСПРАВЛЕНИЕ: Стабильные модальные окна */
+/* Модальные окна */
 .modal {
   position: fixed; 
   top: 50%; 
@@ -496,7 +591,6 @@ body::before {
   overflow-y: auto; 
   z-index: 2000;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  /* ИСПРАВЛЕНИЕ: Предотвращаем влияние на основной layout */
   backface-visibility: hidden;
   transform-style: preserve-3d;
 }
@@ -618,7 +712,7 @@ body::before {
   }
 }
 
-/* ИСПРАВЛЕНИЕ: Кнопки управления сохранением с четким текстом */
+/* Кнопки управления сохранением */
 #controls-bottom {
   display: flex; 
   gap: 1rem; 
@@ -642,7 +736,6 @@ body::before {
   min-width: 120px;
   position: relative;
   overflow: hidden;
-  /* ИСПРАВЛЕНИЕ: Четкие цвета по умолчанию */
   background: #ffffff;
   color: #333333;
   text-shadow: none;
@@ -654,7 +747,6 @@ body::before {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* ИСПРАВЛЕНИЕ: Стили для кнопки Load с четким контрастом */
 #load-button {
   border-color: #2196F3 !important;
   background: #2196F3 !important;
@@ -669,7 +761,6 @@ body::before {
   color: #ffffff !important;
 }
 
-/* ИСПРАВЛЕНИЕ: Стили для кнопки Save с четким контрастом */
 #save-button {
   border-color: #4CAF50 !important;
   background: #4CAF50 !important;
@@ -717,96 +808,7 @@ body::before {
   box-shadow: 0 2px 4px rgba(255, 152, 0, 0.6) !important;
 }
 
-/* Удаляем все старые ядерные стили */
-#reset-button::after {
-  display: none !important;
-}
-
-@keyframes dangerPulse {
-  0%, 100% { opacity: 1; }
-}
-@keyframes nuclearGlow {
-  0%, 100% { opacity: 1; }
-}
-@keyframes warningStripes {
-  0%, 100% { transform: translateX(0); }
-}
-
-/* Убираем ядерные уведомления */
-.nuclear-notification,
-.nuclear-confirmation-modal {
-  display: none !important;
-} 
-
-/* Анимации для кнопки сброса */
-@keyframes dangerPulse {
-  0%, 100% { 
-    opacity: 1; 
-    transform: translateY(-50%) scale(1); 
-  }
-  50% { 
-    opacity: 0.7; 
-    transform: translateY(-50%) scale(1.1); 
-  }
-}
-
-@keyframes nuclearGlow {
-  0% { 
-    box-shadow: 
-      0 0 30px rgba(255, 68, 68, 0.6),
-      0 4px 15px rgba(255, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  }
-  100% { 
-    box-shadow: 
-      0 0 40px rgba(255, 68, 68, 0.9),
-      0 4px 20px rgba(255, 0, 0, 0.7),
-      inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  }
-}
-
-@keyframes warningStripes {
-  0% { transform: translateX(-20px); }
-  100% { transform: translateX(20px); }
-}
-
-@keyframes nuclearNotification {
-  0% {
-    transform: translateX(100%) rotate(5deg) scale(0.8);
-    opacity: 0;
-  }
-  50% {
-    transform: translateX(0) rotate(-2deg) scale(1.05);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(0) rotate(0deg) scale(1);
-    opacity: 1;
-  }
-}
-
-/* Модальное окно подтверждения сброса */
-.nuclear-confirmation-modal {
-  background: radial-gradient(circle, #1a0000 0%, #000000 100%) !important;
-  border: 3px solid #ff4444 !important;
-  box-shadow: 
-    0 0 50px rgba(255, 68, 68, 0.8),
-    inset 0 0 20px rgba(255, 0, 0, 0.2) !important;
-  color: #ff6666 !important;
-}
-
-.nuclear-confirmation-modal h3 {
-  color: #ff4444 !important;
-  text-shadow: 0 0 10px rgba(255, 68, 68, 0.8) !important;
-  animation: dangerFlicker 1s ease-in-out infinite;
-}
-
-@keyframes dangerFlicker {
-  0%, 100% { text-shadow: 0 0 10px rgba(255, 68, 68, 0.8); }
-  50% { text-shadow: 0 0 20px rgba(255, 68, 68, 1); }
-}
-
-/* ИСПРАВЛЕНИЕ: Адаптивность без влияния на canvas */
+/* Адаптивность */
 @media (max-width: 768px) {
   #ui-top {
     gap: 0.5rem;
@@ -819,16 +821,16 @@ body::before {
   }
   
   #game-area {
-    flex-direction: column;
-    gap: 1rem;
-    /* ИСПРАВЛЕНИЕ: Фиксированные размеры для мобильных */
-    min-height: auto;
     width: 95%;
     max-width: 600px;
   }
   
+  .game-wheel-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
   #gameCanvas {
-    /* ИСПРАВЛЕНИЕ: Пропорциональное уменьшение для мобильных */
     width: 350px !important;
     height: 350px !important;
   }
@@ -839,11 +841,23 @@ body::before {
     max-width: none;
     min-height: auto;
     text-align: center;
-    /* ИСПРАВЛЕНИЕ: Горизонтальное расположение на мобильных */
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
     gap: 1rem;
+  }
+  
+  .combo-indicator {
+    min-width: 150px;
+    padding: 10px 20px;
+  }
+  
+  .combo-indicator .combo-title {
+    font-size: 1rem;
+  }
+  
+  .combo-indicator .combo-value {
+    font-size: 2rem;
   }
   
   .item-footer {

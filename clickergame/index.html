@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Advanced Clicker v1.3Alpha</title>
+  <title>Advanced Clicker v.Alpha1.7</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,11 +15,21 @@
     <button id="info-button">📚 Info</button>
   </div>
 
-  <!-- Игровая зона: ресурсы слева, колесо, ресурсы справа -->
+  <!-- ИСПРАВЛЕНИЕ: Игровая зона с отдельным индикатором комбо -->
   <div id="game-area">
-    <div id="resources-left" class="resources-panel"></div>
-    <canvas id="gameCanvas" width="500" height="500"></canvas>
-    <div id="resources-right" class="resources-panel"></div>
+    <!-- НОВЫЙ: Индикатор комбо над колесом -->
+    <div class="combo-indicator" id="combo-indicator">
+      <div class="combo-title">COMBO</div>
+      <div class="combo-value" id="combo-value">0</div>
+      <div class="combo-bonus" id="combo-bonus">Keep hitting the target!</div>
+    </div>
+
+    <!-- Контейнер для колеса и ресурсов -->
+    <div class="game-wheel-container">
+      <div id="resources-left" class="resources-panel"></div>
+      <canvas id="gameCanvas" width="500" height="500"></canvas>
+      <div id="resources-right" class="resources-panel"></div>
+    </div>
   </div>
 
   <!-- Панель, которая меняется в зависимости от кнопки -->
