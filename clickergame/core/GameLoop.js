@@ -1,4 +1,4 @@
-// core/GameLoop.js - Игровой цикл и рендеринг
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с поддержкой Reverse Controls
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -15,6 +15,9 @@ export class GameLoop extends CleanupMixin {
     this.angle = 0;
     this.isRunning = false;
     this.animationId = null;
+    
+    // НОВОЕ: Переменная для направления вращения
+    this.rotationDirection = 1; // 1 = обычное, -1 = обратное
     
     this.initializeCanvas();
     this.bindEvents();
@@ -74,6 +77,30 @@ export class GameLoop extends CleanupMixin {
     eventBus.subscribe(GameEvents.CLICK, () => {
       this.gameState.currentRotation = this.angle;
     });
+    
+    // НОВОЕ: Слушаем изменения дебаффов для Reverse Controls
+    eventBus.subscribe(GameEvents.DEBUFF_APPLIED, (data) => {
+      if (data.id === 'reverseControls') {
+        this.updateRotationDirection();
+      }
+    });
+    
+    eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, (data) => {
+      if (data.id === 'reverseControls') {
+        this.updateRotationDirection();
+      }
+    });
+  }
+
+  // НОВОЕ: Обновление направления вращения
+  updateRotationDirection() {
+    // Проверяем, активен ли дебафф Reverse Controls
+    const hasReverseControls = this.gameState.debuffs && 
+                              this.gameState.debuffs.includes('reverseControls');
+    
+    this.rotationDirection = hasReverseControls ? -1 : 1;
+    
+    console.log(`🔄 Rotation direction: ${hasReverseControls ? 'REVERSED' : 'NORMAL'}`);
   }
 
   // Запуск игрового цикла
@@ -106,6 +133,9 @@ export class GameLoop extends CleanupMixin {
       // Очищаем canvas
       this.clearCanvas();
       
+      // ИСПРАВЛЕНИЕ: Обновляем направление вращения
+      this.updateRotationDirection();
+      
       // Обновляем угол поворота
       this.updateRotation();
       
@@ -128,7 +158,7 @@ export class GameLoop extends CleanupMixin {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  // Обновление угла поворота
+  // ИСПРАВЛЕНИЕ: Обновление угла поворота с поддержкой Reverse Controls
   updateRotation() {
     let rotationSpeed = UI_CONFIG.ROTATION_SPEED;
     
@@ -141,7 +171,14 @@ export class GameLoop extends CleanupMixin {
       rotationSpeed *= GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER;
     }
     
-    this.angle += rotationSpeed;
+    // ИСПРАВЛЕНИЕ: Применяем направление вращения
+    this.angle += rotationSpeed * this.rotationDirection;
+    
+    // Нормализуем угол для предотвращения переполнения
+    this.angle = this.angle % (2 * Math.PI);
+    if (this.angle < 0) {
+      this.angle += 2 * Math.PI;
+    }
   }
 
   // Рендеринг игровых элементов
@@ -151,6 +188,7 @@ export class GameLoop extends CleanupMixin {
     this.drawZones();
     this.drawTargetIndicator();
     this.drawPreviewZone();
+    this.drawReverseIndicator(); // НОВОЕ: Индикатор обратного вращения
   }
 
   // Рисование зон
@@ -258,9 +296,67 @@ export class GameLoop extends CleanupMixin {
     this.ctx.setLineDash([]); // Сбрасываем пунктир
   }
 
+  // НОВОЕ: Рисование индикатора обратного вращения
+  drawReverseIndicator() {
+    // Показываем индикатор только если активен Reverse Controls
+    if (!this.gameState.debuffs || !this.gameState.debuffs.includes('reverseControls')) {
+      return;
+    }
+    
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+    
+    // Рисуем стрелку указывающую направление вращения
+    this.ctx.save();
+    
+    // Позиция стрелки (в центре колеса)
+    this.ctx.translate(centerX, centerY);
+    
+    // Поворачиваем стрелку в зависимости от направления
+    this.ctx.rotate(this.angle + (this.rotationDirection > 0 ? 0 : Math.PI));
+    
+    // Рисуем стрелку
+    this.ctx.beginPath();
+    this.ctx.moveTo(0, -50);
+    this.ctx.lineTo(-15, -30);
+    this.ctx.lineTo(-5, -30);
+    this.ctx.lineTo(-5, -10);
+    this.ctx.lineTo(5, -10);
+    this.ctx.lineTo(5, -30);
+    this.ctx.lineTo(15, -30);
+    this.ctx.closePath();
+    
+    // Яркий цвет для обратного направления
+    this.ctx.fillStyle = this.rotationDirection < 0 ? '#FF4444' : '#44FF44';
+    this.ctx.fill();
+    
+    // Обводка
+    this.ctx.strokeStyle = '#000';
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+    
+    this.ctx.restore();
+    
+    // Добавляем текстовый индикатор
+    if (this.rotationDirection < 0) {
+      this.ctx.save();
+      this.ctx.font = 'bold 16px Arial';
+      this.ctx.fillStyle = '#FF4444';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
+      this.ctx.fillText('🙃 REVERSE', centerX, centerY + 80);
+      this.ctx.restore();
+    }
+  }
+
   // Получить текущий угол поворота
   getCurrentAngle() {
     return this.angle;
+  }
+
+  // НОВОЕ: Получить направление вращения
+  getRotationDirection() {
+    return this.rotationDirection;
   }
 
   // Получить canvas
@@ -299,12 +395,19 @@ export class GameLoop extends CleanupMixin {
     return {
       fps: this.getFPS(),
       angle: this.angle,
+      rotationDirection: this.rotationDirection,
       isRunning: this.isRunning,
       canvasSize: {
         width: this.canvas?.width || 0,
         height: this.canvas?.height || 0
       }
     };
+  }
+
+  // НОВОЕ: Форсированное обновление направления (для отладки)
+  forceUpdateDirection() {
+    this.updateRotationDirection();
+    console.log(`🔄 Force updated rotation direction: ${this.rotationDirection}`);
   }
 
   // Деструктор
