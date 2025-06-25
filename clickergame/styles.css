@@ -1,4 +1,5 @@
-/* styles.css - Обновленная версия с индикаторами эффектов */
+/* styles.css - Полная исправленная версия */
+
 /* Сброс отступов и флекс-контейнер */
 body, html {
   margin: 0; padding: 0;
@@ -7,6 +8,20 @@ body, html {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
   color: #333;
+  /* ИСПРАВЛЕНИЕ: Стабильная ширина скроллбара */
+  overflow-y: scroll;
+}
+
+/* ИСПРАВЛЕНИЕ: Стабильная обертка для всего контента */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  z-index: -1;
 }
 
 /* Навигация сверху */
@@ -25,6 +40,7 @@ body, html {
   font-weight: bold;
   transition: all 0.3s ease;
   min-width: 100px;
+  color: #333;
 }
 
 #ui-top button:hover {
@@ -50,22 +66,42 @@ body, html {
   background: #2196F3;
 }
 
-/* Основная зона: ресурсы и колесо */
+/* ИСПРАВЛЕНИЕ: Фиксированная основная зона игры */
 #game-area {
-  display: flex; align-items: center; gap: 2rem;
+  display: flex; 
+  align-items: center; 
+  gap: 2rem;
   background: rgba(255, 255, 255, 0.9);
   padding: 1rem;
   border-radius: 15px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  /* ИСПРАВЛЕНИЕ: Фиксированная позиция для стабильности */
+  position: relative;
+  z-index: 1;
+  /* ИСПРАВЛЕНИЕ: Минимальные размеры для предотвращения сжатия */
+  min-height: 540px;
+  width: fit-content;
+  margin: 0 auto;
 }
 
+/* ИСПРАВЛЕНИЕ: Стабильные панели ресурсов */
 .resources-panel {
-  display: flex; flex-direction: column; align-items: flex-start;
+  display: flex; 
+  flex-direction: column; 
+  align-items: flex-start;
+  /* ИСПРАВЛЕНИЕ: Фиксированная ширина */
+  width: 140px;
   min-width: 140px;
+  max-width: 140px;
   background: rgba(255, 255, 255, 0.8);
   padding: 1rem;
   border-radius: 10px;
   font-weight: 500;
+  /* ИСПРАВЛЕНИЕ: Предотвращаем сжатие */
+  flex-shrink: 0;
+  /* ИСПРАВЛЕНИЕ: Фиксированная высота */
+  min-height: 480px;
+  overflow-y: auto;
 }
 
 .resources-panel span {
@@ -77,14 +113,21 @@ body, html {
   color: #4CAF50;
 }
 
+/* ИСПРАВЛЕНИЕ: Стабильное позиционирование canvas */
 #gameCanvas {
   background: #fff; 
   border: 3px solid #333; 
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  /* ИСПРАВЛЕНИЕ: Предотвращаем смещение */
+  display: block;
+  flex-shrink: 0;
+  /* ИСПРАВЛЕНИЕ: Фиксированные размеры */
+  width: 500px !important;
+  height: 500px !important;
 }
 
-/* Индикаторы эффектов */
+/* ИСПРАВЛЕНИЕ: Стабильные индикаторы эффектов - не влияют на layout */
 .effect-indicators {
   position: fixed;
   top: 100px;
@@ -94,9 +137,12 @@ body, html {
   gap: 0.5rem;
   z-index: 900;
   max-width: 200px;
+  /* ИСПРАВЛЕНИЕ: Предотвращаем влияние на основной layout */
+  pointer-events: none;
 }
 
 .effect-indicator {
+  pointer-events: auto; /* Восстанавливаем для самих индикаторов */
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -107,6 +153,9 @@ body, html {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
   transition: all 0.3s ease;
   cursor: help;
+  /* ИСПРАВЛЕНИЕ: Стабильное позиционирование */
+  position: relative;
+  transform: translateZ(0); /* Включаем аппаратное ускорение */
 }
 
 .effect-indicator:hover {
@@ -138,17 +187,21 @@ body, html {
   text-overflow: ellipsis;
 }
 
-/* Динамическая панель */
+/* ИСПРАВЛЕНИЕ: Стабильная динамическая панель */
 .list-panel {
-  width: 95%; max-width: 1000px;
+  width: 95%; 
+  max-width: 1000px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #ddd;
   border-radius: 15px;
   padding: 1rem;
-  margin: 1rem 0;
+  margin: 1rem auto; /* Центрируем */
   max-height: 400px;
   overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  /* ИСПРАВЛЕНИЕ: Стабильное позиционирование */
+  position: relative;
+  z-index: 2;
 }
 
 .list-panel h2 {
@@ -379,23 +432,22 @@ body, html {
   margin-top: 1rem;
 }
 
-/* Специальные цвета для кнопки Reset */
-#reset-button {
-  border-color: #f44336;
-}
-
-#reset-button:hover {
-  background: #f44336;
-}
-
-/* Уведомления */
+/* ИСПРАВЛЕНИЕ: Стабильные уведомления - не влияют на layout */
 #notifications {
-  position: fixed; top: 1rem; right: 1rem;
-  display: flex; flex-direction: column; gap: 0.5rem;
+  position: fixed; 
+  top: 1rem; 
+  right: 1rem;
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.5rem;
   z-index: 1000;
+  /* ИСПРАВЛЕНИЕ: Предотвращаем влияние на основной layout */
+  pointer-events: none;
+  max-width: 300px;
 }
 
 .notification {
+  pointer-events: auto; /* Восстанавливаем для самих уведомлений */
   background: linear-gradient(135deg, #333 0%, #555 100%);
   color: #fff;
   padding: 0.75rem 1rem;
@@ -404,6 +456,9 @@ body, html {
   animation: slideIn 0.3s ease;
   max-width: 300px;
   word-wrap: break-word;
+  /* ИСПРАВЛЕНИЕ: Стабильное позиционирование */
+  position: relative;
+  transform: translateZ(0); /* Включаем аппаратное ускорение */
 }
 
 @keyframes slideIn {
@@ -426,9 +481,11 @@ body, html {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* Модальные окна */
+/* ИСПРАВЛЕНИЕ: Стабильные модальные окна */
 .modal {
-  position: fixed; top: 50%; left: 50%;
+  position: fixed; 
+  top: 50%; 
+  left: 50%;
   transform: translate(-50%, -50%);
   background: #fff; 
   border: 2px solid #333; 
@@ -439,6 +496,9 @@ body, html {
   overflow-y: auto; 
   z-index: 2000;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  /* ИСПРАВЛЕНИЕ: Предотвращаем влияние на основной layout */
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
 }
 
 .modal.hidden { display: none; }
@@ -480,53 +540,6 @@ body, html {
 
 .list-panel::-webkit-scrollbar-thumb:hover {
   background: #45a049;
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
-  #ui-top {
-    gap: 0.5rem;
-  }
-  
-  #ui-top button {
-    padding: 0.5rem 1rem;
-    min-width: 80px;
-    font-size: 0.9rem;
-  }
-  
-  #game-area {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .resources-panel {
-    min-width: auto;
-    width: 100%;
-    text-align: center;
-  }
-  
-  .item-footer {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-  
-  .buy-button {
-    width: 100%;
-  }
-  
-  .market-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .effect-indicators {
-    left: 10px;
-    top: 80px;
-    max-width: 150px;
-  }
-  
-  .effect-name {
-    font-size: 0.7rem;
-  }
 }
 
 /* Специальные уведомления для навыков */
@@ -605,7 +618,7 @@ body, html {
   }
 }
 
-/* Кнопки управления сохранением */
+/* ИСПРАВЛЕНИЕ: Кнопки управления сохранением с четким текстом */
 #controls-bottom {
   display: flex; 
   gap: 1rem; 
@@ -620,7 +633,6 @@ body, html {
 
 #controls-bottom button {
   padding: 0.75rem 1.5rem;
-  background: #fff;
   border: 2px solid #333;
   border-radius: 8px;
   cursor: pointer;
@@ -630,52 +642,64 @@ body, html {
   min-width: 120px;
   position: relative;
   overflow: hidden;
+  /* ИСПРАВЛЕНИЕ: Четкие цвета по умолчанию */
+  background: #ffffff;
+  color: #333333;
+  text-shadow: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 #controls-bottom button:hover {
-  background: #333;
-  color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Стили для кнопки Load */
+/* ИСПРАВЛЕНИЕ: Стили для кнопки Load с четким контрастом */
 #load-button {
-  border-color: #2196F3;
-  background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
-  color: white;
+  border-color: #2196F3 !important;
+  background: #2196F3 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 
 #load-button:hover {
-  background: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+  background: #1976D2 !important;
+  border-color: #1565C0 !important;
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4) !important;
+  color: #ffffff !important;
 }
 
-/* Стили для кнопки Save */
+/* ИСПРАВЛЕНИЕ: Стили для кнопки Save с четким контрастом */
 #save-button {
-  border-color: #4CAF50;
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  color: white;
+  border-color: #4CAF50 !important;
+  background: #4CAF50 !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 
 #save-button:hover {
-  background: linear-gradient(135deg, #45a049 0%, #388E3C 100%);
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+  background: #45a049 !important;
+  border-color: #388E3C !important;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4) !important;
+  color: #ffffff !important;
 }
 
-/* ИСПРАВЛЕНИЕ: Ядерная кнопка сброса с предупреждающим дизайном */
+/* ИСПРАВЛЕНИЕ: Ядерная кнопка сброса с максимальным контрастом */
 #reset-button {
-  border-color: #ff4444;
-  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
-  color: white;
+  border-color: #ff4444 !important;
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
+  color: #ffffff !important;
   position: relative;
-  font-weight: 900;
+  font-weight: 900 !important;
   text-transform: uppercase;
   letter-spacing: 1px;
-  border-width: 3px;
+  border-width: 3px !important;
+  text-shadow: 
+    0 0 3px rgba(0, 0, 0, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.5) !important;
   box-shadow: 
     0 0 20px rgba(255, 68, 68, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
 }
 
 #reset-button::before {
@@ -686,26 +710,31 @@ body, html {
   transform: translateY(-50%);
   font-size: 1.2em;
   animation: dangerPulse 2s ease-in-out infinite;
+  color: #ffffff !important;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8) !important;
 }
 
 #reset-button:hover {
-  background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%);
+  background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%) !important;
   box-shadow: 
     0 0 30px rgba(255, 68, 68, 0.6),
     0 4px 15px rgba(255, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  border-color: #ff0000;
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+  border-color: #ff0000 !important;
+  text-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.8),
+    0 0 3px rgba(0, 0, 0, 0.8),
+    0 1px 2px rgba(0, 0, 0, 0.5) !important;
   animation: nuclearGlow 0.5s ease-in-out infinite alternate;
 }
 
 #reset-button:active {
-  background: linear-gradient(135deg, #cc0000 0%, #990000 100%);
+  background: linear-gradient(135deg, #cc0000 0%, #990000 100%) !important;
   transform: translateY(1px);
   box-shadow: 
     0 0 40px rgba(255, 68, 68, 0.8),
     0 2px 8px rgba(255, 0, 0, 0.6),
-    inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
 }
 
 /* Анимации для кнопки сброса */
@@ -811,116 +840,69 @@ body, html {
   50% { text-shadow: 0 0 20px rgba(255, 68, 68, 1); }
 }
 
-/* Стили для экрана полного сброса */
-.total-destruction-screen {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  background: radial-gradient(circle, 
-    rgba(255, 68, 68, 0.2) 0%, 
-    rgba(0, 0, 0, 0.9) 50%, 
-    #000000 100%) !important;
-  z-index: 99999 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  backdrop-filter: blur(10px) !important;
-}
-
-.destruction-message {
-  background: linear-gradient(135deg, #330000 0%, #000000 100%) !important;
-  border: 3px solid #ff4444 !important;
-  border-radius: 20px !important;
-  padding: 40px !important;
-  text-align: center !important;
-  color: #ff6666 !important;
-  font-family: 'Courier New', monospace !important;
-  box-shadow: 
-    0 0 50px rgba(255, 68, 68, 0.8),
-    inset 0 0 20px rgba(255, 0, 0, 0.2) !important;
-  animation: destructionPulse 2s ease-in-out infinite;
-}
-
-@keyframes destructionPulse {
-  0%, 100% { 
-    transform: scale(1);
-    box-shadow: 
-      0 0 50px rgba(255, 68, 68, 0.8),
-      inset 0 0 20px rgba(255, 0, 0, 0.2);
-  }
-  50% { 
-    transform: scale(1.02);
-    box-shadow: 
-      0 0 60px rgba(255, 68, 68, 1),
-      inset 0 0 30px rgba(255, 0, 0, 0.4);
-  }
-}
-
-/* Особые эффекты для текста уничтожения */
-.destruction-title {
-  font-size: 2.5em !important;
-  font-weight: 900 !important;
-  margin-bottom: 20px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 3px !important;
-  text-shadow: 
-    0 0 20px rgba(255, 68, 68, 1),
-    0 0 40px rgba(255, 0, 0, 0.8) !important;
-  animation: titleFlicker 1.5s ease-in-out infinite;
-}
-
-@keyframes titleFlicker {
-  0%, 100% { 
-    opacity: 1;
-    text-shadow: 
-      0 0 20px rgba(255, 68, 68, 1),
-      0 0 40px rgba(255, 0, 0, 0.8);
-  }
-  25%, 75% { 
-    opacity: 0.8;
-    text-shadow: 
-      0 0 30px rgba(255, 68, 68, 1),
-      0 0 60px rgba(255, 0, 0, 1);
-  }
-  50% { 
-    opacity: 0.9;
-    text-shadow: 
-      0 0 25px rgba(255, 68, 68, 1),
-      0 0 50px rgba(255, 0, 0, 0.9);
-  }
-}
-
-/* Кнопка перезагрузки в экране уничтожения */
-.destruction-reload-button {
-  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
-  border: 2px solid #ff6666 !important;
-  color: white !important;
-  padding: 15px 30px !important;
-  border-radius: 10px !important;
-  font-size: 1.2em !important;
-  font-weight: bold !important;
-  cursor: pointer !important;
-  margin-top: 30px !important;
-  text-transform: uppercase !important;
-  letter-spacing: 1px !important;
-  transition: all 0.3s ease !important;
-  box-shadow: 
-    0 4px 15px rgba(255, 68, 68, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-}
-
-.destruction-reload-button:hover {
-  background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: 
-    0 6px 20px rgba(255, 68, 68, 0.7),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-}
-
-/* Адаптивность для мобильных устройств */
+/* ИСПРАВЛЕНИЕ: Адаптивность без влияния на canvas */
 @media (max-width: 768px) {
+  #ui-top {
+    gap: 0.5rem;
+  }
+  
+  #ui-top button {
+    padding: 0.5rem 1rem;
+    min-width: 80px;
+    font-size: 0.9rem;
+  }
+  
+  #game-area {
+    flex-direction: column;
+    gap: 1rem;
+    /* ИСПРАВЛЕНИЕ: Фиксированные размеры для мобильных */
+    min-height: auto;
+    width: 95%;
+    max-width: 600px;
+  }
+  
+  #gameCanvas {
+    /* ИСПРАВЛЕНИЕ: Пропорциональное уменьшение для мобильных */
+    width: 350px !important;
+    height: 350px !important;
+  }
+  
+  .resources-panel {
+    width: 100%;
+    min-width: auto;
+    max-width: none;
+    min-height: auto;
+    text-align: center;
+    /* ИСПРАВЛЕНИЕ: Горизонтальное расположение на мобильных */
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+  
+  .item-footer {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .buy-button {
+    width: 100%;
+  }
+  
+  .market-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .effect-indicators {
+    left: 10px;
+    top: 80px;
+    max-width: 150px;
+  }
+  
+  .effect-name {
+    font-size: 0.7rem;
+  }
+  
   #controls-bottom {
     flex-direction: column;
     gap: 0.75rem;
@@ -935,15 +917,5 @@ body, html {
   #reset-button::before {
     left: 15px;
     font-size: 1em;
-  }
-  
-  .destruction-message {
-    margin: 20px !important;
-    padding: 20px !important;
-  }
-  
-  .destruction-title {
-    font-size: 1.8em !important;
-    letter-spacing: 1px !important;
   }
 }
