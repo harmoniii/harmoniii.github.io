@@ -107,30 +107,6 @@ function setupModernPageHandlers() {
   }
 }
 
-// УЛУЧШЕННЫЙ обработчик ошибок
-function setupErrorHandlers() {
-  window.addEventListener('error', (event) => {
-    console.error('💀 Global error:', event.error);
-    
-    // Безопасная попытка экстренного сохранения
-    if (gameCore && 
-        typeof gameCore.autoSave === 'function' && 
-        gameCore.isDestroyed !== true) {
-      try {
-        gameCore.autoSave();
-        console.log('✅ Emergency save completed');
-      } catch (saveError) {
-        console.error('❌ Emergency save failed:', saveError);
-      }
-    }
-  });
-  
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('💀 Unhandled promise rejection:', event.reason);
-    event.preventDefault();
-  });
-}
-
 function handleCriticalError(error) {
   const errorMessage = `Game initialization failed: ${error.message}`;
   
