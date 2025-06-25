@@ -1,4 +1,4 @@
-// managers/BuildingManager.js - Управление зданиями
+// managers/BuildingManager.js - Fixed version with correct cleanup methods
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -312,11 +312,12 @@ export class BuildingManager extends CleanupMixin {
     eventBus.emit(GameEvents.RESOURCE_CHANGED);
   }
 
-  // Остановить производство здания
+  // Остановить производство здания - FIXED: Use correct CleanupManager method
   stopBuildingProduction(buildingId) {
     if (this.productionIntervals.has(buildingId)) {
       const intervalId = this.productionIntervals.get(buildingId);
-      this.clearInterval(intervalId);
+      // FIXED: Use the CleanupManager method correctly
+      this.cleanupManager.clearInterval(intervalId);
       this.productionIntervals.delete(buildingId);
     }
   }
@@ -495,15 +496,35 @@ export class BuildingManager extends CleanupMixin {
     return true;
   }
 
-  // Деструктор
+  // Остановить все производство - FIXED: Use correct CleanupManager method
+  stopAllProduction() {
+    console.log('🛑 Stopping all building production...');
+    
+    // FIXED: Iterate safely and use correct cleanup method
+    const intervalsToStop = Array.from(this.productionIntervals.entries());
+    
+    intervalsToStop.forEach(([buildingId, intervalId]) => {
+      try {
+        // Use the CleanupManager method correctly
+        this.cleanupManager.clearInterval(intervalId);
+        console.log(`Stopped production for ${buildingId}`);
+      } catch (error) {
+        console.warn(`Error stopping production for ${buildingId}:`, error);
+      }
+    });
+    
+    this.productionIntervals.clear();
+    console.log('✅ All building production stopped');
+  }
+
+  // Деструктор - FIXED: Use correct cleanup method
   destroy() {
+    if (this.isDestroyed) return;
+    
     console.log('🧹 BuildingManager cleanup started');
 
     // Останавливаем все производство
-    this.productionIntervals.forEach((intervalId, buildingId) => {
-      this.clearInterval(intervalId);
-    });
-    this.productionIntervals.clear();
+    this.stopAllProduction();
 
     // Вызываем родительский деструктор
     super.destroy();
