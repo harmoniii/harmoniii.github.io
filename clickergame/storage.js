@@ -1,4 +1,4 @@
-// storage.js - Обновленная версия с поддержкой новых модулей
+// storage.js - Исправленная версия с очисткой временных эффектов
 import { RESOURCES } from './config.js';
 import { BUILDING_DEFS } from './buildings.js';
 import { SKILL_DEFS } from './skills.js';
@@ -55,7 +55,9 @@ const DEFAULT_STATE = {
 export function saveState(state) {
   const { featureMgr, buildingManager, skillManager, marketManager, CONFIG, ...toSave } = state;
   try {
-    localStorage.setItem('gameState', btoa(JSON.stringify(toSave)));
+    // ИСПРАВЛЕНИЕ: Используем encodeURIComponent для безопасного кодирования
+    const jsonString = JSON.stringify(toSave);
+    localStorage.setItem('gameState', btoa(encodeURIComponent(jsonString)));
   } catch (error) {
     console.warn('Failed to save game state:', error);
   }
@@ -66,7 +68,9 @@ export function loadState() {
     const enc = localStorage.getItem('gameState');
     if (!enc) throw new Error('No saved state found');
     
-    const loaded = JSON.parse(atob(enc));
+    // ИСПРАВЛЕНИЕ: Используем decodeURIComponent для безопасной декодировки
+    const decoded = decodeURIComponent(atob(enc));
+    const loaded = JSON.parse(decoded);
     
     // Объединяем загруженные данные с дефолтными, чтобы добавить новые поля
     const mergedState = { ...DEFAULT_STATE };
@@ -77,6 +81,20 @@ export function loadState() {
         mergedState[key] = loaded[key];
       }
     });
+    
+    // ИСПРАВЛЕНИЕ: Очищаем временные эффекты при загрузке
+    mergedState.buffs = [];
+    mergedState.debuffs = [];
+    mergedState.blockedUntil = 0;
+    
+    // Сбрасываем временные состояния эффектов
+    mergedState.effectStates = {
+      starPowerClicks: 0,
+      shieldBlocks: 0,
+      heavyClickRequired: {},
+      reverseDirection: 1,
+      frozenCombo: false
+    };
     
     // Объединяем здания (добавляем новые, сохраняем существующие)
     if (loaded.buildings) {
@@ -101,10 +119,8 @@ export function loadState() {
       mergedState.skillStates = { ...DEFAULT_STATE.skillStates, ...loaded.skillStates };
     }
     
-    // Объединяем состояния эффектов
-    if (loaded.effectStates) {
-      mergedState.effectStates = { ...DEFAULT_STATE.effectStates, ...loaded.effectStates };
-    }
+    // ИСПРАВЛЕНИЕ: Не загружаем effectStates из сохранения, используем только дефолтные
+    // Это предотвратит загрузку "зависших" эффектов
     
     // Объединяем состояние маркета
     if (loaded.market) {
@@ -116,6 +132,7 @@ export function loadState() {
       mergedState.skillPoints = Math.floor(loaded.skillPoints);
     }
     
+    console.log('✅ Состояние загружено, временные эффекты очищены');
     return mergedState;
   } catch (error) {
     console.log('Loading default state:', error.message);
