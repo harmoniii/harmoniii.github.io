@@ -1,4 +1,4 @@
-// skills.js - Окончательно исправленная версия
+// skills.js - Исправленная версия с фиксами багов
 import { EventBus } from './eventBus.js';
 
 export const SKILL_CATEGORIES = {
@@ -190,7 +190,7 @@ export class SkillManager {
   constructor(state) {
     this.state = state;
     this.skills = state.skills || {};
-    this.intervals = {};
+    this.intervals = new Map(); // ИСПРАВЛЕНИЕ: используем Map для лучшего управления
     this.initSkills();
     this.startGeneration();
   }
@@ -203,7 +203,7 @@ export class SkillManager {
       });
     }
     
-    // ИСПРАВЛЕНИЕ: Инициализируем skill points как целое число
+    // ИСПРАВЛЕНИЕ: Всегда округляем skill points до целого числа
     if (this.state.skillPoints === undefined) {
       this.state.skillPoints = 0;
     } else {
@@ -246,7 +246,7 @@ export class SkillManager {
     const cost = this.calculateCost(def, currentLevel);
     if (this.state.skillPoints < cost) return false;
 
-    // ИСПРАВЛЕНИЕ: округляем skill points при списании
+    // ИСПРАВЛЕНИЕ: Всегда округляем skill points при списании
     this.state.skillPoints = Math.floor(this.state.skillPoints - cost);
     
     // Повышаем уровень навыка
@@ -302,54 +302,71 @@ export class SkillManager {
   }
 
   startSkillPointGeneration(skillId, def, level) {
-    if (this.intervals[skillId]) {
-      clearInterval(this.intervals[skillId]);
+    // ИСПРАВЛЕНИЕ: Очищаем старый интервал если существует
+    if (this.intervals.has(skillId)) {
+      clearInterval(this.intervals.get(skillId));
     }
     
-    this.intervals[skillId] = setInterval(() => {
+    const interval = setInterval(() => {
       const amount = def.effect.value * level;
-      // ИСПРАВЛЕНИЕ: округляем до целого числа
+      // ИСПРАВЛЕНИЕ: Всегда округляем skill points до целого числа
       this.state.skillPoints = Math.floor((this.state.skillPoints || 0) + amount);
       EventBus.emit('skillPointsChanged', this.state.skillPoints);
     }, def.effect.interval);
+    
+    this.intervals.set(skillId, interval);
   }
 
   startFaithGeneration(skillId, def, level) {
-    if (this.intervals[skillId]) {
-      clearInterval(this.intervals[skillId]);
+    // ИСПРАВЛЕНИЕ: Очищаем старый интервал если существует
+    if (this.intervals.has(skillId)) {
+      clearInterval(this.intervals.get(skillId));
     }
     
-    this.intervals[skillId] = setInterval(() => {
+    const interval = setInterval(() => {
       const amount = def.effect.value * level;
       this.state.resources.faith += amount;
       EventBus.emit('resourceChanged');
     }, def.effect.interval);
+    
+    this.intervals.set(skillId, interval);
   }
 
   startAutoClicker(level) {
-    if (this.intervals.autoClicker) {
-      clearInterval(this.intervals.autoClicker);
+    // ИСПРАВЛЕНИЕ: Очищаем старый интервал если существует
+    if (this.intervals.has('autoClicker')) {
+      clearInterval(this.intervals.get('autoClicker'));
     }
     
     this.state.skillStates.autoClickerActive = true;
     
-    this.intervals.autoClicker = setInterval(() => {
+    const interval = setInterval(() => {
       try {
         const target = this.state.targetZone;
         const fm = this.state.featureMgr;
         if (typeof target === 'number' && fm && fm.zones) {
           const zone = fm.zones.find(z => z.index === target);
           if (zone) {
+            // ИСПРАВЛЕНИЕ: Получаем текущий угол поворота колеса
+            const currentRotation = this.state.currentRotation || 0;
+            
+            // Вычисляем угол клика относительно текущего поворота
             const start = zone.getStartAngle();
             const end = zone.getEndAngle();
-            const clickAngle = start + Math.random() * (end - start);
-            EventBus.emit('click', clickAngle);
+            const zoneClickAngle = start + Math.random() * (end - start);
+            
+            // Корректируем угол с учетом поворота колеса
+            const correctedAngle = zoneClickAngle - currentRotation;
+            
+            EventBus.emit('click', correctedAngle);
           }
         }
       } catch (error) {
         console.warn('Auto clicker error:', error);
       }
     }, Math.max(1000, 10000 / level));
+    
+    this.intervals.set('autoClicker', interval);
   }
 
   getSkillLevel(skillId) {
@@ -410,14 +427,21 @@ export class SkillManager {
     return categories;
   }
 
-  // ИСПРАВЛЕНИЕ: Добавить skill points как целое число
+  // ИСПРАВЛЕНИЕ: Всегда добавляем skill points как целое число
   addSkillPoints(amount) {
-    this.state.skillPoints = Math.floor((this.state.skillPoints || 0) + amount);
+    this.state.skillPoints = Math.floor((this.state.skillPoints || 0) + Math.floor(amount));
     EventBus.emit('skillPointsChanged', this.state.skillPoints);
   }
 
+  // ИСПРАВЛЕНИЕ: Полная очистка всех интервалов
   stopAllGeneration() {
-    Object.values(this.intervals).forEach(interval => clearInterval(interval));
-    this.intervals = {};
+    // Очищаем все интервалы из Map
+    for (const [key, interval] of this.intervals) {
+      clearInterval(interval);
+    }
+    this.intervals.clear();
+    
+    // Дополнительная очистка на случай если что-то осталось
+    this.state.skillStates.autoClickerActive = false;
   }
 }

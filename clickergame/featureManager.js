@@ -1,4 +1,4 @@
-// featureManager.js - Обновленная версия с BuffManager
+// featureManager.js - Исправленная версия с фиксами targeting и Heavy Click
 import { EventBus } from './eventBus.js';
 import { Zone } from './zones.js';
 import { BuffManager, BUFF_DEFS, DEBUFF_DEFS } from './buffs.js';
@@ -13,6 +13,11 @@ export class FeatureManager {
     this.state = state;
     if (typeof this.state.targetZone !== 'number') {
       this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
+    }
+    
+    // ИСПРАВЛЕНИЕ: Инициализируем предыдущую целевую зону для Reverse Controls
+    if (typeof this.state.previousTargetZone !== 'number') {
+      this.state.previousTargetZone = this.state.targetZone;
     }
     
     // Создаем BuffManager
@@ -45,17 +50,28 @@ export class FeatureManager {
       const z = this.zones.find(z => z.contains(normalizedAngle));
       if (!z) return;
 
-      // Heavy Click debuff - требуется несколько кликов
+      // ИСПРАВЛЕНИЕ: Heavy Click debuff с очисткой при смене зоны
       if (this.state.debuffs && this.state.debuffs.includes('heavyClick')) {
         const required = 3; // EFFECT_CONFIG.heavyClick.requiredClicks
         const zoneKey = `zone_${z.index}`;
-        this.state.effectStates.heavyClickRequired[zoneKey] = 
-          (this.state.effectStates.heavyClickRequired[zoneKey] || 0) + 1;
+        
+        // Очищаем счетчики для других зон при клике по новой зоне
+        const currentZoneCount = this.state.effectStates.heavyClickRequired[zoneKey] || 0;
+        
+        // Сбрасываем счетчики всех остальных зон
+        Object.keys(this.state.effectStates.heavyClickRequired).forEach(key => {
+          if (key !== zoneKey) {
+            this.state.effectStates.heavyClickRequired[key] = 0;
+          }
+        });
+        
+        this.state.effectStates.heavyClickRequired[zoneKey] = currentZoneCount + 1;
         
         if (this.state.effectStates.heavyClickRequired[zoneKey] < required) {
           EventBus.emit('heavyClickProgress', {
             current: this.state.effectStates.heavyClickRequired[zoneKey],
-            required: required
+            required: required,
+            zone: z.index
           });
           return;
         } else {
@@ -173,17 +189,27 @@ export class FeatureManager {
       
       EventBus.emit('resourceChanged', { resource: 'gold', amount: this.state.resources.gold });
 
-      // ZONE SHUFFLE с учетом Reverse Controls
+      // ИСПРАВЛЕНИЕ: Улучшенная логика ZONE SHUFFLE с Reverse Controls
       if (z.index === this.state.targetZone && Math.random() * 100 < CONFIG.zoneShuffleChance) {
-        // Reverse Controls debuff меняет направление движения зоны
+        // Сохраняем текущую целевую зону как предыдущую
+        this.state.previousTargetZone = this.state.targetZone;
+        
+        // Reverse Controls debuff - целевая зона движется предсказуемо
         if (this.state.debuffs && this.state.debuffs.includes('reverseControls')) {
-          // Двигаемся в обратном направлении
+          // Движемся последовательно в обратном направлении
           this.state.targetZone = (this.state.targetZone - 1 + ZONE_COUNT) % ZONE_COUNT;
+          EventBus.emit('zonesShuffled', this.state.targetZone);
+          EventBus.emit('tempNotification', '🙃 Reverse Controls: Zone moves backward');
         } else {
-          // Обычное случайное движение
-          this.state.targetZone = Math.floor(Math.random() * ZONE_COUNT);
+          // Обычное случайное движение (исключаем текущую зону для разнообразия)
+          let newTarget;
+          do {
+            newTarget = Math.floor(Math.random() * ZONE_COUNT);
+          } while (newTarget === this.state.targetZone && ZONE_COUNT > 1);
+          
+          this.state.targetZone = newTarget;
+          EventBus.emit('zonesShuffled', this.state.targetZone);
         }
-        EventBus.emit('zonesShuffled', this.state.targetZone);
       }
 
       // BUFF / DEBUFF CHANCE с навыками и исправленным Lucky баффом
