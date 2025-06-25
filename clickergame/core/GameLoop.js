@@ -100,7 +100,7 @@ export class GameLoop extends CleanupMixin {
     
     this.rotationDirection = hasReverseControls ? -1 : 1;
     
-    console.log(`🔄 Rotation direction: ${hasReverseControls ? 'REVERSED' : 'NORMAL'}`);
+    //console.log(`🔄 Rotation direction: ${hasReverseControls ? 'REVERSED' : 'NORMAL'}`);
   }
 
   // Запуск игрового цикла
