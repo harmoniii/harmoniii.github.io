@@ -1,4 +1,4 @@
-// core/GameState.js - Централизованное управление состоянием
+// core/GameState.js - Fixed version with proper cleanup
 import { RESOURCES } from '../config/ResourceConfig.js';
 import { BUILDING_DEFS } from '../managers/BuildingManager.js';
 import { SKILL_DEFS } from '../managers/SkillManager.js';
@@ -6,6 +6,7 @@ import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 export class GameState {
   constructor() {
+    this.isDestroyed = false;
     this.initializeState();
   }
 
@@ -111,7 +112,7 @@ export class GameState {
 
   // Методы для работы с ресурсами
   addResource(resourceName, amount) {
-    if (!RESOURCES.includes(resourceName)) return false;
+    if (this.isDestroyed || !RESOURCES.includes(resourceName)) return false;
     
     const currentAmount = this.resources[resourceName] || 0;
     const newAmount = this.validateResource(resourceName, currentAmount + amount);
@@ -120,7 +121,7 @@ export class GameState {
   }
 
   spendResource(resourceName, amount) {
-    if (!RESOURCES.includes(resourceName)) return false;
+    if (this.isDestroyed || !RESOURCES.includes(resourceName)) return false;
     
     const currentAmount = this.resources[resourceName] || 0;
     if (currentAmount < amount) return false;
@@ -130,6 +131,8 @@ export class GameState {
   }
 
   canAffordResources(costs) {
+    if (this.isDestroyed) return false;
+    
     return Object.entries(costs).every(([resource, amount]) => {
       const available = this.resources[resource] || 0;
       return available >= amount;
@@ -137,7 +140,7 @@ export class GameState {
   }
 
   spendResources(costs) {
-    if (!this.canAffordResources(costs)) return false;
+    if (this.isDestroyed || !this.canAffordResources(costs)) return false;
     
     Object.entries(costs).forEach(([resource, amount]) => {
       this.spendResource(resource, amount);
@@ -148,6 +151,8 @@ export class GameState {
 
   // Получить состояние для сохранения
   getSaveData() {
+    if (this.isDestroyed) return null;
+    
     return {
       resources: { ...this.resources },
       combo: { ...this.combo },
@@ -178,8 +183,8 @@ export class GameState {
 
   // Загрузить состояние
   loadSaveData(data) {
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid save data');
+    if (this.isDestroyed || !data || typeof data !== 'object') {
+      throw new Error('Invalid save data or GameState is destroyed');
     }
 
     // Валидируем и загружаем ресурсы
@@ -252,5 +257,49 @@ export class GameState {
     };
 
     this.lastTimestamp = Date.now();
+  }
+
+  // Check if state is valid
+  isValid() {
+    return !this.isDestroyed && 
+           this.resources && 
+           this.combo && 
+           typeof this.skillPoints === 'number';
+  }
+
+  // Reset to default state
+  reset() {
+    if (this.isDestroyed) return;
+    
+    console.log('🔄 Resetting GameState to defaults...');
+    this.initializeState();
+  }
+
+  // REQUIRED: Destroy method for CleanupManager
+  destroy() {
+    if (this.isDestroyed) return;
+    
+    console.log('🧹 Destroying GameState...');
+    
+    this.isDestroyed = true;
+    
+    // Clear all references
+    this.resources = null;
+    this.combo = null;
+    this.buildings = null;
+    this.skills = null;
+    this.skillStates = null;
+    this.market = null;
+    this.buffs = null;
+    this.debuffs = null;
+    this.effectStates = null;
+    
+    // Clear manager references
+    this.buffManager = null;
+    this.buildingManager = null;
+    this.skillManager = null;
+    this.marketManager = null;
+    
+    console.log('✅ GameState destroyed');
   }
 }
