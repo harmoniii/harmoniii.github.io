@@ -1,4 +1,4 @@
-// game.js - Исправленная версия с полным сбросом и современными API
+// game.js - Исправленная версия с правильной инициализацией
 import { GameCore } from './core/GameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
 
@@ -8,7 +8,7 @@ let gameCore = null;
 // Основная функция инициализации
 async function main() {
   try {
-    console.log('🚀 Starting Advanced Clicker v0.8.1...');
+    console.log('🚀 Starting Advanced Clicker v1.0.8...');
     
     // Устанавливаем обработчики ошибок
     setupErrorHandlers();
@@ -39,7 +39,7 @@ function setupErrorHandlers() {
     console.error('💀 Global error:', event.error);
     
     // Пытаемся сохранить состояние при критической ошибке
-    if (gameCore && gameCore.isActive()) {
+    if (gameCore && typeof gameCore.autoSave === 'function') {
       try {
         gameCore.autoSave();
         console.log('✅ Emergency save completed');
@@ -52,17 +52,16 @@ function setupErrorHandlers() {
   // Обработчик необработанных промисов
   window.addEventListener('unhandledrejection', (event) => {
     console.error('💀 Unhandled promise rejection:', event.reason);
-    event.preventDefault(); // Предотвращаем вывод в консоль браузера
+    event.preventDefault();
   });
 }
 
-// ИСПРАВЛЕНИЕ: Современные обработчики закрытия страницы
+// Современные обработчики закрытия страницы
 function setupModernPageHandlers() {
-  // Основной обработчик сохранения
   const handlePageUnload = () => {
     console.log('👋 Page unloading, saving...');
     
-    if (gameCore && gameCore.isActive()) {
+    if (gameCore && typeof gameCore.autoSave === 'function') {
       try {
         gameCore.autoSave();
         console.log('✅ Final save completed');
@@ -72,18 +71,12 @@ function setupModernPageHandlers() {
     }
   };
   
-  // ИСПРАВЛЕНИЕ: Убираем deprecated unload, используем только beforeunload
   window.addEventListener('beforeunload', (e) => {
     handlePageUnload();
-    
-    // Стандартное предупреждение о закрытии (опционально)
-    // e.preventDefault();
-    // e.returnValue = '';
   });
   
-  // ИСПРАВЛЕНИЕ: Современный API для скрытия страницы
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && gameCore && gameCore.isActive()) {
+    if (document.hidden && gameCore && typeof gameCore.autoSave === 'function') {
       try {
         gameCore.autoSave();
         console.log('💾 Auto-save on page hide');
@@ -93,7 +86,6 @@ function setupModernPageHandlers() {
     }
   });
   
-  // ИСПРАВЛЕНИЕ: Page Lifecycle API для современных браузеров
   if ('onfreeze' in window) {
     window.addEventListener('freeze', handlePageUnload);
   }
@@ -101,4 +93,48 @@ function setupModernPageHandlers() {
   if ('onpagehide' in window) {
     window.addEventListener('pagehide', handlePageUnload);
   }
+}
+
+function handleCriticalError(error) {
+  const errorMessage = `Game initialization failed: ${error.message}`;
+  
+  const errorDiv = document.createElement('div');
+  errorDiv.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #ff4444;
+    color: white;
+    padding: 20px;
+    border-radius: 10px;
+    z-index: 10000;
+    text-align: center;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  
+  errorDiv.innerHTML = `
+    <h3>💀 Game Initialization Error</h3>
+    <p>${errorMessage}</p>
+    <button onclick="location.reload()" style="
+      background: white;
+      color: #ff4444;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    ">🔄 Reload Page</button>
+  `;
+  
+  document.body.appendChild(errorDiv);
+}
+
+// КРИТИЧЕСКИ ВАЖНО: Запуск игры!
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', main);
+} else {
+  main();
 }
