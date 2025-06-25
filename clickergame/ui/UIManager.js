@@ -1,4 +1,4 @@
-// ui/UIManager.js - Основной UI менеджер
+// ui/UIManager.js - Обновленный UI менеджер с исправленным сбросом
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { PanelManager } from './PanelManager.js';
@@ -6,7 +6,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { ModalManager } from './ModalManager.js';
 import { ResourceDisplay } from './ResourceDisplay.js';
 import { EffectIndicators } from './EffectIndicators.js';
-import { SaveLoadManager } from './SaveLoadManager.js';
+import { SaveLoadManager } from './SaveLoadManager.js'; // ИСПРАВЛЕННАЯ версия
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 export default class UIManager extends CleanupMixin {
@@ -22,6 +22,8 @@ export default class UIManager extends CleanupMixin {
     this.modalManager = new ModalManager(gameState);
     this.resourceDisplay = new ResourceDisplay(gameState);
     this.effectIndicators = new EffectIndicators(gameState);
+    
+    // ИСПРАВЛЕНИЕ: Используем новый SaveLoadManager с ядерным сбросом
     this.saveLoadManager = new SaveLoadManager(gameState);
     
     // Регистрируем компоненты для очистки
@@ -36,6 +38,8 @@ export default class UIManager extends CleanupMixin {
     this.bindControls();
     this.bindEvents();
     this.updateDisplay();
+    
+    console.log('🖥️ UIManager initialized with nuclear reset capability');
   }
 
   initializeElements() {
@@ -99,7 +103,7 @@ export default class UIManager extends CleanupMixin {
       this.togglePanel('info');
     });
     
-    // Кнопки сохранения/загрузки
+    // ИСПРАВЛЕНИЕ: Используем новый SaveLoadManager для всех операций
     this.addEventListener(this.btnSave, 'click', () => {
       this.saveLoadManager.performSave();
     });
@@ -108,6 +112,7 @@ export default class UIManager extends CleanupMixin {
       this.saveLoadManager.performLoad();
     });
     
+    // ИСПРАВЛЕНИЕ: Ядерный сброс через новый SaveLoadManager
     this.addEventListener(this.btnReset, 'click', () => {
       this.saveLoadManager.performCompleteReset();
     });
@@ -246,6 +251,38 @@ export default class UIManager extends CleanupMixin {
     eventBus.subscribe(GameEvents.GHOST_CLICK, () => {
       this.notificationManager.show('👻 Ghost Click: Ignored!');
     });
+    
+    // ИСПРАВЛЕНИЕ: Обработка события полного сброса
+    eventBus.subscribe(GameEvents.GAME_RESET, () => {
+      this.handleGameReset();
+    });
+  }
+
+  // ИСПРАВЛЕНИЕ: Обработка полного сброса игры
+  handleGameReset() {
+    console.log('🔥 UIManager handling game reset...');
+    
+    try {
+      // Скрываем все панели
+      this.hidePanel();
+      
+      // Очищаем все уведомления
+      this.notificationManager.clearAll();
+      
+      // Закрываем все модальные окна
+      this.modalManager.hideAllModals();
+      
+      // Очищаем индикаторы эффектов
+      this.effectIndicators.clearContainer();
+      
+      // Показываем финальное уведомление
+      this.notificationManager.showTyped('🔥💀 GAME COMPLETELY RESET 💀🔥', 'error', 5000);
+      
+      console.log('✅ UIManager reset handling complete');
+      
+    } catch (error) {
+      console.error('💀 Error handling UI reset:', error);
+    }
   }
 
   togglePanel(panelType) {
@@ -327,5 +364,47 @@ export default class UIManager extends CleanupMixin {
   // Проверить, открыта ли панель
   isPanelOpen() {
     return this.currentPanel !== null;
+  }
+
+  // Получить статистику UI
+  getUIStats() {
+    return {
+      currentPanel: this.currentPanel,
+      activeNotifications: this.notificationManager.getActiveCount(),
+      activeModals: this.modalManager.getActiveModals().length,
+      hasActiveEffects: this.effectIndicators.hasActiveEffects(),
+      displayStats: this.resourceDisplay.getDisplayStats()
+    };
+  }
+
+  // Форсировать обновление всего UI
+  forceUpdate() {
+    console.log('🔄 Forcing UI update...');
+    this.updateDisplay();
+    this.effectIndicators.update();
+    
+    // Обновляем текущую панель если открыта
+    if (this.currentPanel) {
+      const currentPanel = this.currentPanel;
+      this.hidePanel();
+      this.showPanel(currentPanel);
+    }
+  }
+
+  // Деструктор
+  destroy() {
+    console.log('🧹 UIManager cleanup started');
+    
+    // Закрываем все панели и модальные окна
+    this.hidePanel();
+    this.modalManager.hideAllModals();
+    
+    // Очищаем все уведомления
+    this.notificationManager.clearAll();
+    
+    // Вызываем родительский деструктор
+    super.destroy();
+    
+    console.log('✅ UIManager destroyed');
   }
 }
