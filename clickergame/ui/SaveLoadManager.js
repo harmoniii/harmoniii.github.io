@@ -1,4 +1,4 @@
-// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с генерацией пустого кода
+// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с рабочей загрузкой
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { StorageManager } from '../core/StorageManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
@@ -119,7 +119,7 @@ export class SaveLoadManager extends CleanupMixin {
     this.activeSaveElements.delete(textarea);
   }
 
-  // Выполнить загрузку
+  // ИСПРАВЛЕНИЕ: Полностью переписанный метод загрузки
   performLoad() {
     const code = prompt('🔄 LOAD SAVE\n\nPaste your save code:');
     if (!code || code.trim() === '') {
@@ -130,13 +130,38 @@ export class SaveLoadManager extends CleanupMixin {
     try {
       console.log('🔄 Starting load process...');
       
+      // ИСПРАВЛЕНИЕ: Сначала проверяем валидность кода
       const saveData = this.storageManager.importFromString(code.trim());
-      this.storageManager.createBackup();
       
-      // Сохраняем данные в localStorage перед перезагрузкой
-      localStorage.setItem('advancedClickerState', JSON.stringify(saveData));
+      if (!saveData || typeof saveData !== 'object') {
+        throw new Error('Invalid save data format');
+      }
+
+      console.log('✅ Save code validated successfully');
       
-      eventBus.emit(GameEvents.NOTIFICATION, '✅ Save loaded! Reloading...');
+      // ИСПРАВЛЕНИЕ: Создаем резервную копию текущего состояния
+      if (this.gameState && !this.gameState.isDestroyed) {
+        try {
+          this.storageManager.createBackup();
+          console.log('✅ Backup created');
+        } catch (backupError) {
+          console.warn('⚠️ Could not create backup:', backupError);
+        }
+      }
+      
+      // ИСПРАВЛЕНИЕ: Сохраняем новые данные в localStorage напрямую
+      try {
+        const jsonString = JSON.stringify(saveData);
+        localStorage.setItem('advancedClickerState', jsonString);
+        console.log('✅ Save data written to localStorage');
+      } catch (storageError) {
+        throw new Error(`Failed to save to localStorage: ${storageError.message}`);
+      }
+      
+      eventBus.emit(GameEvents.NOTIFICATION, '✅ Save loaded! Reloading page...');
+      
+      // ИСПРАВЛЕНИЕ: Добавляем флаг перезагрузки для отладки
+      sessionStorage.setItem('loadInProgress', 'true');
       
       this.createTimeout(() => {
         this.performReload('load');
@@ -144,7 +169,20 @@ export class SaveLoadManager extends CleanupMixin {
       
     } catch (error) {
       console.error('❌ Load error:', error);
-      eventBus.emit(GameEvents.NOTIFICATION, `❌ Load failed: ${error.message}`);
+      
+      // ИСПРАВЛЕНИЕ: Более детальная информация об ошибке
+      let errorMessage = 'Load failed';
+      if (error.message.includes('decode')) {
+        errorMessage = 'Invalid save code format';
+      } else if (error.message.includes('JSON')) {
+        errorMessage = 'Corrupted save data';
+      } else if (error.message.includes('localStorage')) {
+        errorMessage = 'Storage error - try again';
+      } else {
+        errorMessage = error.message;
+      }
+      
+      eventBus.emit(GameEvents.NOTIFICATION, `❌ ${errorMessage}`);
     }
   }
 
@@ -238,7 +276,7 @@ export class SaveLoadManager extends CleanupMixin {
       // Отображаем код сброса
       this.displayResetCode(resetCode);
       
-      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Reset code generated! Load it to reset your game.');
+      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Reset code generated! Use Load button to apply it.');
       
     } catch (error) {
       console.error('❌ Reset code generation failed:', error);
@@ -312,18 +350,27 @@ Continue?`;
     return confirm(message);
   }
 
-  // Безопасная перезагрузка страницы
+  // ИСПРАВЛЕНИЕ: Улучшенная перезагрузка страницы
   performReload(type) {
     console.log(`🔄 Performing ${type} reload...`);
     
     try {
-      const url = new URL(window.location);
-      url.searchParams.set(type, Date.now().toString());
-      window.location.replace(url.toString());
-    } catch (e) {
-      try {
+      // ИСПРАВЛЕНИЕ: Используем более надежный метод перезагрузки
+      if (typeof window.location.reload === 'function') {
         window.location.reload(true);
+      } else {
+        // Fallback
+        window.location.href = window.location.href;
+      }
+    } catch (e) {
+      console.warn('Standard reload failed, trying alternative methods:', e);
+      
+      try {
+        const url = new URL(window.location);
+        url.searchParams.set('reload_' + type, Date.now().toString());
+        window.location.replace(url.toString());
       } catch (e2) {
+        console.warn('URL reload failed, showing manual reload dialog:', e2);
         this.showManualReloadDialog(type);
       }
     }
@@ -371,6 +418,35 @@ Continue?`;
     document.body.appendChild(dialog);
   }
 
+  // ИСПРАВЛЕНИЕ: Добавляем метод тестирования загрузки
+  testLoad(testData = null) {
+    try {
+      const data = testData || this.createEmptySaveData();
+      const code = this.storageManager.encodeData(JSON.stringify(data));
+      
+      console.log('🧪 Test save code generated:', code);
+      console.log('🧪 Test data:', data);
+      
+      // Проверяем декодирование
+      const decoded = this.storageManager.importFromString(code);
+      console.log('🧪 Decoded data:', decoded);
+      
+      return {
+        success: true,
+        originalData: data,
+        code: code,
+        decodedData: decoded
+      };
+      
+    } catch (error) {
+      console.error('🧪 Test failed:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Генерация кода с пустыми данными (для отладки)
   generateEmptySaveCode() {
     try {
@@ -388,6 +464,16 @@ Continue?`;
     elementsToClean.forEach(element => {
       this.cleanupSaveElement(element);
     });
+  }
+
+  // ИСПРАВЛЕНИЕ: Добавляем метод проверки состояния загрузки
+  checkLoadStatus() {
+    const loadInProgress = sessionStorage.getItem('loadInProgress');
+    if (loadInProgress === 'true') {
+      sessionStorage.removeItem('loadInProgress');
+      console.log('✅ Load operation completed successfully');
+      eventBus.emit(GameEvents.NOTIFICATION, '✅ Game loaded from save!');
+    }
   }
 
   // Деструктор
