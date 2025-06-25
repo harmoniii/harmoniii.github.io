@@ -1,4 +1,5 @@
 // game.js - Полная исправленная версия с улучшенной инициализацией и управлением ресурсами
+import { eventBus } from './eventBus.js';
 import { GameCore } from './core/GameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
 
