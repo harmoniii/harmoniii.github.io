@@ -31,7 +31,7 @@ export class GameCore extends CleanupMixin {
   // Инициализация игры
   async initialize() {
     try {
-      console.log('🎮 Initializing Advanced Clicker v0.8.0...');
+      console.log('🎮 Initializing Advanced Clicker v1.0.3...');
       
       await this.initializeGameState();
       await this.initializeManagers();
@@ -70,7 +70,8 @@ export class GameCore extends CleanupMixin {
       console.log('ℹ️ No save data found, using default state');
     }
     
-    this.cleanupManager.registerComponent(this.gameState);
+    // FIXED: Register GameState properly with name
+    this.cleanupManager.registerComponent(this.gameState, 'GameState');
   }
 
   // Инициализация менеджеров
@@ -92,8 +93,8 @@ export class GameCore extends CleanupMixin {
       this.gameState.marketManager = this.managers.market;
       
       // Регистрируем менеджеры для очистки
-      Object.values(this.managers).forEach(manager => {
-        this.cleanupManager.registerComponent(manager);
+      Object.entries(this.managers).forEach(([name, manager]) => {
+        this.cleanupManager.registerComponent(manager, name);
       });
       
       console.log('✅ Managers initialized');
@@ -374,14 +375,9 @@ export class GameCore extends CleanupMixin {
     };
   }
 
-  // Проверка активности игры
-  isActive() {
-    return this.isActive() && this.gameState && this.gameLoop && this.gameLoop.isRunning();
-  }
-
-  // FIXED: Override the parent isActive method correctly
+  // Проверка активности игры - FIXED: Remove recursive call
   isGameActive() {
-    return !this.isDestroyed && this.gameState && this.gameLoop && this.gameLoop.isRunning();
+    return this.isActive() && this.gameState && this.gameLoop && this.gameLoop.isRunning();
   }
 
   // Деструктор - FIXED: Use proper cleanup method name
