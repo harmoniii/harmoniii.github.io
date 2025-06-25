@@ -1,4 +1,4 @@
-// managers/SkillManager.js - Система навыков
+// managers/SkillManager.js - ИСПРАВЛЕННАЯ версия с правильными вызовами clearInterval
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -444,20 +444,20 @@ export class SkillManager extends CleanupMixin {
     eventBus.emit(GameEvents.CLICK, normalizedAngle);
   }
 
-  // Остановить автокликер
+  // ИСПРАВЛЕНИЕ: Остановить автокликер - используем правильный метод
   stopAutoClicker() {
     if (this.autoClickerInterval) {
-      this.clearInterval(this.autoClickerInterval);
+      this.cleanupManager.clearInterval(this.autoClickerInterval);
       this.autoClickerInterval = null;
     }
     this.gameState.skillStates.autoClickerActive = false;
   }
 
-  // Остановить генерацию навыка
+  // ИСПРАВЛЕНИЕ: Остановить генерацию навыка - используем правильный метод
   stopGeneration(skillId) {
     if (this.generationIntervals.has(skillId)) {
       const intervalId = this.generationIntervals.get(skillId);
-      this.clearInterval(intervalId);
+      this.cleanupManager.clearInterval(intervalId);
       this.generationIntervals.delete(skillId);
     }
   }
@@ -665,13 +665,13 @@ export class SkillManager extends CleanupMixin {
     return true;
   }
 
-  // Деструктор
+  // ИСПРАВЛЕНИЕ: Деструктор с правильными методами очистки
   destroy() {
     console.log('🧹 SkillManager cleanup started');
 
     // Останавливаем все генерации
     this.generationIntervals.forEach((intervalId, skillId) => {
-      this.clearInterval(intervalId);
+      this.cleanupManager.clearInterval(intervalId);
     });
     this.generationIntervals.clear();
 
