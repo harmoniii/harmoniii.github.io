@@ -154,3 +154,28 @@ function loop() {
 }
 
 loop();
+
+// Обработка сброса игры (для загрузки сохранений)
+EventBus.subscribe('gameReset', () => {
+  console.log('🔄 Переинициализация игры после загрузки...');
+  
+  // Останавливаем все старые менеджеры
+  if (fm) fm.stopAllEffects();
+  if (bm) bm.stopAllProduction();
+  if (sm) sm.stopAllGeneration();
+  
+  // Пересоздаем менеджеры с новым состоянием
+  fm = new FeatureManager(state);
+  bm = new BuildingManager(state);
+  sm = new SkillManager(state);
+  mm = new MarketManager(state);
+  
+  // Обновляем ссылки в состоянии
+  state.featureMgr = fm;
+  state.buildingManager = bm;
+  state.skillManager = sm;
+  state.marketManager = mm;
+  state.CONFIG = CONFIG;
+  
+  console.log('✅ Игра переинициализирована');
+});

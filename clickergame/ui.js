@@ -54,35 +54,151 @@ export default class UIManager {
     this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
     this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
     // Save
-    this.btnSave.addEventListener('click', () => {
+    // Исправленная часть ui.js с улучшенным сохранением/загрузкой
+
+  // ИСПРАВЛЕННОЕ сохранение
+  this.btnSave.addEventListener('click', () => {
+    try {
       const copy = { ...this.state };
       delete copy.featureMgr;
       delete copy.buildingManager;
       delete copy.skillManager;
       delete copy.marketManager;
-      prompt('Copy save code:', btoa(JSON.stringify(copy)));
-    });
-    // Load
-    this.btnLoad.addEventListener('click', () => {
-      const code = prompt('Paste save code:');
-      try {
-        Object.assign(this.state, JSON.parse(atob(code)));
-        EventBus.emit('gameReset');
-        this.showNotification('Игра загружена');
-      } catch {
-        this.showNotification('Неверный код сохранения');
+      delete copy.CONFIG;
+      
+      // Очищаем временные эффекты перед сохранением
+      copy.buffs = [];
+      copy.debuffs = [];
+      copy.blockedUntil = 0;
+      copy.effectStates = {
+        starPowerClicks: 0,
+        shieldBlocks: 0,
+        heavyClickRequired: {},
+        reverseDirection: 1,
+        frozenCombo: false
+      };
+      
+      const jsonString = JSON.stringify(copy);
+      const saveCode = btoa(encodeURIComponent(jsonString));
+      
+      // Показываем код в текстовом поле для удобного копирования
+      const textarea = document.createElement('textarea');
+      textarea.value = saveCode;
+      textarea.style.position = 'fixed';
+      textarea.style.top = '50%';
+      textarea.style.left = '50%';
+      textarea.style.transform = 'translate(-50%, -50%)';
+      textarea.style.width = '80%';
+      textarea.style.height = '200px';
+      textarea.style.zIndex = '9999';
+      textarea.style.background = 'white';
+      textarea.style.border = '2px solid #333';
+      textarea.style.padding = '10px';
+      textarea.style.fontSize = '12px';
+      textarea.readOnly = true;
+      document.body.appendChild(textarea);
+      textarea.select();
+      
+      // Автоматически копируем в буфер обмена если возможно
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(saveCode).then(() => {
+          this.showNotification('💾 Код сохранения скопирован в буфер обмена!');
+        }).catch(() => {
+          this.showNotification('💾 Код сохранения готов. Скопируйте его вручную.');
+        });
+      } else {
+        this.showNotification('💾 Код сохранения готов. Скопируйте его вручную.');
       }
-    });
+      
+      // Убираем текстовое поле через 10 секунд
+      setTimeout(() => {
+        if (document.body.contains(textarea)) {
+          document.body.removeChild(textarea);
+        }
+      }, 10000);
+      
+      // Можно убрать кликом вне поля
+      textarea.addEventListener('blur', () => {
+        if (document.body.contains(textarea)) {
+          document.body.removeChild(textarea);
+        }
+      });
+      
+    } catch (error) {
+      console.error('Save error:', error);
+      this.showNotification('❌ Ошибка при сохранении игры');
+    }
+  });
+
+  // ИСПРАВЛЕННАЯ загрузка
+  this.btnLoad.addEventListener('click', () => {
+    const code = prompt('Вставьте код сохранения:');
+    if (!code || code.trim() === '') {
+      this.showNotification('❌ Код сохранения не введен');
+      return;
+    }
     
-    // УЛЬТИМАТИВНЫЙ RESET - полный сброс всего
-    this.btnReset.addEventListener('click', () => {
-      if (confirm('🔥 ПОЛНЫЙ СБРОС ИГРЫ 🔥\n\nЭто удалит ВСЕ данные навсегда!\nВы уверены?')) {
-        if (confirm('⚠️ ПОСЛЕДНЕЕ ПРЕДУПРЕЖДЕНИЕ ⚠️\n\nВесь прогресс будет потерян!\nПродолжить сброс?')) {
-          this.performUltimateReset();
+    try {
+      // Пробуем несколько способов декодирования для совместимости
+      let decoded;
+      
+      try {
+        // Новый способ (с encodeURIComponent)
+        decoded = JSON.parse(decodeURIComponent(atob(code.trim())));
+      } catch (e1) {
+        try {
+          // Старый способ (без encodeURIComponent)
+          decoded = JSON.parse(atob(code.trim()));
+        } catch (e2) {
+          throw new Error('Не удалось декодировать код сохранения');
         }
       }
-    });
-  }
+      
+      // Проверяем что это похоже на состояние игры
+      if (!decoded || typeof decoded !== 'object') {
+        throw new Error('Неверный формат данных');
+      }
+      
+      // Останавливаем все эффекты перед загрузкой
+      if (this.state.featureMgr) {
+        this.state.featureMgr.stopAllEffects();
+      }
+      if (this.state.buildingManager) {
+        this.state.buildingManager.stopAllProduction();
+      }
+      if (this.state.skillManager) {
+        this.state.skillManager.stopAllGeneration();
+      }
+      
+      // Очищаем временные эффекты
+      decoded.buffs = [];
+      decoded.debuffs = [];
+      decoded.blockedUntil = 0;
+      if (decoded.effectStates) {
+        decoded.effectStates = {
+          starPowerClicks: 0,
+          shieldBlocks: 0,
+          heavyClickRequired: {},
+          reverseDirection: 1,
+          frozenCombo: false
+        };
+      }
+      
+      // Применяем загруженное состояние
+      Object.assign(this.state, decoded);
+      
+      // Сигнализируем о сбросе игры для переинициализации менеджеров
+      EventBus.emit('gameReset');
+      
+      this.showNotification('✅ Игра успешно загружена!');
+      console.log('✅ Game loaded successfully, temporary effects cleared');
+      
+    } catch (error) {
+      console.error('Load error:', error);
+      this.showNotification(`❌ Ошибка загрузки: ${error.message}`);
+    }
+  });
+}
 
   // Ультимативная функция сброса
   performUltimateReset() {

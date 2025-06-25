@@ -194,6 +194,33 @@ export class BuffManager {
         frozenCombo: false
       };
     }
+    
+    // НОВОЕ: Очищаем зависшие эффекты при создании менеджера
+    this.cleanupStuckEffects();
+  }
+
+  // НОВЫЙ метод: Принудительная очистка зависших эффектов
+  cleanupStuckEffects() {
+    // Очищаем все баффы и дебаффы
+    this.state.buffs = [];
+    this.state.debuffs = [];
+    this.state.blockedUntil = 0;
+    
+    // Сбрасываем состояния эффектов
+    this.state.effectStates = {
+      starPowerClicks: 0,
+      shieldBlocks: 0,
+      heavyClickRequired: {},
+      reverseDirection: 1,
+      frozenCombo: false
+    };
+    
+    // Восстанавливаем скорость вращения если она была изменена
+    if (this.state.CONFIG) {
+      this.state.CONFIG.rotationSpeed = 0.005; // Дефолтная скорость
+    }
+    
+    console.log('🧹 Временные эффекты очищены при инициализации BuffManager');
   }
 
   getBuff(id) {
@@ -458,5 +485,8 @@ export class BuffManager {
     // Останавливаем все интервалы дебаффов
     Object.values(this.debuffIntervals).forEach(interval => clearInterval(interval));
     this.debuffIntervals = {};
+    
+    // НОВОЕ: Принудительно очищаем эффекты
+    this.cleanupStuckEffects();
   }
 }
