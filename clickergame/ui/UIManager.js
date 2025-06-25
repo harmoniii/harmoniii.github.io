@@ -1,4 +1,4 @@
-// ui/UIManager.js - Обновленный UI менеджер с исправленным сбросом
+// ui/UIManager.js - Обновленный UI менеджер с простым сбросом
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { PanelManager } from './PanelManager.js';
@@ -6,7 +6,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { ModalManager } from './ModalManager.js';
 import { ResourceDisplay } from './ResourceDisplay.js';
 import { EffectIndicators } from './EffectIndicators.js';
-import { SaveLoadManager } from './SaveLoadManager.js'; // ИСПРАВЛЕННАЯ версия
+import { SaveLoadManager } from './SaveLoadManager.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 export default class UIManager extends CleanupMixin {
@@ -22,8 +22,6 @@ export default class UIManager extends CleanupMixin {
     this.modalManager = new ModalManager(gameState);
     this.resourceDisplay = new ResourceDisplay(gameState);
     this.effectIndicators = new EffectIndicators(gameState);
-    
-    // ИСПРАВЛЕНИЕ: Используем новый SaveLoadManager с ядерным сбросом
     this.saveLoadManager = new SaveLoadManager(gameState);
     
     // Регистрируем компоненты для очистки
@@ -39,7 +37,7 @@ export default class UIManager extends CleanupMixin {
     this.bindEvents();
     this.updateDisplay();
     
-    console.log('🖥️ UIManager initialized with nuclear reset capability');
+    console.log('🖥️ UIManager initialized');
   }
 
   initializeElements() {
@@ -103,7 +101,7 @@ export default class UIManager extends CleanupMixin {
       this.togglePanel('info');
     });
     
-    // ИСПРАВЛЕНИЕ: Используем новый SaveLoadManager для всех операций
+    // ИСПРАВЛЕНИЕ: Используем исправленный SaveLoadManager
     this.addEventListener(this.btnSave, 'click', () => {
       this.saveLoadManager.performSave();
     });
@@ -112,9 +110,9 @@ export default class UIManager extends CleanupMixin {
       this.saveLoadManager.performLoad();
     });
     
-    // ИСПРАВЛЕНИЕ: Ядерный сброс через новый SaveLoadManager
+    // ИСПРАВЛЕНИЕ: Простой сброс через генерацию кода
     this.addEventListener(this.btnReset, 'click', () => {
-      this.saveLoadManager.performCompleteReset();
+      this.saveLoadManager.performReset();
     });
     
     // Закрытие модальных окон по клику
@@ -251,38 +249,6 @@ export default class UIManager extends CleanupMixin {
     eventBus.subscribe(GameEvents.GHOST_CLICK, () => {
       this.notificationManager.show('👻 Ghost Click: Ignored!');
     });
-    
-    // ИСПРАВЛЕНИЕ: Обработка события полного сброса
-    eventBus.subscribe(GameEvents.GAME_RESET, () => {
-      this.handleGameReset();
-    });
-  }
-
-  // ИСПРАВЛЕНИЕ: Обработка полного сброса игры
-  handleGameReset() {
-    console.log('🔥 UIManager handling game reset...');
-    
-    try {
-      // Скрываем все панели
-      this.hidePanel();
-      
-      // Очищаем все уведомления
-      this.notificationManager.clearAll();
-      
-      // Закрываем все модальные окна
-      this.modalManager.hideAllModals();
-      
-      // Очищаем индикаторы эффектов
-      this.effectIndicators.clearContainer();
-      
-      // Показываем финальное уведомление
-      this.notificationManager.showTyped('🔥💀 GAME COMPLETELY RESET 💀🔥', 'error', 5000);
-      
-      console.log('✅ UIManager reset handling complete');
-      
-    } catch (error) {
-      console.error('💀 Error handling UI reset:', error);
-    }
   }
 
   togglePanel(panelType) {
