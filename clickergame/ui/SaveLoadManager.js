@@ -1,4 +1,4 @@
-// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с рабочим сбросом
+// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с генерацией пустого кода
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { StorageManager } from '../core/StorageManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
@@ -133,7 +133,7 @@ export class SaveLoadManager extends CleanupMixin {
       const saveData = this.storageManager.importFromString(code.trim());
       this.storageManager.createBackup();
       
-      // ИСПРАВЛЕНИЕ: Сохраняем данные в localStorage перед перезагрузкой
+      // Сохраняем данные в localStorage перед перезагрузкой
       localStorage.setItem('advancedClickerState', JSON.stringify(saveData));
       
       eventBus.emit(GameEvents.NOTIFICATION, '✅ Save loaded! Reloading...');
@@ -148,7 +148,7 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Создаем тестовый сейв с нулевыми данными
+  // ИСПРАВЛЕНИЕ: Создаем пустой сейв с нулевыми данными
   createEmptySaveData() {
     return {
       // Все ресурсы = 0
@@ -218,86 +218,98 @@ export class SaveLoadManager extends CleanupMixin {
     };
   }
 
-  // ИСПРАВЛЕНИЕ: Новый метод сброса через загрузку пустого сейва
-  performCompleteReset() {
-    if (!this.confirmNuclearReset()) return;
+  // ИСПРАВЛЕНИЕ: Генерация кода сброса вместо ядерного уничтожения
+  performReset() {
+    if (!this.confirmReset()) return;
 
     try {
-      console.log('🔥💀 NUCLEAR RESET INITIATED 💀🔥');
-      eventBus.emit(GameEvents.NOTIFICATION, '🔥 NUCLEAR RESET IN PROGRESS...');
+      console.log('🔄 Generating reset save code...');
       
-      // Создаем резервную копию
-      try {
-        this.storageManager.createBackup();
-        console.log('✅ Backup created before nuclear reset');
-      } catch (e) {
-        console.warn('⚠️ Backup failed, continuing reset:', e);
-      }
-      
-      // ИСПРАВЛЕНИЕ: Используем пустой сейв вместо очистки localStorage
+      // Создаем пустые данные
       const emptySave = this.createEmptySaveData();
       
-      // Сохраняем пустые данные в localStorage
-      localStorage.setItem('advancedClickerState', JSON.stringify(emptySave));
+      // Генерируем код для пустого сейва
+      const resetCode = this.storageManager.encodeData(JSON.stringify(emptySave));
       
-      // Дополнительно очищаем основной ключ
-      this.storageManager.deleteSave();
+      if (!resetCode) {
+        throw new Error('Failed to generate reset code');
+      }
+
+      // Отображаем код сброса
+      this.displayResetCode(resetCode);
       
-      // Эмитируем событие сброса
-      eventBus.emit(GameEvents.GAME_RESET);
-      
-      eventBus.emit(GameEvents.NOTIFICATION, '💀 NUCLEAR RESET COMPLETE');
-      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Reloading with empty data...');
-      
-      // Принудительная перезагрузка
-      this.createTimeout(() => {
-        this.performNuclearReload();
-      }, GAME_CONSTANTS.NUCLEAR_RELOAD_DELAY);
+      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Reset code generated! Load it to reset your game.');
       
     } catch (error) {
-      console.error('💀 CRITICAL ERROR in nuclear reset:', error);
-      this.emergencyNuclearReset(error);
+      console.error('❌ Reset code generation failed:', error);
+      eventBus.emit(GameEvents.NOTIFICATION, `❌ Reset failed: ${error.message}`);
     }
+  }
+
+  // Отобразить код сброса
+  displayResetCode(resetCode) {
+    const textarea = this.createResetTextarea(resetCode);
+    this.activeSaveElements.add(textarea);
+    document.body.appendChild(textarea);
+    
+    textarea.focus();
+    textarea.select();
+    
+    this.copyToClipboard(resetCode);
+    
+    this.createTimeout(() => {
+      this.cleanupSaveElement(textarea);
+    }, GAME_CONSTANTS.SAVE_ELEMENT_TIMEOUT);
+    
+    const blurHandler = () => this.cleanupSaveElement(textarea);
+    textarea.addEventListener('blur', blurHandler);
+    textarea._blurHandler = blurHandler;
+  }
+
+  // Создать textarea для кода сброса
+  createResetTextarea(resetCode) {
+    const textarea = document.createElement('textarea');
+    textarea.value = resetCode;
+    textarea.readOnly = true;
+    
+    Object.assign(textarea.style, {
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '80%',
+      maxWidth: '600px',
+      height: '200px',
+      zIndex: '9999',
+      background: '#ffeeee',
+      border: '3px solid #ff4444',
+      borderRadius: '8px',
+      padding: '10px',
+      fontSize: '12px',
+      fontFamily: 'monospace',
+      boxShadow: '0 4px 20px rgba(255,68,68,0.3)',
+      resize: 'none'
+    });
+    
+    return textarea;
   }
 
   // Подтверждение сброса
-  confirmNuclearReset() {
-    const warnings = [
-      '🔥💀 NUCLEAR GAME RESET 💀🔥\n\nThis will COMPLETELY DESTROY:\n• All progress\n• All resources\n• All buildings\n• All skills\n• All reputation\n• EVERYTHING!\n\nAre you absolutely sure?',
-      '⚠️💀 FINAL WARNING 💀⚠️\n\nThere is NO UNDO!\nALL data will be PERMANENTLY DESTROYED!\n\nType "DESTROY" to confirm:'
-    ];
-    
-    if (!confirm(warnings[0])) {
-      return false;
-    }
-    
-    const confirmation = prompt(warnings[1]);
-    if (confirmation !== 'DESTROY') {
-      eventBus.emit(GameEvents.NOTIFICATION, '❌ Reset cancelled - incorrect confirmation');
-      return false;
-    }
-    
-    return true;
-  }
+  confirmReset() {
+    const message = `🔄 GAME RESET
 
-  // Ядерная перезагрузка
-  performNuclearReload() {
-    console.log('🔥 Performing nuclear reload...');
+This will generate a save code that resets:
+• All resources to 0
+• All buildings to level 0
+• All skills to level 0
+• All progress to beginning
+
+The reset code will be generated for you to load manually.
+Your current save will NOT be automatically deleted.
+
+Continue?`;
     
-    // Принудительная перезагрузка с очисткой кэша
-    try {
-      window.location.href = window.location.protocol + '//' + 
-                             window.location.host + 
-                             window.location.pathname + 
-                             '?nuclear_reset=' + Date.now() + 
-                             '&cache_bust=' + Math.random();
-    } catch (e) {
-      try {
-        window.location.reload(true);
-      } catch (e2) {
-        this.showManualReloadDialog('nuclear');
-      }
-    }
+    return confirm(message);
   }
 
   // Безопасная перезагрузка страницы
@@ -328,22 +340,17 @@ export class SaveLoadManager extends CleanupMixin {
       color: white;
     `;
     
-    const isNuclear = type === 'nuclear';
-    const title = isNuclear ? '🔥💀 NUCLEAR RESET COMPLETE 💀🔥' : `🔄 ${type.toUpperCase()} COMPLETE`;
-    const message = isNuclear ? 'All game data has been <strong>COMPLETELY DESTROYED</strong>!' : `${type} operation completed successfully!`;
-    
     dialog.innerHTML = `
       <div style="
-        background: ${isNuclear ? 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)' : '#333'}; 
-        padding: 40px; border-radius: 20px; text-align: center;
+        background: #333; padding: 40px; border-radius: 20px; text-align: center;
         max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
       ">
-        <h2 style="margin-top: 0; font-size: 2em;">${title}</h2>
+        <h2 style="margin-top: 0; font-size: 2em;">🔄 ${type.toUpperCase()} COMPLETE</h2>
         <p style="font-size: 1.2em; margin: 20px 0;">
-          ${message}
+          ${type} operation completed successfully!
         </p>
         <p style="margin: 20px 0;">
-          Please manually refresh the page to start fresh:
+          Please manually refresh the page:
         </p>
         <div style="font-size: 1.1em; margin: 20px 0;">
           <div>• Press <strong>F5</strong></div>
@@ -351,7 +358,7 @@ export class SaveLoadManager extends CleanupMixin {
           <div>• Close and reopen the page</div>
         </div>
         <button onclick="window.location.reload(true)" style="
-          background: white; color: ${isNuclear ? '#ff4444' : '#333'}; border: none;
+          background: #4CAF50; color: white; border: none;
           padding: 15px 30px; border-radius: 10px; font-size: 1.1em;
           font-weight: bold; cursor: pointer; margin-top: 20px;
           box-shadow: 0 4px 8px rgba(0,0,0,0.3);
@@ -364,40 +371,7 @@ export class SaveLoadManager extends CleanupMixin {
     document.body.appendChild(dialog);
   }
 
-  // Экстренный ядерный сброс
-  emergencyNuclearReset(error) {
-    console.error('💀 EMERGENCY NUCLEAR RESET ACTIVATED');
-    
-    try {
-      // Принудительная очистка localStorage
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Устанавливаем пустые данные
-      const emptySave = this.createEmptySaveData();
-      localStorage.setItem('advancedClickerState', JSON.stringify(emptySave));
-      
-    } catch (e) {
-      console.error('Emergency nuclear cleanup failed:', e);
-    }
-    
-    setTimeout(() => {
-      alert(`🔥💀 EMERGENCY NUCLEAR RESET COMPLETED 💀🔥
-
-CRITICAL ERROR OCCURRED DURING RESET!
-
-ALL GAME DATA HAS BEEN DESTROYED!
-
-Please manually refresh the page:
-- Press F5
-- Press Ctrl+R (or Cmd+R on Mac)  
-- Close and reopen the page
-
-Error: ${error.message}`);
-    }, 1000);
-  }
-
-  // БОНУС: Метод для создания тестового сейва с нулевыми данными
+  // Генерация кода с пустыми данными (для отладки)
   generateEmptySaveCode() {
     try {
       const emptySave = this.createEmptySaveData();

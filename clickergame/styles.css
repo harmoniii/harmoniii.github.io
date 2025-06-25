@@ -684,58 +684,59 @@ body::before {
   color: #ffffff !important;
 }
 
-/* ИСПРАВЛЕНИЕ: Ядерная кнопка сброса с максимальным контрастом */
 #reset-button {
-  border-color: #ff4444 !important;
-  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
+  border-color: #FF9800 !important;
+  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
   color: #ffffff !important;
   position: relative;
-  font-weight: 900 !important;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  border-width: 3px !important;
-  text-shadow: 
-    0 0 3px rgba(0, 0, 0, 0.8),
-    0 1px 2px rgba(0, 0, 0, 0.5) !important;
-  box-shadow: 
-    0 0 20px rgba(255, 68, 68, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+  font-weight: bold !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3) !important;
 }
 
 #reset-button::before {
-  content: '☢️💀';
+  content: '🔄';
   position: absolute;
   left: 10px;
   top: 50%;
   transform: translateY(-50%);
   font-size: 1.2em;
-  animation: dangerPulse 2s ease-in-out infinite;
   color: #ffffff !important;
-  text-shadow: 0 0 5px rgba(255, 255, 255, 0.8) !important;
 }
 
 #reset-button:hover {
-  background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%) !important;
-  box-shadow: 
-    0 0 30px rgba(255, 68, 68, 0.6),
-    0 4px 15px rgba(255, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-  border-color: #ff0000 !important;
-  text-shadow: 
-    0 0 10px rgba(255, 255, 255, 0.8),
-    0 0 3px rgba(0, 0, 0, 0.8),
-    0 1px 2px rgba(0, 0, 0, 0.5) !important;
-  animation: nuclearGlow 0.5s ease-in-out infinite alternate;
+  background: linear-gradient(135deg, #F57C00 0%, #FF9800 100%) !important;
+  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.4) !important;
+  border-color: #F57C00 !important;
+  transform: translateY(-1px);
 }
 
 #reset-button:active {
-  background: linear-gradient(135deg, #cc0000 0%, #990000 100%) !important;
+  background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
   transform: translateY(1px);
-  box-shadow: 
-    0 0 40px rgba(255, 68, 68, 0.8),
-    0 2px 8px rgba(255, 0, 0, 0.6),
-    inset 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.6) !important;
 }
+
+/* Удаляем все старые ядерные стили */
+#reset-button::after {
+  display: none !important;
+}
+
+@keyframes dangerPulse {
+  0%, 100% { opacity: 1; }
+}
+@keyframes nuclearGlow {
+  0%, 100% { opacity: 1; }
+}
+@keyframes warningStripes {
+  0%, 100% { transform: translateX(0); }
+}
+
+/* Убираем ядерные уведомления */
+.nuclear-notification,
+.nuclear-confirmation-modal {
+  display: none !important;
+} 
 
 /* Анимации для кнопки сброса */
 @keyframes dangerPulse {
@@ -764,44 +765,9 @@ body::before {
   }
 }
 
-/* Дополнительные стили для безопасности */
-#reset-button::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: repeating-linear-gradient(
-    45deg,
-    transparent,
-    transparent 10px,
-    rgba(255, 255, 0, 0.1) 10px,
-    rgba(255, 255, 0, 0.1) 20px
-  );
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-#reset-button:hover::after {
-  opacity: 1;
-  animation: warningStripes 1s linear infinite;
-}
-
 @keyframes warningStripes {
   0% { transform: translateX(-20px); }
   100% { transform: translateX(20px); }
-}
-
-/* Специальные уведомления для сброса */
-.nuclear-notification {
-  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
-  border: 2px solid #ff0000 !important;
-  box-shadow: 
-    0 4px 20px rgba(255, 68, 68, 0.5),
-    0 0 30px rgba(255, 0, 0, 0.3) !important;
-  animation: nuclearNotification 0.5s ease-out;
 }
 
 @keyframes nuclearNotification {
