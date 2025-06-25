@@ -1,4 +1,4 @@
-// ui.js - Обновленная версия с новыми модулями
+// ui.js - Complete version with all text in English
 import { EventBus } from './eventBus.js';
 import { SKILL_CATEGORIES, SKILL_DEFS, SkillManager } from './skills.js';
 import { BUILDING_DEFS } from './buildings.js';
@@ -45,7 +45,7 @@ export default class UIManager {
     this.btnMarket.addEventListener('click', () => {
       this.currentPanel === 'market' ? this.hidePanel() : this.showMarket();
     });
-    // Info - теперь отдельное меню вместо модалки
+    // Info - now separate menu instead of modal
     this.btnInfo.addEventListener('click', () => {
       this.currentPanel === 'info' ? this.hidePanel() : this.showInfo();
     });
@@ -53,305 +53,193 @@ export default class UIManager {
     // Close modals on click
     this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
     this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
-    // Save
-    // Исправленная часть ui.js с улучшенным сохранением/загрузкой
 
-  // ИСПРАВЛЕННОЕ сохранение
-  this.btnSave.addEventListener('click', () => {
-    try {
-      const copy = { ...this.state };
-      delete copy.featureMgr;
-      delete copy.buildingManager;
-      delete copy.skillManager;
-      delete copy.marketManager;
-      delete copy.CONFIG;
-      
-      // Очищаем временные эффекты перед сохранением
-      copy.buffs = [];
-      copy.debuffs = [];
-      copy.blockedUntil = 0;
-      copy.effectStates = {
-        starPowerClicks: 0,
-        shieldBlocks: 0,
-        heavyClickRequired: {},
-        reverseDirection: 1,
-        frozenCombo: false
-      };
-      
-      const jsonString = JSON.stringify(copy);
-      const saveCode = btoa(encodeURIComponent(jsonString));
-      
-      // Показываем код в текстовом поле для удобного копирования
-      const textarea = document.createElement('textarea');
-      textarea.value = saveCode;
-      textarea.style.position = 'fixed';
-      textarea.style.top = '50%';
-      textarea.style.left = '50%';
-      textarea.style.transform = 'translate(-50%, -50%)';
-      textarea.style.width = '80%';
-      textarea.style.height = '200px';
-      textarea.style.zIndex = '9999';
-      textarea.style.background = 'white';
-      textarea.style.border = '2px solid #333';
-      textarea.style.padding = '10px';
-      textarea.style.fontSize = '12px';
-      textarea.readOnly = true;
-      document.body.appendChild(textarea);
-      textarea.select();
-      
-      // Автоматически копируем в буфер обмена если возможно
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(saveCode).then(() => {
-          this.showNotification('💾 Код сохранения скопирован в буфер обмена!');
-        }).catch(() => {
-          this.showNotification('💾 Код сохранения готов. Скопируйте его вручную.');
-        });
-      } else {
-        this.showNotification('💾 Код сохранения готов. Скопируйте его вручную.');
-      }
-      
-      // Убираем текстовое поле через 10 секунд
-      setTimeout(() => {
-        if (document.body.contains(textarea)) {
-          document.body.removeChild(textarea);
-        }
-      }, 10000);
-      
-      // Можно убрать кликом вне поля
-      textarea.addEventListener('blur', () => {
-        if (document.body.contains(textarea)) {
-          document.body.removeChild(textarea);
-        }
-      });
-      
-    } catch (error) {
-      console.error('Save error:', error);
-      this.showNotification('❌ Ошибка при сохранении игры');
-    }
-  });
-
-  // ИСПРАВЛЕННАЯ загрузка
-  this.btnLoad.addEventListener('click', () => {
-    const code = prompt('Вставьте код сохранения:');
-    if (!code || code.trim() === '') {
-      this.showNotification('❌ Код сохранения не введен');
-      return;
-    }
-    
-    try {
-      // Пробуем несколько способов декодирования для совместимости
-      let decoded;
-      
+    // FIXED Save function
+    this.btnSave.addEventListener('click', () => {
       try {
-        // Новый способ (с encodeURIComponent)
-        decoded = JSON.parse(decodeURIComponent(atob(code.trim())));
-      } catch (e1) {
-        try {
-          // Старый способ (без encodeURIComponent)
-          decoded = JSON.parse(atob(code.trim()));
-        } catch (e2) {
-          throw new Error('Не удалось декодировать код сохранения');
-        }
-      }
-      
-      // Проверяем что это похоже на состояние игры
-      if (!decoded || typeof decoded !== 'object') {
-        throw new Error('Неверный формат данных');
-      }
-      
-      // Останавливаем все эффекты перед загрузкой
-      if (this.state.featureMgr) {
-        this.state.featureMgr.stopAllEffects();
-      }
-      if (this.state.buildingManager) {
-        this.state.buildingManager.stopAllProduction();
-      }
-      if (this.state.skillManager) {
-        this.state.skillManager.stopAllGeneration();
-      }
-      
-      // Очищаем временные эффекты
-      decoded.buffs = [];
-      decoded.debuffs = [];
-      decoded.blockedUntil = 0;
-      if (decoded.effectStates) {
-        decoded.effectStates = {
+        const copy = { ...this.state };
+        delete copy.featureMgr;
+        delete copy.buildingManager;
+        delete copy.skillManager;
+        delete copy.marketManager;
+        delete copy.CONFIG;
+        
+        // Clear temporary effects before saving
+        copy.buffs = [];
+        copy.debuffs = [];
+        copy.blockedUntil = 0;
+        copy.effectStates = {
           starPowerClicks: 0,
           shieldBlocks: 0,
           heavyClickRequired: {},
           reverseDirection: 1,
           frozenCombo: false
         };
-      }
-      
-      // Применяем загруженное состояние
-      Object.assign(this.state, decoded);
-      
-      // Сигнализируем о сбросе игры для переинициализации менеджеров
-      EventBus.emit('gameReset');
-      
-      this.showNotification('✅ Игра успешно загружена!');
-      console.log('✅ Game loaded successfully, temporary effects cleared');
-      
-    } catch (error) {
-      console.error('Load error:', error);
-      this.showNotification(`❌ Ошибка загрузки: ${error.message}`);
-    }
-  });
-}
-
-  // Ультимативная функция сброса
-  performUltimateReset() {
-    try {
-      console.log('🔥 Начинаем ультимативный сброс...');
-      
-      // 1. Показываем уведомление
-      this.showNotification('🔥 СБРОС ИГРЫ - Удаляем все данные...');
-      
-      // 2. Останавливаем ВСЕ интервалы в игре
-      this.stopAllIntervals();
-      
-      // 3. Очищаем EventBus полностью
-      if (EventBus && EventBus._handlers) {
-        EventBus._handlers = {};
-      }
-      
-      // 4. ПОЛНАЯ очистка localStorage - все возможные способы
-      this.clearAllStorage();
-      
-      // 5. Сбрасываем состояние в памяти
-      this.resetInMemoryState();
-      
-      // 6. Принудительная перезагрузка через несколько способов
-      setTimeout(() => {
-        this.showNotification('🔄 Перезагрузка страницы...');
-        this.forcePageReload();
-      }, 1500);
-      
-    } catch (error) {
-      console.error('Ошибка при сбросе:', error);
-      // Если что-то пошло не так - принудительная перезагрузка
-      this.forcePageReload();
-    }
-  }
-
-  // Останавливаем все возможные интервалы
-  stopAllIntervals() {
-    try {
-      // Останавливаем интервалы менеджеров
-      if (this.state.buildingManager) {
-        this.state.buildingManager.stopAllProduction();
-      }
-      if (this.state.skillManager) {
-        this.state.skillManager.stopAllGeneration();
-      }
-      if (this.state.featureMgr) {
-        this.state.featureMgr.stopAllEffects();
-      }
-      
-      // Очищаем все возможные интервалы в window
-      const highestTimeoutId = setTimeout(() => {}, 0);
-      for (let i = 0; i < highestTimeoutId; i++) {
-        clearTimeout(i);
-        clearInterval(i);
-      }
-      
-      console.log('✅ Все интервалы остановлены');
-    } catch (error) {
-      console.warn('Предупреждение при остановке интервалов:', error);
-    }
-  }
-
-  // Максимально агрессивная очистка storage
-  clearAllStorage() {
-    try {
-      // 1. Удаляем конкретный ключ игры
-      localStorage.removeItem('gameState');
-      
-      // 2. Удаляем все возможные ключи, связанные с игрой
-      const possibleKeys = [
-        'gameState', 'game-state', 'advanced-clicker', 'clicker-game',
-        'buildings', 'skills', 'resources', 'combo', 'achievements'
-      ];
-      
-      possibleKeys.forEach(key => {
-        localStorage.removeItem(key);
-        sessionStorage.removeItem(key);
-      });
-      
-      // 3. ПОЛНАЯ очистка localStorage (ЯДЕРНЫЙ ВАРИАНТ)
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // 4. Очистка IndexedDB если есть
-      if ('indexedDB' in window) {
-        indexedDB.deleteDatabase('gameData');
-      }
-      
-      console.log('🗑️ Все хранилища очищены');
-    } catch (error) {
-      console.warn('Предупреждение при очистке storage:', error);
-    }
-  }
-
-  // Сброс состояния в памяти
-  resetInMemoryState() {
-    try {
-      // Обнуляем состояние
-      if (this.state) {
-        Object.keys(this.state).forEach(key => {
-          delete this.state[key];
+        
+        const jsonString = JSON.stringify(copy);
+        const saveCode = btoa(encodeURIComponent(jsonString));
+        
+        // Show code in textarea for easy copying
+        const textarea = document.createElement('textarea');
+        textarea.value = saveCode;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '50%';
+        textarea.style.left = '50%';
+        textarea.style.transform = 'translate(-50%, -50%)';
+        textarea.style.width = '80%';
+        textarea.style.height = '200px';
+        textarea.style.zIndex = '9999';
+        textarea.style.background = 'white';
+        textarea.style.border = '2px solid #333';
+        textarea.style.padding = '10px';
+        textarea.style.fontSize = '12px';
+        textarea.readOnly = true;
+        document.body.appendChild(textarea);
+        textarea.select();
+        
+        // Auto copy to clipboard if possible
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(saveCode).then(() => {
+            this.showNotification('💾 Save code copied to clipboard!');
+          }).catch(() => {
+            this.showNotification('💾 Save code ready. Copy it manually.');
+          });
+        } else {
+          this.showNotification('💾 Save code ready. Copy it manually.');
+        }
+        
+        // Remove textarea after 10 seconds
+        setTimeout(() => {
+          if (document.body.contains(textarea)) {
+            document.body.removeChild(textarea);
+          }
+        }, 10000);
+        
+        // Can be removed by clicking outside
+        textarea.addEventListener('blur', () => {
+          if (document.body.contains(textarea)) {
+            document.body.removeChild(textarea);
+          }
         });
+        
+      } catch (error) {
+        console.error('Save error:', error);
+        this.showNotification('❌ Error saving game');
+      }
+    });
+
+    // FIXED Load function
+    this.btnLoad.addEventListener('click', () => {
+      const code = prompt('Paste save code:');
+      if (!code || code.trim() === '') {
+        this.showNotification('❌ No save code entered');
+        return;
       }
       
-      // Удаляем глобальные переменные если есть
-      if (window.gameState) delete window.gameState;
-      if (window.state) delete window.state;
-      
-      console.log('🧠 Состояние в памяти сброшено');
-    } catch (error) {
-      console.warn('Предупреждение при сбросе состояния:', error);
-    }
+      try {
+        // Try multiple decoding methods for compatibility
+        let decoded;
+        
+        try {
+          // New method (with encodeURIComponent)
+          decoded = JSON.parse(decodeURIComponent(atob(code.trim())));
+        } catch (e1) {
+          try {
+            // Old method (without encodeURIComponent)
+            decoded = JSON.parse(atob(code.trim()));
+          } catch (e2) {
+            throw new Error('Could not decode save code');
+          }
+        }
+        
+        // Check if it looks like game state
+        if (!decoded || typeof decoded !== 'object') {
+          throw new Error('Invalid data format');
+        }
+        
+        // Stop all effects before loading
+        if (this.state.featureMgr) {
+          this.state.featureMgr.stopAllEffects();
+        }
+        if (this.state.buildingManager) {
+          this.state.buildingManager.stopAllProduction();
+        }
+        if (this.state.skillManager) {
+          this.state.skillManager.stopAllGeneration();
+        }
+        
+        // Clear temporary effects
+        decoded.buffs = [];
+        decoded.debuffs = [];
+        decoded.blockedUntil = 0;
+        if (decoded.effectStates) {
+          decoded.effectStates = {
+            starPowerClicks: 0,
+            shieldBlocks: 0,
+            heavyClickRequired: {},
+            reverseDirection: 1,
+            frozenCombo: false
+          };
+        }
+        
+        // Apply loaded state
+        Object.assign(this.state, decoded);
+        
+        // Signal game reset for manager reinitialization
+        EventBus.emit('gameReset');
+        
+        this.showNotification('✅ Game loaded successfully!');
+        console.log('✅ Game loaded successfully, temporary effects cleared');
+        
+      } catch (error) {
+        console.error('Load error:', error);
+        this.showNotification(`❌ Loading error: ${error.message}`);
+      }
+    });
+    
+    // FIXED RESET - simplified and reliable version
+    this.btnReset.addEventListener('click', () => {
+      if (confirm('🔥 COMPLETE GAME RESET 🔥\n\nThis will delete ALL data forever!\nAre you sure?')) {
+        if (confirm('⚠️ FINAL WARNING ⚠️\n\nAll progress will be lost!\nContinue reset?')) {
+          this.performSimpleReset();
+        }
+      }
+    });
   }
 
-  // Принудительная перезагрузка страницы
-  forcePageReload() {
+  // NEW simplified reset function
+  performSimpleReset() {
     try {
-      // Способ 1: Стандартная перезагрузка с очисткой кеша
-      if (window.location && window.location.reload) {
-        window.location.reload(true);
-        return;
-      }
+      console.log('🔄 Starting simple game reset...');
       
-      // Способ 2: Перенаправление на ту же страницу
-      if (window.location && window.location.href) {
-        window.location.href = window.location.href;
-        return;
-      }
+      // 1. Show notification
+      this.showNotification('🔥 Resetting game...');
       
-      // Способ 3: Замена текущей страницы
-      if (window.location && window.location.replace) {
-        window.location.replace(window.location.href);
-        return;
-      }
+      // 2. Clear localStorage
+      localStorage.removeItem('gameState');
+      localStorage.clear();
       
-      // Способ 4: Полная перезагрузка
-      if (window.location) {
-        window.location = window.location;
-        return;
-      }
+      // 3. Show final notification
+      this.showNotification('✅ Game reset! Please refresh the page.');
+      
+      // 4. Simple reload after short time
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
       
     } catch (error) {
-      console.error('Не удалось перезагрузить страницу:', error);
-      
-      // Крайний случай - показываем инструкцию пользователю
-      alert('❌ Автоматическая перезагрузка не удалась.\n\n🔄 Пожалуйста, перезагрузите страницу вручную (F5 или Ctrl+R)');
+      console.error('Reset error:', error);
+      // If something goes wrong - just reload
+      this.showNotification('🔄 Force reloading...');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     }
   }
 
-  // Создание индикаторов эффектов
+  // Create effect indicators
   createEffectIndicators() {
-    // Создаем контейнер для индикаторов если его нет
+    // Create container for indicators if it doesn't exist
     if (!document.getElementById('effect-indicators')) {
       const indicatorContainer = document.createElement('div');
       indicatorContainer.id = 'effect-indicators';
@@ -360,14 +248,14 @@ export default class UIManager {
     }
   }
 
-  // Обновление индикаторов эффектов
+  // Update effect indicators
   updateEffectIndicators() {
     const container = document.getElementById('effect-indicators');
     if (!container) return;
     
     container.innerHTML = '';
     
-    // Показываем активные баффы
+    // Show active buffs
     if (this.state.buffs && this.state.buffs.length > 0) {
       this.state.buffs.forEach(buffId => {
         const buffDef = BUFF_DEFS.find(b => b.id === buffId);
@@ -384,7 +272,7 @@ export default class UIManager {
       });
     }
     
-    // Показываем активные дебаффы
+    // Show active debuffs
     if (this.state.debuffs && this.state.debuffs.length > 0) {
       this.state.debuffs.forEach(debuffId => {
         const debuffDef = DEBUFF_DEFS.find(d => d.id === debuffId);
@@ -407,7 +295,7 @@ export default class UIManager {
     EventBus.subscribe('comboChanged',      () => this.updateResources());
     EventBus.subscribe('skillPointsChanged',() => this.updateResources());
     
-    // ИСПРАВЛЕНО: обработка новых событий с объектами
+    // FIXED: handling new events with objects
     EventBus.subscribe('buffApplied', data => {
       if (typeof data === 'object' && data.name) {
         this.showNotification(`✨ Buff: ${data.name}`);
@@ -444,7 +332,7 @@ export default class UIManager {
       this.updateEffectIndicators();
     });
 
-    // Обработка временных уведомлений
+    // Handle temporary notifications
     EventBus.subscribe('tempNotification', message => {
       this.showNotification(message);
     });
@@ -469,7 +357,7 @@ export default class UIManager {
       }
     });
   
-    // НОВЫЕ события для навыков
+    // NEW events for skills
     EventBus.subscribe('criticalHit', (data) => {
       this.showSkillNotification('💥 Critical Strike!', `Double damage: ${data.damage} gold`);
     });
@@ -482,7 +370,7 @@ export default class UIManager {
       this.showSkillNotification('🎯 Steady Hand!', 'Combo protected from miss');
     });
 
-    // НОВЫЕ события для эффектов
+    // NEW events for effects
     EventBus.subscribe('starPowerUsed', (data) => {
       this.showSkillNotification('⭐ Star Power!', `+${data.amount} ${data.resource} (${data.remaining} left)`);
     });
@@ -508,7 +396,7 @@ export default class UIManager {
     });
   }
   
-  // Новый метод для уведомлений о навыках
+  // New method for skill notifications
   showSkillNotification(title, description) {
     const div = document.createElement('div');
     div.className = 'notification skill-notification';
@@ -521,16 +409,16 @@ export default class UIManager {
   }
 
   updateResources() {
-    // Сброс
+    // Reset
     this.resourcesLeft.innerHTML  = '';
     this.resourcesRight.innerHTML = '';
-    // Основные
+    // Main resources
     ['gold','wood','stone','food','water','iron'].forEach(key => {
       const val = this.state.resources[key] || 0;
       this.resourcesLeft.appendChild(this.createResourceElem(key, val));
       this.resourcesLeft.appendChild(document.createElement('br'));
     });
-    // Остальные
+    // Other resources
     Object.keys(this.state.resources)
       .filter(key => !['gold','wood','stone','food','water','iron'].includes(key))
       .forEach(key => {
@@ -538,16 +426,16 @@ export default class UIManager {
         this.resourcesRight.appendChild(this.createResourceElem(key, val));
         this.resourcesRight.appendChild(document.createElement('br'));
       });
-    // Комбо
+    // Combo
     const combo = document.createElement('div');
-    combo.textContent = `Комбо: ${this.state.combo.count}`;
+    combo.textContent = `Combo: ${this.state.combo.count}`;
     this.resourcesRight.appendChild(combo);
-    // Skill Points отображаются как целое число
+    // Skill Points displayed as whole number
     const sp = document.createElement('div');
     sp.textContent = `Skill Points: ${Math.floor(this.state.skillPoints || 0)}`;
     this.resourcesRight.appendChild(sp);
 
-    // Обновляем индикаторы эффектов
+    // Update effect indicators
     this.updateEffectIndicators();
   }
 
@@ -583,15 +471,15 @@ export default class UIManager {
     if (this.tooltip) this.tooltip.style.display = 'none';
   }
 
-  // НОВОЕ: Меню информации вместо модалки
+  // NEW: Info menu instead of modal
   showInfo() {
     this.currentPanel = 'info';
-    this.panel.innerHTML = '<h2>📚 Информация об эффектах</h2>';
+    this.panel.innerHTML = '<h2>📚 Effect Information</h2>';
     
-    // Секция баффов
+    // Buffs section
     const buffsSection = document.createElement('div');
     buffsSection.className = 'category-section';
-    buffsSection.innerHTML = '<h3>✨ Баффы (Положительные эффекты)</h3>';
+    buffsSection.innerHTML = '<h3>✨ Buffs (Positive Effects)</h3>';
     
     BUFF_DEFS.forEach(buff => {
       const buffCard = document.createElement('div');
@@ -604,16 +492,16 @@ export default class UIManager {
         </div>
         <div class="item-description">${buff.description}</div>
         <div class="item-details">
-          ${buff.duration ? `<div>⏱️ Длительность: ${buff.duration} секунд</div>` : '<div>⚡ Мгновенный эффект</div>'}
+          ${buff.duration ? `<div>⏱️ Duration: ${buff.duration} seconds</div>` : '<div>⚡ Instant effect</div>'}
         </div>
       `;
       buffsSection.appendChild(buffCard);
     });
     
-    // Секция дебаффов
+    // Debuffs section
     const debuffsSection = document.createElement('div');
     debuffsSection.className = 'category-section';
-    debuffsSection.innerHTML = '<h3>💀 Дебаффы (Отрицательные эффекты)</h3>';
+    debuffsSection.innerHTML = '<h3>💀 Debuffs (Negative Effects)</h3>';
     
     DEBUFF_DEFS.forEach(debuff => {
       const debuffCard = document.createElement('div');
@@ -626,30 +514,30 @@ export default class UIManager {
         </div>
         <div class="item-description">${debuff.description}</div>
         <div class="item-details">
-          ${debuff.duration ? `<div>⏱️ Длительность: ${debuff.duration} секунд</div>` : '<div>⚡ Мгновенный эффект</div>'}
+          ${debuff.duration ? `<div>⏱️ Duration: ${debuff.duration} seconds</div>` : '<div>⚡ Instant effect</div>'}
         </div>
       `;
       debuffsSection.appendChild(debuffCard);
     });
 
-    // Секция общих правил
+    // Rules section
     const rulesSection = document.createElement('div');
     rulesSection.className = 'category-section';
     rulesSection.innerHTML = `
-      <h3>⚖️ Правила получения эффектов</h3>
+      <h3>⚖️ Effect Rules</h3>
       <div class="item-card rules-card">
         <div class="item-description">
-          <p><strong>Базовый шанс:</strong> 10% на каждый клик получить эффект</p>
-          <p><strong>Влияние ресурсов:</strong></p>
+          <p><strong>Base chance:</strong> 10% per click to get an effect</p>
+          <p><strong>Resource influence:</strong></p>
           <ul>
-            <li>🙏 <strong>Faith</strong> увеличивает шанс баффов</li>
-            <li>🌪️ <strong>Chaos</strong> увеличивает шанс дебаффов</li>
+            <li>🙏 <strong>Faith</strong> increases buff chance</li>
+            <li>🌪️ <strong>Chaos</strong> increases debuff chance</li>
           </ul>
-          <p><strong>Модификаторы:</strong></p>
+          <p><strong>Modifiers:</strong></p>
           <ul>
-            <li>💎 <strong>Lucky Zone</strong> бафф: +25% к шансу баффов</li>
-            <li>🍀 <strong>Lucky Charm</strong> навык: увеличивает шанс баффов</li>
-            <li>🛡️ <strong>Shield</strong> бафф: блокирует следующие 3 дебаффа</li>
+            <li>💎 <strong>Lucky Zone</strong> buff: +25% buff chance</li>
+            <li>🍀 <strong>Lucky Charm</strong> skill: increases buff chance</li>
+            <li>🛡️ <strong>Shield</strong> buff: blocks next 3 debuffs</li>
           </ul>
         </div>
       </div>
@@ -661,10 +549,10 @@ export default class UIManager {
     this.panel.classList.remove('hidden');
   }
 
-  // Новая функция: Маркет
+  // Market function
   showMarket() {
     this.currentPanel = 'market';
-    this.panel.innerHTML = '<h2>🛒 Маркет</h2>';
+    this.panel.innerHTML = '<h2>🛒 Market</h2>';
     
     const description = document.createElement('div');
     description.style.textAlign = 'center';
@@ -672,12 +560,12 @@ export default class UIManager {
     description.style.fontSize = '1.1rem';
     description.style.color = '#666';
     description.innerHTML = `
-      <p>💰 Торговля ресурсами и особыми предметами</p>
-      <p>Репутация: <strong>${this.state.marketManager ? this.state.marketManager.getMarketReputation() : 0}</strong></p>
+      <p>💰 Trade resources and special items</p>
+      <p>Reputation: <strong>${this.state.marketManager ? this.state.marketManager.getMarketReputation() : 0}</strong></p>
     `;
     this.panel.appendChild(description);
 
-    // Получаем категории товаров
+    // Get item categories
     const categories = this.state.marketManager ? 
       this.state.marketManager.getItemsByCategory() : {};
 
@@ -712,13 +600,13 @@ export default class UIManager {
       </div>
       <div class="item-description">${item.description}</div>
       <div class="item-details">
-        <div>💰 Цена: ${item.priceText}</div>
-        <div>🎁 Награда: ${item.rewardText}</div>
+        <div>💰 Price: ${item.priceText}</div>
+        <div>🎁 Reward: ${item.rewardText}</div>
       </div>
       <div class="item-footer">
         <button class="buy-button ${item.canAfford ? '' : 'disabled'}" 
                 ${item.canAfford ? '' : 'disabled'}>
-          Купить
+          Buy
         </button>
       </div>
     `;
@@ -726,10 +614,10 @@ export default class UIManager {
     const buyButton = card.querySelector('.buy-button');
     buyButton.addEventListener('click', () => {
       if (this.state.marketManager && this.state.marketManager.buyItem(item.id)) {
-        this.showNotification(`Куплено: ${item.name}`);
-        this.showMarket(); // Обновляем панель
+        this.showNotification(`Bought: ${item.name}`);
+        this.showMarket(); // Update panel
       } else {
-        this.showNotification('Недостаточно ресурсов!');
+        this.showNotification('Not enough resources!');
       }
     });
 
@@ -738,9 +626,9 @@ export default class UIManager {
 
   showBuildings() {
     this.currentPanel = 'buildings';
-    this.panel.innerHTML = '<h2>🏗️ Строения</h2>';
+    this.panel.innerHTML = '<h2>🏗️ Buildings</h2>';
     
-    // Группируем здания по категориям
+    // Group buildings by categories
     const categories = {};
     BUILDING_DEFS.forEach(def => {
       if (!categories[def.category]) {
@@ -777,7 +665,7 @@ export default class UIManager {
     header.innerHTML = `
       <span class="item-icon">${def.img}</span>
       <span class="item-name">${def.name}</span>
-      <span class="item-level">Уровень: ${buildingInfo.currentLevel}/${def.maxLevel}</span>
+      <span class="item-level">Level: ${buildingInfo.currentLevel}/${def.maxLevel}</span>
     `;
     
     const description = document.createElement('div');
@@ -788,38 +676,38 @@ export default class UIManager {
     details.className = 'item-details';
     
     if (buildingInfo.productionRate) {
-      details.innerHTML += `<div>📈 Производство: ${buildingInfo.productionRate}</div>`;
+      details.innerHTML += `<div>📈 Production: ${buildingInfo.productionRate}</div>`;
     }
     
     if (def.special) {
-      details.innerHTML += `<div>✨ Особое: ${def.special.description || 'Специальный эффект'}</div>`;
+      details.innerHTML += `<div>✨ Special: ${def.special.description || 'Special effect'}</div>`;
     }
     
     const footer = document.createElement('div');
     footer.className = 'item-footer';
     
     if (buildingInfo.isMaxLevel) {
-      footer.innerHTML = '<span class="max-level">🏆 МАКСИМАЛЬНЫЙ УРОВЕНЬ</span>';
+      footer.innerHTML = '<span class="max-level">🏆 MAX LEVEL</span>';
     } else {
       const priceText = Object.entries(buildingInfo.nextPrice)
         .map(([r, a]) => `${a} ${this.getEmoji(r)}`)
         .join(' ');
       
       footer.innerHTML = `
-        <span class="price">Цена: ${priceText}</span>
+        <span class="price">Price: ${priceText}</span>
         <button class="buy-button ${buildingInfo.canAfford ? '' : 'disabled'}" 
                 ${buildingInfo.canAfford ? '' : 'disabled'}>
-          Улучшить
+          Upgrade
         </button>
       `;
       
       const buyButton = footer.querySelector('.buy-button');
       buyButton.addEventListener('click', () => {
         if (this.state.buildingManager.buyBuilding(def.id)) {
-          this.showNotification(`${def.name} улучшен!`);
+          this.showNotification(`${def.name} upgraded!`);
           this.showBuildings();
         } else {
-          this.showNotification('Недостаточно ресурсов');
+          this.showNotification('Not enough resources');
         }
       });
     }
@@ -834,9 +722,9 @@ export default class UIManager {
 
   showSkills() {
     this.currentPanel = 'skills';
-    this.panel.innerHTML = '<h2>🎯 Навыки</h2>';
+    this.panel.innerHTML = '<h2>🎯 Skills</h2>';
     
-    // Группируем навыки по категориям
+    // Group skills by categories
     const categories = {};
     SKILL_DEFS.forEach(def => {
       if (!categories[def.category]) {
@@ -873,7 +761,7 @@ export default class UIManager {
     header.innerHTML = `
       <span class="item-icon">${def.icon}</span>
       <span class="item-name">${def.name}</span>
-      <span class="item-level">Уровень: ${skillInfo.currentLevel}/${def.maxLevel}</span>
+      <span class="item-level">Level: ${skillInfo.currentLevel}/${def.maxLevel}</span>
     `;
     
     const description = document.createElement('div');
@@ -885,33 +773,33 @@ export default class UIManager {
     
     if (skillInfo.currentLevel > 0) {
       const currentEffect = (skillInfo.currentEffect * 100).toFixed(1);
-      details.innerHTML += `<div>💪 Текущий эффект: ${currentEffect}%</div>`;
+      details.innerHTML += `<div>💪 Current effect: ${currentEffect}%</div>`;
     }
     
     const effectType = this.getEffectTypeDescription(def.effect.type);
-    details.innerHTML += `<div>🎯 Тип: ${effectType}</div>`;
+    details.innerHTML += `<div>🎯 Type: ${effectType}</div>`;
     
     const footer = document.createElement('div');
     footer.className = 'item-footer';
     
     if (skillInfo.isMaxLevel) {
-      footer.innerHTML = '<span class="max-level">🏆 МАКСИМАЛЬНЫЙ УРОВЕНЬ</span>';
+      footer.innerHTML = '<span class="max-level">🏆 MAX LEVEL</span>';
     } else {
       footer.innerHTML = `
-        <span class="price">Цена: ${skillInfo.nextCost} ✨ SP</span>
+        <span class="price">Price: ${skillInfo.nextCost} ✨ SP</span>
         <button class="buy-button ${skillInfo.canAfford ? '' : 'disabled'}" 
                 ${skillInfo.canAfford ? '' : 'disabled'}>
-          Изучить
+          Learn
         </button>
       `;
       
       const buyButton = footer.querySelector('.buy-button');
       buyButton.addEventListener('click', () => {
         if (this.state.skillManager.buySkill(def.id)) {
-          this.showNotification(`${def.name} изучен!`);
+          this.showNotification(`${def.name} learned!`);
           this.showSkills();
         } else {
-          this.showNotification('Недостаточно Skill Points');
+          this.showNotification('Not enough Skill Points');
         }
       });
     }
@@ -926,25 +814,25 @@ export default class UIManager {
 
   getCategoryName(category) {
     const names = {
-      'production': '🏭 Производство',
-      'population': '👥 Население', 
-      'advanced': '🔬 Продвинутые',
-      'special': '✨ Особые'
+      'production': '🏭 Production',
+      'population': '👥 Population', 
+      'advanced': '🔬 Advanced',
+      'special': '✨ Special'
     };
     return names[category] || category;
   }
 
   getEffectTypeDescription(type) {
     const types = {
-      'multiplier': 'Множитель',
-      'chance': 'Шанс',
-      'generation': 'Генерация',
-      'reduction': 'Снижение',
-      'duration': 'Длительность',
-      'automation': 'Автоматизация',
-      'protection': 'Защита',
-      'charges': 'Заряды',
-      'preview': 'Предпросмотр'
+      'multiplier': 'Multiplier',
+      'chance': 'Chance',
+      'generation': 'Generation',
+      'reduction': 'Reduction',
+      'duration': 'Duration',
+      'automation': 'Automation',
+      'protection': 'Protection',
+      'charges': 'Charges',
+      'preview': 'Preview'
     };
     return types[type] || type;
   }
@@ -955,7 +843,7 @@ export default class UIManager {
   }
 
   showMysteryModal(opts) {
-    this.mysteryModal.innerHTML = '<h3>📦 Mystery Box</h3><p>Выберите награду:</p>';
+    this.mysteryModal.innerHTML = '<h3>📦 Mystery Box</h3><p>Choose your reward:</p>';
     opts.forEach(r => {
       const btn = document.createElement('button');
       btn.textContent = `${this.getEmoji(r)} +5 ${r}`;
@@ -964,7 +852,7 @@ export default class UIManager {
         this.state.resources[r] += 5;
         EventBus.emit('resourceChanged', { resource: r, amount: this.state.resources[r] });
         this.mysteryModal.classList.add('hidden');
-        this.showNotification(`Получено: +5 ${r}`);
+        this.showNotification(`Received: +5 ${r}`);
       });
       this.mysteryModal.appendChild(btn);
       this.mysteryModal.appendChild(document.createElement('br'));
