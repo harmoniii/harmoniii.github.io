@@ -1,401 +1,74 @@
-// game.js - Полная исправленная версия с улучшенной инициализацией и управлением ресурсами
-import { EventBus } from './eventBus.js';
-import { FeatureManager } from './featureManager.js';
-import { BuildingManager } from './buildings.js';
-import { SkillManager } from './skills.js';
-import { MarketManager } from './market.js';
-import { loadState, saveState } from './storage.js';
-import UIManager from './ui.js';
-import { CONFIG, GAME_CONSTANTS } from './config.js';
+// game.js - Основная точка входа в игру
+import { GameCore } from './core/GameCore.js';
+import { eventBus, GameEvents } from './core/GameEvents.js';
 
-// ИСПРАВЛЕНИЕ 2: Глобальные переменные для отслеживания компонентов
-let gameState = null;
-let managers = {
-  feature: null,
-  building: null,
-  skill: null,
-  market: null,
-  ui: null
-};
+// Глобальные переменные для отладки
+let gameCore = null;
 
-let gameLoopId = null;
-let achievementTimeouts = {
-  combo: 0,
-  resource: 0
-};
-
-// ИСПРАВЛЕНИЕ 2: Функция инициализации игры
-function initializeGame() {
+// Основная функция инициализации
+async function main() {
   try {
-    console.log('🎮 Initializing game...');
+    console.log('🚀 Starting Advanced Clicker v0.8.0...');
     
-    // Загружаем состояние
-    gameState = loadState();
+    // Устанавливаем обработчики ошибок
+    setupErrorHandlers();
     
-    // ИСПРАВЛЕНИЕ 9: Проверяем состояние перед инициализацией менеджеров
-    if (!gameState) {
-      throw new Error('Failed to load game state');
-    }
+    // Устанавливаем обработчик закрытия страницы
+    setupPageUnloadHandler();
     
-    // Инициализируем менеджеры в правильном порядке
-    managers.feature = new FeatureManager(gameState);
-    managers.building = new BuildingManager(gameState);
-    managers.skill = new SkillManager(gameState);
-    managers.market = new MarketManager(gameState);
+    // Создаем и запускаем игровое ядро
+    gameCore = new GameCore();
     
-    // Добавляем менеджеры в состояние
-    gameState.featureMgr = managers.feature;
-    gameState.buildingManager = managers.building;
-    gameState.skillManager = managers.skill;
-    gameState.marketManager = managers.market;
-    gameState.CONFIG = CONFIG;
-
-    // Инициализируем UI
-    managers.ui = new UIManager(gameState);
+    // Экспортируем для отладки
+    window.gameCore = gameCore;
+    window.eventBus = eventBus;
+    window.GameEvents = GameEvents;
     
-    // Инициализируем canvas и игровой цикл
-    initializeCanvas();
-    startGameLoop();
-    
-    console.log('✅ Game initialized successfully');
+    console.log('✅ Game started successfully');
     
   } catch (error) {
-    console.error('💀 Critical error during game initialization:', error);
-    handleInitializationError(error);
+    console.error('💀 Critical error in main:', error);
+    handleCriticalError(error);
   }
 }
 
-// ИСПРАВЛЕНИЕ 2: Обработка ошибок инициализации
-function handleInitializationError(error) {
-  const errorMessage = `Game initialization failed: ${error.message}`;
-  
-  // Показываем ошибку пользователю
-  const errorDiv = document.createElement('div');
-  errorDiv.style.position = 'fixed';
-  errorDiv.style.top = '50%';
-  errorDiv.style.left = '50%';
-  errorDiv.style.transform = 'translate(-50%, -50%)';
-  errorDiv.style.background = '#ff4444';
-  errorDiv.style.color = 'white';
-  errorDiv.style.padding = '20px';
-  errorDiv.style.borderRadius = '10px';
-  errorDiv.style.zIndex = '10000';
-  errorDiv.style.textAlign = 'center';
-  errorDiv.innerHTML = `
-    <h3>💀 Game Initialization Error</h3>
-    <p>${errorMessage}</p>
-    <button onclick="location.reload()">🔄 Reload Page</button>
-  `;
-  
-  document.body.appendChild(errorDiv);
-}
-
-// Canvas и игровой цикл
-let canvas, ctx, angle = 0;
-
-function initializeCanvas() {
-  canvas = document.getElementById('gameCanvas');
-  if (!canvas) {
-    throw new Error('Game canvas not found');
-  }
-  
-  canvas.width = CONFIG.canvasSize;
-  canvas.height = CONFIG.canvasSize;
-  ctx = canvas.getContext('2d');
-  
-  // ИСПРАВЛЕНИЕ 12: Улучшенная система кликов
-  setupCanvasEventHandlers();
-  
-  // ИСПРАВЛЕНИЕ 4: Инициализация угла поворота
-  angle = 0;
-  gameState.currentRotation = 0;
-}
-
-function setupCanvasEventHandlers() {
-  const getClickAngle = (e) => {
-    const r = canvas.getBoundingClientRect();
-    const x = e.clientX - r.left - canvas.width / 2;
-    const y = e.clientY - r.top - canvas.height / 2;
-    return Math.atan2(y, x) - angle;
-  };
-
-  // Обработчик кликов мыши
-  const clickHandler = (e) => {
-    e.preventDefault();
-    const clickAngle = getClickAngle(e);
-    EventBus.emit('click', clickAngle);
-  };
-  
-  // Обработчик касаний
-  const touchHandler = (e) => {
-    e.preventDefault();
-    if (e.touches && e.touches.length > 0) {
-      const clickAngle = getClickAngle(e.touches[0]);
-      EventBus.emit('click', clickAngle);
-    }
-  };
-
-  canvas.addEventListener('click', clickHandler);
-  canvas.addEventListener('touchstart', touchHandler);
-  
-  // Предотвращаем контекстное меню
-  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-}
-
-// ИСПРАВЛЕНИЕ 14: Улучшенная система достижений с защитой от проблем времени
-function checkAchievements() {
-  if (!gameState || !managers.skill) return;
-  
-  const now = Date.now();
-  
-  // ИСПРАВЛЕНИЕ 14: Безопасная проверка достижений комбо
-  if (now - achievementTimeouts.combo > GAME_CONSTANTS.COMBO_CHECK_INTERVAL) {
-    achievementTimeouts.combo = now;
+// Обработчики ошибок
+function setupErrorHandlers() {
+  // Глобальный обработчик ошибок
+  window.addEventListener('error', (event) => {
+    console.error('💀 Global error:', event.error);
     
-    try {
-      const comboCount = gameState.combo?.count || 0;
-      
-      if (comboCount >= GAME_CONSTANTS.COMBO_MILESTONE_3) {
-        managers.skill.addSkillPoints(5);
-      } else if (comboCount >= GAME_CONSTANTS.COMBO_MILESTONE_2) {
-        managers.skill.addSkillPoints(2);
-      } else if (comboCount >= GAME_CONSTANTS.COMBO_MILESTONE_1) {
-        managers.skill.addSkillPoints(1);
-      }
-    } catch (error) {
-      console.warn('Error in combo achievements:', error);
-    }
-  }
-  
-  // ИСПРАВЛЕНИЕ 14: Безопасная проверка достижений ресурсов
-  if (now - achievementTimeouts.resource > GAME_CONSTANTS.RESOURCE_CHECK_INTERVAL) {
-    achievementTimeouts.resource = now;
-    
-    try {
-      const totalResources = Object.values(gameState.resources || {})
-        .filter(val => typeof val === 'number' && !isNaN(val))
-        .reduce((sum, val) => sum + val, 0);
-      
-      if (totalResources >= GAME_CONSTANTS.RESOURCE_MILESTONE_3) {
-        managers.skill.addSkillPoints(5);
-      } else if (totalResources >= GAME_CONSTANTS.RESOURCE_MILESTONE_2) {
-        managers.skill.addSkillPoints(3);
-      } else if (totalResources >= GAME_CONSTANTS.RESOURCE_MILESTONE_1) {
-        managers.skill.addSkillPoints(1);
-      }
-    } catch (error) {
-      console.warn('Error in resource achievements:', error);
-    }
-  }
-}
-
-// Главный игровой цикл
-function gameLoop() {
-  if (!gameState || !managers.feature || !ctx) {
-    console.warn('Game loop running without proper initialization');
-    return;
-  }
-  
-  try {
-    // Очищаем canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Рисуем зоны
-    drawZones();
-    
-    // Проверяем достижения
-    checkAchievements();
-    
-    // Сохраняем состояние
-    saveState(gameState);
-    
-    // Обновляем угол поворота
-    updateRotation();
-    
-  } catch (error) {
-    console.warn('Error in game loop:', error);
-  }
-  
-  // Планируем следующий кадр
-  gameLoopId = requestAnimationFrame(gameLoop);
-}
-
-function drawZones() {
-  const total = 2 * Math.PI;
-  const step = total / managers.feature.zones.length;
-  
-  managers.feature.zones.forEach(zone => {
-    const start = zone.index * step + angle;
-    const end = (zone.index + 1) * step + angle;
-    
-    // Основная заливка зоны
-    ctx.beginPath();
-    ctx.moveTo(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2);
-    ctx.arc(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2, 
-            CONFIG.canvasSize / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH, start, end);
-    ctx.closePath();
-    ctx.fillStyle = '#888';
-    ctx.fill();
-    ctx.strokeStyle = '#333';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    
-    // Подсветка целевой зоны
-    if (gameState.targetZone === zone.index) {
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = GAME_CONSTANTS.TARGET_ZONE_BORDER_WIDTH;
-      ctx.beginPath();
-      ctx.moveTo(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2);
-      ctx.arc(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2, 
-              CONFIG.canvasSize / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH, start, end);
-      ctx.closePath();
-      ctx.stroke();
-    }
-    
-    // Предварительный показ следующей зоны (если есть навык)
-    if (managers.skill?.skills?.zonePreview?.level > 0) {
-      const nextZone = (gameState.targetZone + 1) % managers.feature.zones.length;
-      if (nextZone === zone.index) {
-        ctx.strokeStyle = 'yellow';
-        ctx.lineWidth = GAME_CONSTANTS.PREVIEW_ZONE_BORDER_WIDTH;
-        ctx.setLineDash([10, 5]);
-        ctx.beginPath();
-        ctx.moveTo(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2);
-        ctx.arc(CONFIG.canvasSize / 2, CONFIG.canvasSize / 2, 
-                CONFIG.canvasSize / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH, start, end);
-        ctx.closePath();
-        ctx.stroke();
-        ctx.setLineDash([]);
+    // Пытаемся сохранить состояние при критической ошибке
+    if (gameCore && gameCore.isActive()) {
+      try {
+        gameCore.autoSave();
+        console.log('✅ Emergency save completed');
+      } catch (saveError) {
+        console.error('❌ Emergency save failed:', saveError);
       }
     }
   });
-}
-
-function updateRotation() {
-  // Применяем модификаторы скорости
-  let rotationSpeed = CONFIG.rotationSpeed;
   
-  // Увеличиваем скорость если есть дебафф rapid
-  if (gameState.debuffs && gameState.debuffs.includes('rapid')) {
-    rotationSpeed *= GAME_CONSTANTS.RAPID_SPEED_MULTIPLIER;
-  }
-  
-  angle += rotationSpeed;
-  
-  // ИСПРАВЛЕНИЕ 12: Обновляем текущий угол поворота для автокликера
-  gameState.currentRotation = angle;
-}
-
-function startGameLoop() {
-  if (gameLoopId) {
-    cancelAnimationFrame(gameLoopId);
-  }
-  gameLoopId = requestAnimationFrame(gameLoop);
-}
-
-// ИСПРАВЛЕНИЕ 1, 2: Улучшенная система сброса игры
-function setupGameResetHandler() {
-  EventBus.subscribe('gameReset', () => {
-    console.log('🔄 Game reset initiated...');
-    
-    try {
-      // Останавливаем игровой цикл
-      if (gameLoopId) {
-        cancelAnimationFrame(gameLoopId);
-        gameLoopId = null;
-      }
-      
-      // Останавливаем все менеджеры
-      stopAllManagers();
-      
-      // Очищаем состояние
-      gameState = null;
-      
-      // Сбрасываем угол поворота
-      angle = 0;
-      
-      // Очищаем таймауты достижений
-      achievementTimeouts.combo = 0;
-      achievementTimeouts.resource = 0;
-      
-      console.log('✅ Game reset preparation complete');
-      
-      // Переинициализируем игру через небольшую задержку
-      setTimeout(() => {
-        initializeGame();
-      }, 100);
-      
-    } catch (error) {
-      console.error('Error during game reset:', error);
-      // В случае ошибки перезагружаем страницу
-      window.location.reload();
-    }
+  // Обработчик необработанных промисов
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('💀 Unhandled promise rejection:', event.reason);
+    event.preventDefault(); // Предотвращаем вывод в консоль браузера
   });
 }
 
-// ИСПРАВЛЕНИЕ 2: Безопасная остановка всех менеджеров
-function stopAllManagers() {
-  try {
-    if (managers.feature && typeof managers.feature.stopAllEffects === 'function') {
-      managers.feature.stopAllEffects();
-      managers.feature = null;
-    }
-  } catch (e) {
-    console.warn('Error stopping FeatureManager:', e);
-  }
-  
-  try {
-    if (managers.building && typeof managers.building.stopAllProduction === 'function') {
-      managers.building.stopAllProduction();
-      managers.building = null;
-    }
-  } catch (e) {
-    console.warn('Error stopping BuildingManager:', e);
-  }
-  
-  try {
-    if (managers.skill && typeof managers.skill.stopAllGeneration === 'function') {
-      managers.skill.stopAllGeneration();
-      managers.skill = null;
-    }
-  } catch (e) {
-    console.warn('Error stopping SkillManager:', e);
-  }
-  
-  try {
-    if (managers.ui && typeof managers.ui.destroy === 'function') {
-      managers.ui.destroy();
-      managers.ui = null;
-    }
-  } catch (e) {
-    console.warn('Error stopping UIManager:', e);
-  }
-  
-  // Очищаем ссылки
-  managers.market = null;
-}
-
-// ИСПРАВЛЕНИЕ 2: Функция очистки при закрытии страницы
+// Обработчик закрытия страницы
 function setupPageUnloadHandler() {
   const cleanup = () => {
-    console.log('🧹 Page unloading, cleaning up...');
+    console.log('👋 Page unloading, cleaning up...');
     
-    try {
-      // Сохраняем состояние
-      if (gameState) {
-        saveState(gameState);
+    if (gameCore && gameCore.isActive()) {
+      try {
+        gameCore.autoSave();
+        gameCore.destroy();
+        console.log('✅ Cleanup completed');
+      } catch (error) {
+        console.warn('⚠️ Error during cleanup:', error);
       }
-      
-      // Останавливаем игровой цикл
-      if (gameLoopId) {
-        cancelAnimationFrame(gameLoopId);
-      }
-      
-      // Останавливаем менеджеры
-      stopAllManagers();
-      
-    } catch (error) {
-      console.warn('Error during cleanup:', error);
     }
   };
   
@@ -404,89 +77,138 @@ function setupPageUnloadHandler() {
   window.addEventListener('unload', cleanup);
   window.addEventListener('pagehide', cleanup);
   
-  // Также добавляем обработчик для потери фокуса (на всякий случай)
+  // Сохранение при потере фокуса
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && gameState) {
+    if (document.hidden && gameCore && gameCore.isActive()) {
       try {
-        saveState(gameState);
+        gameCore.autoSave();
       } catch (error) {
-        console.warn('Error saving on visibility change:', error);
+        console.warn('⚠️ Error saving on visibility change:', error);
       }
     }
   });
 }
 
-// ИСПРАВЛЕНИЕ 2: Обработчик ошибок
-function setupErrorHandlers() {
-  // Глобальный обработчик ошибок
-  window.addEventListener('error', (event) => {
-    console.error('💀 Global error:', event.error);
-    
-    // Если критическая ошибка в игре, пытаемся сохранить состояние
-    if (gameState) {
-      try {
-        saveState(gameState);
-        console.log('✅ State saved after error');
-      } catch (saveError) {
-        console.error('Failed to save state after error:', saveError);
-      }
-    }
-  });
+// Обработка критических ошибок
+function handleCriticalError(error) {
+  const errorMessage = `Critical game error: ${error.message}`;
   
-  // Обработчик необработанных промисов
-  window.addEventListener('unhandledrejection', (event) => {
-    console.error('💀 Unhandled promise rejection:', event.reason);
-  });
+  // Создаем элемент ошибки
+  const errorDiv = document.createElement('div');
+  errorDiv.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
+    z-index: 10000;
+    text-align: center;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 400px;
+    border: 2px solid #ffffff20;
+  `;
+  
+  errorDiv.innerHTML = `
+    <h2 style="margin-top: 0; font-size: 1.5em;">🚨 Critical Error</h2>
+    <p style="margin: 15px 0; line-height: 1.4;">${errorMessage}</p>
+    <div style="margin-top: 20px;">
+      <button onclick="location.reload()" style="
+        background: white;
+        color: #ff4444;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        margin: 0 5px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      " onmouseover="this.style.background='#f0f0f0'" onmouseout="this.style.background='white'">
+        🔄 Reload Game
+      </button>
+      <button onclick="this.parentElement.parentElement.remove()" style="
+        background: transparent;
+        color: white;
+        border: 2px solid white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: bold;
+        margin: 0 5px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+      " onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='transparent'">
+        ✕ Close
+      </button>
+    </div>
+    <p style="margin-top: 15px; font-size: 12px; opacity: 0.8;">
+      Your progress should be automatically saved.
+    </p>
+  `;
+  
+  document.body.appendChild(errorDiv);
 }
 
-// ИСПРАВЛЕНИЕ 18: Очистка неиспользуемых импортов и оптимизация
-// Основная точка входа
-function main() {
-  console.log('🚀 Starting Advanced Clicker v0.7.4...');
-  
-  try {
-    // Устанавливаем обработчики
-    setupErrorHandlers();
-    setupPageUnloadHandler();
-    setupGameResetHandler();
-    
-    // Инициализируем игру
-    initializeGame();
-    
-  } catch (error) {
-    console.error('💀 Critical error in main:', error);
-    handleInitializationError(error);
+// Функции для отладки (доступны в консоли)
+window.getGameStats = function() {
+  if (gameCore && gameCore.isActive()) {
+    return gameCore.getGameStats();
   }
-}
+  return null;
+};
 
-// ИСПРАВЛЕНИЕ 2: Функция для экстренного сохранения (для отладки)
+window.getGameState = function() {
+  if (gameCore && gameCore.isActive()) {
+    return gameCore.getGameState();
+  }
+  return null;
+};
+
+window.getManagers = function() {
+  if (gameCore && gameCore.isActive()) {
+    return gameCore.getManagers();
+  }
+  return null;
+};
+
 window.emergencySave = function() {
-  if (gameState) {
+  if (gameCore && gameCore.isActive()) {
     try {
-      saveState(gameState);
+      gameCore.autoSave();
       console.log('✅ Emergency save completed');
       return true;
     } catch (error) {
       console.error('❌ Emergency save failed:', error);
       return false;
     }
-  } else {
-    console.warn('⚠️ No game state to save');
-    return false;
+  }
+  console.warn('⚠️ Game not active, cannot save');
+  return false;
+};
+
+window.forceReload = function() {
+  console.log('🔄 Forcing page reload...');
+  window.location.reload(true);
+};
+
+window.clearAllData = function() {
+  if (confirm('⚠️ This will delete ALL game data! Are you sure?')) {
+    try {
+      localStorage.clear();
+      sessionStorage.clear();
+      console.log('🧹 All data cleared');
+      window.location.reload();
+    } catch (error) {
+      console.error('❌ Failed to clear data:', error);
+    }
   }
 };
 
-// ИСПРАВЛЕНИЕ 2: Функция для получения состояния (для отладки)
-window.getGameState = function() {
-  return gameState;
-};
-
-// ИСПРАВЛЕНИЕ 2: Функция для получения менеджеров (для отладки)
-window.getManagers = function() {
-  return managers;
-};
-
-// Запускаем игру когда DOM готов
+// Запуск игры при готовности DOM
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', main);
 } else {
