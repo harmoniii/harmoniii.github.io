@@ -1,4 +1,4 @@
-// effects/BuffManager.js - Управление баффами и дебаффами
+// effects/BuffManager.js - Fixed version with correct cleanup methods
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { 
@@ -509,13 +509,14 @@ export class BuffManager extends CleanupMixin {
 
   // ===== УТИЛИТЫ =====
 
-  // Очистить эффект
+  // Очистить эффект - FIXED: Use correct CleanupManager method names
   clearEffect(effectId) {
     // Очищаем таймер истечения
     if (this.activeEffects.has(effectId)) {
       const effect = this.activeEffects.get(effectId);
       if (effect.timeoutId) {
-        this.clearTimeout(effect.timeoutId);
+        // Use the inherited method from CleanupManager
+        this.cleanupManager.clearTimeout(effect.timeoutId);
       }
       this.activeEffects.delete(effectId);
     }
@@ -524,12 +525,13 @@ export class BuffManager extends CleanupMixin {
     this.clearEffectInterval(effectId);
   }
 
-  // Очистить интервал эффекта
+  // Очистить интервал эффекта - FIXED: Use correct CleanupManager method names
   clearEffectInterval(effectId) {
     if (this.effectIntervals.has(effectId)) {
       const intervalId = this.effectIntervals.get(effectId);
-      this.clearInterval(intervalId);
-      this.effectIntervals.delete(effectId);
+      // Use the inherited method from CleanupManager
+      this.cleanupManager.clearInterval(intervalId);
+      this.effectIntervals.delete(intervalId);
     }
   }
 
@@ -624,22 +626,6 @@ export class BuffManager extends CleanupMixin {
            this.gameState.debuffs.includes(effectId);
   }
 
-  // Получить силу эффекта (для стакающихся эффектов)
-  getEffectStrength(effectId) {
-    let strength = 0;
-    
-    // Считаем количество одинаковых эффектов (если стакаются)
-    this.gameState.buffs.forEach(buffId => {
-      if (buffId === effectId) strength++;
-    });
-    
-    this.gameState.debuffs.forEach(debuffId => {
-      if (debuffId === effectId) strength++;
-    });
-    
-    return strength;
-  }
-
   // Форсированно удалить все эффекты
   clearAllEffects() {
     console.log('🧹 Clearing all effects...');
@@ -665,130 +651,6 @@ export class BuffManager extends CleanupMixin {
     }
     
     console.log('✅ All effects cleared');
-  }
-
-  // Применить эффект по ID (для отладки)
-  forceApplyEffect(effectId, isDebuff = false) {
-    const def = isDebuff ? getDebuffById(effectId) : getBuffById(effectId);
-    
-    if (!def) {
-      console.warn(`Unknown effect: ${effectId}`);
-      return false;
-    }
-    
-    if (isDebuff) {
-      this.applyDebuff(def);
-    } else {
-      this.applyBuff(def);
-    }
-    
-    return true;
-  }
-
-  // Продлить эффект (для отладки)
-  extendEffect(effectId, additionalTime) {
-    if (!this.activeEffects.has(effectId)) {
-      console.warn(`Effect ${effectId} is not active`);
-      return false;
-    }
-    
-    const effect = this.activeEffects.get(effectId);
-    if (effect.timeoutId) {
-      // Отменяем старый таймер
-      this.clearTimeout(effect.timeoutId);
-      
-      // Создаем новый с дополнительным временем
-      const newTimeoutId = this.createTimeout(() => {
-        const isDebuff = this.gameState.debuffs.includes(effectId);
-        if (isDebuff) {
-          this.removeDebuff(effectId);
-          eventBus.emit(GameEvents.DEBUFF_EXPIRED, { id: effectId });
-        } else {
-          this.removeBuff(effectId);
-          eventBus.emit(GameEvents.BUFF_EXPIRED, { id: effectId });
-        }
-      }, additionalTime, `extended-${effectId}`);
-      
-      effect.timeoutId = newTimeoutId;
-      this.activeEffects.set(effectId, effect);
-      
-      console.log(`Extended effect ${effectId} by ${additionalTime}ms`);
-      return true;
-    }
-    
-    return false;
-  }
-
-  // Получить эффекты по категории
-  getEffectsByCategory(category) {
-    const effects = {
-      buffs: [],
-      debuffs: []
-    };
-    
-    this.gameState.buffs.forEach(buffId => {
-      const def = getBuffById(buffId);
-      if (def && def.category === category) {
-        effects.buffs.push({
-          id: buffId,
-          definition: def,
-          active: true
-        });
-      }
-    });
-    
-    this.gameState.debuffs.forEach(debuffId => {
-      const def = getDebuffById(debuffId);
-      if (def && def.category === category) {
-        effects.debuffs.push({
-          id: debuffId,
-          definition: def,
-          active: true
-        });
-      }
-    });
-    
-    return effects;
-  }
-
-  // Получить рекомендации по эффектам
-  getEffectRecommendations() {
-    const recommendations = [];
-    const stats = this.getEffectStatistics();
-    
-    // Рекомендация по Shield если много дебаффов
-    if (stats.activeDebuffs >= 2 && !this.gameState.buffs.includes('shield')) {
-      recommendations.push({
-        type: 'defense',
-        message: 'Consider using Shield buff to block incoming debuffs',
-        priority: 'high'
-      });
-    }
-    
-    // Рекомендация по комбо эффектам
-    if (this.gameState.combo.count >= 10 && !this.gameState.buffs.includes('frenzy')) {
-      recommendations.push({
-        type: 'combo',
-        message: 'High combo! Frenzy buff would multiply your gold gain',
-        priority: 'medium'
-      });
-    }
-    
-    // Предупреждение о критических дебаффах
-    const severeDebuffs = this.gameState.debuffs.filter(debuffId => {
-      const def = getDebuffById(debuffId);
-      return def && def.severity === 'severe';
-    });
-    
-    if (severeDebuffs.length > 0) {
-      recommendations.push({
-        type: 'warning',
-        message: `You have ${severeDebuffs.length} severe debuff(s) active!`,
-        priority: 'urgent'
-      });
-    }
-    
-    return recommendations;
   }
 
   // Деструктор
