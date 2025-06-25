@@ -1,4 +1,4 @@
-// game.js - исправленная версия с новыми модулями
+// game.js - исправленная версия с фиксом автокликера и текущего угла
 import { EventBus }       from './eventBus.js';
 import { FeatureManager } from './featureManager.js';
 import { BuildingManager } from './buildings.js';
@@ -31,6 +31,9 @@ canvas.width = CONFIG.canvasSize;
 canvas.height = CONFIG.canvasSize;
 const ctx = canvas.getContext('2d');
 let angle = 0;
+
+// ИСПРАВЛЕНИЕ: Сохраняем текущий угол в состоянии для автокликера
+state.currentRotation = 0;
 
 function getClickAngle(e) {
   const r = canvas.getBoundingClientRect();
@@ -150,6 +153,10 @@ function loop() {
   }
   
   angle += rotationSpeed;
+  
+  // ИСПРАВЛЕНИЕ: Обновляем текущий угол поворота в состоянии для автокликера
+  state.currentRotation = angle;
+  
   requestAnimationFrame(loop);
 }
 
@@ -159,10 +166,24 @@ loop();
 EventBus.subscribe('gameReset', () => {
   console.log('🔄 Переинициализация игры после загрузки...');
   
-  // Останавливаем все старые менеджеры
-  if (fm) fm.stopAllEffects();
-  if (bm) bm.stopAllProduction();
-  if (sm) sm.stopAllGeneration();
+  // ИСПРАВЛЕНИЕ: Полная остановка всех старых менеджеров
+  try {
+    if (fm) fm.stopAllEffects();
+  } catch (e) {
+    console.warn('Error stopping FeatureManager:', e);
+  }
+  
+  try {
+    if (bm) bm.stopAllProduction();
+  } catch (e) {
+    console.warn('Error stopping BuildingManager:', e);
+  }
+  
+  try {
+    if (sm) sm.stopAllGeneration();
+  } catch (e) {
+    console.warn('Error stopping SkillManager:', e);
+  }
   
   // Пересоздаем менеджеры с новым состоянием
   fm = new FeatureManager(state);
@@ -176,6 +197,10 @@ EventBus.subscribe('gameReset', () => {
   state.skillManager = sm;
   state.marketManager = mm;
   state.CONFIG = CONFIG;
+  
+  // ИСПРАВЛЕНИЕ: Сбрасываем угол поворота
+  angle = 0;
+  state.currentRotation = 0;
   
   console.log('✅ Игра переинициализирована');
 });

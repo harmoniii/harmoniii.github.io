@@ -1,4 +1,4 @@
-// ui.js - Fixed version with working Reset and Load buttons
+// ui.js - Исправленная версия с фиксом обработки событий
 import { EventBus } from './eventBus.js';
 import { SKILL_CATEGORIES, SKILL_DEFS, SkillManager } from './skills.js';
 import { BUILDING_DEFS } from './buildings.js';
@@ -9,6 +9,7 @@ export default class UIManager {
   constructor(state) {
     this.state = state;
     this.currentPanel = null;
+    this.activeSaveElements = new Set(); // ИСПРАВЛЕНИЕ: Отслеживание активных элементов сохранения
     this.initElements();
     this.bindControls();
     this.bindEvents();
@@ -54,16 +55,23 @@ export default class UIManager {
     this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
     this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
 
-    // COMPLETELY FIXED Save function - saves EVERYTHING
+    // ИСПРАВЛЕНИЕ: Улучшенная функция Save с защитой от дублирования
     this.btnSave.addEventListener('click', () => {
+      // Предотвращаем множественные вызовы
+      if (this.activeSaveElements.size > 0) {
+        this.showNotification('💾 Save already in progress...');
+        return;
+      }
+      
       try {
         // Create a complete copy of the state for saving
         const saveData = {
           // Core game state
           resources: { ...this.state.resources },
           combo: { ...this.state.combo },
-          skillPoints: this.state.skillPoints || 0,
+          skillPoints: Math.floor(this.state.skillPoints || 0), // ИСПРАВЛЕНИЕ: Округляем skill points
           targetZone: this.state.targetZone,
+          previousTargetZone: this.state.previousTargetZone,
           
           // Buildings (levels and active status)
           buildings: {},
@@ -91,7 +99,7 @@ export default class UIManager {
           
           // Metadata
           saveTimestamp: Date.now(),
-          saveVersion: '0.7.2'
+          saveVersion: '0.7.3'
         };
         
         // Copy buildings data
@@ -128,6 +136,10 @@ export default class UIManager {
         textarea.style.padding = '10px';
         textarea.style.fontSize = '12px';
         textarea.readOnly = true;
+        
+        // ИСПРАВЛЕНИЕ: Добавляем элемент в Set для отслеживания
+        this.activeSaveElements.add(textarea);
+        
         document.body.appendChild(textarea);
         textarea.select();
         
@@ -143,18 +155,19 @@ export default class UIManager {
         }
         
         // Remove textarea after 10 seconds
-        setTimeout(() => {
-          if (document.body.contains(textarea)) {
-            document.body.removeChild(textarea);
-          }
+        const cleanupTimeout = setTimeout(() => {
+          this.cleanupSaveElement(textarea);
         }, 10000);
         
         // Can be removed by clicking outside
-        textarea.addEventListener('blur', () => {
-          if (document.body.contains(textarea)) {
-            document.body.removeChild(textarea);
-          }
-        });
+        const blurHandler = () => {
+          this.cleanupSaveElement(textarea);
+        };
+        textarea.addEventListener('blur', blurHandler);
+        
+        // Store cleanup info
+        textarea._cleanupTimeout = cleanupTimeout;
+        textarea._blurHandler = blurHandler;
         
       } catch (error) {
         console.error('Save error:', error);
@@ -234,6 +247,11 @@ export default class UIManager {
           frozenCombo: false
         };
         
+        // ИСПРАВЛЕНИЕ: Округляем skill points при загрузке
+        if (typeof decoded.skillPoints === 'number') {
+          decoded.skillPoints = Math.floor(decoded.skillPoints);
+        }
+        
         // Ensure all required fields exist with defaults
         if (!decoded.resources) decoded.resources = {};
         if (!decoded.buildings) decoded.buildings = {};
@@ -243,6 +261,7 @@ export default class UIManager {
         if (!decoded.combo) decoded.combo = { count: 0, deadline: 0, lastZone: null, lastAngle: null };
         if (typeof decoded.skillPoints !== 'number') decoded.skillPoints = 0;
         if (typeof decoded.targetZone !== 'number') decoded.targetZone = 0;
+        if (typeof decoded.previousTargetZone !== 'number') decoded.previousTargetZone = decoded.targetZone;
         
         console.log('🧹 Cleaned save data ready for loading');
         
@@ -286,6 +305,29 @@ export default class UIManager {
         }
       }
     });
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый метод для очистки элементов сохранения
+  cleanupSaveElement(textarea) {
+    if (this.activeSaveElements.has(textarea)) {
+      // Очищаем таймаут
+      if (textarea._cleanupTimeout) {
+        clearTimeout(textarea._cleanupTimeout);
+      }
+      
+      // Удаляем обработчик событий
+      if (textarea._blurHandler) {
+        textarea.removeEventListener('blur', textarea._blurHandler);
+      }
+      
+      // Удаляем элемент из DOM
+      if (document.body.contains(textarea)) {
+        document.body.removeChild(textarea);
+      }
+      
+      // Удаляем из Set
+      this.activeSaveElements.delete(textarea);
+    }
   }
 
   // NUCLEAR RESET METHOD - DESTROYS EVERYTHING
@@ -483,46 +525,62 @@ Error: ${error.message}`);
     EventBus.subscribe('comboChanged',      () => this.updateResources());
     EventBus.subscribe('skillPointsChanged',() => this.updateResources());
     
-    // FIXED: handling new events with objects
+    // ИСПРАВЛЕНИЕ: Улучшенная обработка событий с более надежными проверками
     EventBus.subscribe('buffApplied', data => {
-      if (typeof data === 'object' && data.name) {
-        this.showNotification(`✨ Buff: ${data.name}`);
+      let message = '✨ Buff: ';
+      if (data && typeof data === 'object' && data.name) {
+        message += data.name;
+      } else if (data && typeof data === 'string') {
+        message += data;
       } else {
-        this.showNotification(`✨ Buff: ${data}`);
+        message += 'Unknown buff';
       }
+      this.showNotification(message);
       this.updateEffectIndicators();
     });
     
     EventBus.subscribe('debuffApplied', data => {
-      if (typeof data === 'object' && data.name) {
-        this.showNotification(`💀 Debuff: ${data.name}`);
+      let message = '💀 Debuff: ';
+      if (data && typeof data === 'object' && data.name) {
+        message += data.name;
+      } else if (data && typeof data === 'string') {
+        message += data;
       } else {
-        this.showNotification(`💀 Debuff: ${data}`);
+        message += 'Unknown debuff';
       }
+      this.showNotification(message);
       this.updateEffectIndicators();
     });
     
     EventBus.subscribe('buffExpired', data => {
-      if (typeof data === 'object' && data.name) {
-        this.showNotification(`⏰ Buff expired: ${data.name}`);
+      let message = '⏰ Buff expired: ';
+      if (data && typeof data === 'object' && data.name) {
+        message += data.name;
+      } else if (data && typeof data === 'string') {
+        message += data;
       } else {
-        this.showNotification(`⏰ Buff expired: ${data}`);
+        message += 'Unknown buff';
       }
+      this.showNotification(message);
       this.updateEffectIndicators();
     });
     
     EventBus.subscribe('debuffExpired', data => {
-      if (typeof data === 'object' && data.name) {
-        this.showNotification(`⏰ Debuff expired: ${data.name}`);
+      let message = '⏰ Debuff expired: ';
+      if (data && typeof data === 'object' && data.name) {
+        message += data.name;
+      } else if (data && typeof data === 'string') {
+        message += data;
       } else {
-        this.showNotification(`⏰ Debuff expired: ${data}`);
+        message += 'Unknown debuff';
       }
+      this.showNotification(message);
       this.updateEffectIndicators();
     });
 
     // Handle temporary notifications
     EventBus.subscribe('tempNotification', message => {
-      this.showNotification(message);
+      this.showNotification(message || 'Unknown notification');
     });
     
     EventBus.subscribe('mysteryBox', opts => this.showMysteryModal(opts));
@@ -547,11 +605,14 @@ Error: ${error.message}`);
   
     // NEW events for skills
     EventBus.subscribe('criticalHit', (data) => {
-      this.showSkillNotification('💥 Critical Strike!', `Double damage: ${data.damage} gold`);
+      const damage = (data && data.damage) || 'Unknown';
+      this.showSkillNotification('💥 Critical Strike!', `Double damage: ${damage} gold`);
     });
   
     EventBus.subscribe('bonusResourceFound', (data) => {
-      this.showSkillNotification('🔍 Resource Found!', `+${data.amount} ${data.resource}`);
+      const amount = (data && data.amount) || 'Unknown';
+      const resource = (data && data.resource) || 'Unknown';
+      this.showSkillNotification('🔍 Resource Found!', `+${amount} ${resource}`);
     });
   
     EventBus.subscribe('missProtectionUsed', () => {
@@ -560,23 +621,34 @@ Error: ${error.message}`);
 
     // NEW events for effects
     EventBus.subscribe('starPowerUsed', (data) => {
-      this.showSkillNotification('⭐ Star Power!', `+${data.amount} ${data.resource} (${data.remaining} left)`);
+      const amount = (data && data.amount) || 'Unknown';
+      const resource = (data && data.resource) || 'Unknown';
+      const remaining = (data && data.remaining) || 0;
+      this.showSkillNotification('⭐ Star Power!', `+${amount} ${resource} (${remaining} left)`);
     });
 
     EventBus.subscribe('slotMachineWin', (data) => {
-      this.showSkillNotification('🎰 Slot Win!', `+${data.amount} ${data.resource}`);
+      const amount = (data && data.amount) || 'Unknown';
+      const resource = (data && data.resource) || 'Unknown';
+      this.showSkillNotification('🎰 Slot Win!', `+${amount} ${resource}`);
     });
 
     EventBus.subscribe('shieldBlock', (data) => {
-      this.showSkillNotification('🛡️ Shield Block!', `Blocked ${data.debuff} (${data.remaining} left)`);
+      const debuff = (data && data.debuff) || 'Unknown';
+      const remaining = (data && data.remaining) || 0;
+      this.showSkillNotification('🛡️ Shield Block!', `Blocked ${debuff} (${remaining} left)`);
     });
 
     EventBus.subscribe('taxCollected', (data) => {
-      this.showNotification(`💸 Tax Collector: -${data.percent}% all resources`);
+      const percent = (data && data.percent) || 'Unknown';
+      this.showNotification(`💸 Tax Collector: -${percent}% all resources`);
     });
 
     EventBus.subscribe('heavyClickProgress', (data) => {
-      this.showNotification(`⚖️ Heavy Click: ${data.current}/${data.required}`);
+      const current = (data && data.current) || 'Unknown';
+      const required = (data && data.required) || 'Unknown';
+      const zone = (data && data.zone !== undefined) ? ` (Zone ${data.zone})` : '';
+      this.showNotification(`⚖️ Heavy Click: ${current}/${required}${zone}`);
     });
 
     EventBus.subscribe('ghostClick', () => {
@@ -618,7 +690,7 @@ Error: ${error.message}`);
     const combo = document.createElement('div');
     combo.textContent = `Combo: ${this.state.combo.count}`;
     this.resourcesRight.appendChild(combo);
-    // Skill Points displayed as whole number
+    // ИСПРАВЛЕНИЕ: Skill Points отображаются как целое число
     const sp = document.createElement('div');
     sp.textContent = `Skill Points: ${Math.floor(this.state.skillPoints || 0)}`;
     this.resourcesRight.appendChild(sp);
@@ -1051,7 +1123,7 @@ Error: ${error.message}`);
   showNotification(msg) {
     const div = document.createElement('div');
     div.className = 'notification';
-    div.textContent = msg;
+    div.textContent = msg || 'Unknown notification'; // ИСПРАВЛЕНИЕ: защита от undefined
     this.notifications.appendChild(div);
     setTimeout(() => div.remove(), 3000);
   }
