@@ -1,4 +1,4 @@
-// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с полным ядерным сбросом
+// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с рабочим сбросом
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { StorageManager } from '../core/StorageManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
@@ -14,14 +14,8 @@ export class SaveLoadManager extends CleanupMixin {
 
   // Выполнить сохранение
   performSave() {
-    // БЕЗОПАСНОСТЬ: проверяем состояние перед сохранением
-    if (!this.gameState) {
+    if (!this.gameState || this.gameState.isDestroyed === true) {
       eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game state not available');
-      return;
-    }
-
-    if (this.gameState.isDestroyed === true) {
-      eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game is destroyed');
       return;
     }
 
@@ -31,11 +25,6 @@ export class SaveLoadManager extends CleanupMixin {
     }
 
     try {
-      // Проверяем наличие storageManager
-      if (!this.storageManager) {
-        throw new Error('StorageManager not available');
-      }
-
       const saveCode = this.storageManager.exportToString(this.gameState);
       
       if (!saveCode) {
@@ -57,19 +46,15 @@ export class SaveLoadManager extends CleanupMixin {
     this.activeSaveElements.add(textarea);
     document.body.appendChild(textarea);
     
-    // Фокусируемся и выделяем текст
     textarea.focus();
     textarea.select();
     
-    // Пытаемся скопировать в буфер обмена
     this.copyToClipboard(saveCode);
     
-    // Автоматическое удаление через время
     this.createTimeout(() => {
       this.cleanupSaveElement(textarea);
     }, GAME_CONSTANTS.SAVE_ELEMENT_TIMEOUT);
     
-    // Удаление по потере фокуса
     const blurHandler = () => this.cleanupSaveElement(textarea);
     textarea.addEventListener('blur', blurHandler);
     textarea._blurHandler = blurHandler;
@@ -81,7 +66,6 @@ export class SaveLoadManager extends CleanupMixin {
     textarea.value = saveCode;
     textarea.readOnly = true;
     
-    // Стили
     Object.assign(textarea.style, {
       position: 'fixed',
       top: '50%',
@@ -123,18 +107,15 @@ export class SaveLoadManager extends CleanupMixin {
   cleanupSaveElement(textarea) {
     if (!this.activeSaveElements.has(textarea)) return;
     
-    // Удаляем обработчик событий
     if (textarea._blurHandler) {
       textarea.removeEventListener('blur', textarea._blurHandler);
       delete textarea._blurHandler;
     }
     
-    // Удаляем из DOM
     if (document.body.contains(textarea)) {
       document.body.removeChild(textarea);
     }
     
-    // Удаляем из отслеживания
     this.activeSaveElements.delete(textarea);
   }
 
@@ -149,19 +130,14 @@ export class SaveLoadManager extends CleanupMixin {
     try {
       console.log('🔄 Starting load process...');
       
-      // Импортируем данные
       const saveData = this.storageManager.importFromString(code.trim());
-      
-      // Создаем резервную копию текущего состояния
       this.storageManager.createBackup();
       
-      // Сохраняем новые данные
-      this.gameState.loadSaveData(saveData);
-      this.storageManager.save(this.gameState);
+      // ИСПРАВЛЕНИЕ: Сохраняем данные в localStorage перед перезагрузкой
+      localStorage.setItem('advancedClickerState', JSON.stringify(saveData));
       
       eventBus.emit(GameEvents.NOTIFICATION, '✅ Save loaded! Reloading...');
       
-      // Перезагружаем страницу
       this.createTimeout(() => {
         this.performReload('load');
       }, GAME_CONSTANTS.RELOAD_DELAY);
@@ -172,7 +148,77 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: ПОЛНЫЙ ЯДЕРНЫЙ СБРОС
+  // ИСПРАВЛЕНИЕ: Создаем тестовый сейв с нулевыми данными
+  createEmptySaveData() {
+    return {
+      // Все ресурсы = 0
+      resources: {
+        gold: 0,
+        wood: 0,
+        stone: 0,
+        food: 0,
+        water: 0,
+        iron: 0,
+        people: 0,
+        energy: 0,
+        science: 0,
+        faith: 0,
+        chaos: 0
+      },
+      
+      // Сброс комбо
+      combo: {
+        lastZone: null,
+        count: 0,
+        deadline: 0,
+        lastAngle: null
+      },
+      
+      // Сброс skill points
+      skillPoints: 0,
+      
+      // Сброс зон
+      targetZone: 0,
+      previousTargetZone: 0,
+      
+      // Сброс зданий
+      buildings: {},
+      
+      // Сброс навыков
+      skills: {},
+      
+      // Сброс состояний навыков
+      skillStates: {
+        missProtectionCharges: 0,
+        autoClickerActive: false
+      },
+      
+      // Сброс маркета
+      market: {
+        dailyDeals: [],
+        purchaseHistory: [],
+        reputation: 0,
+        permanentBonuses: {}
+      },
+      
+      // Очистка эффектов
+      buffs: [],
+      debuffs: [],
+      blockedUntil: 0,
+      effectStates: {
+        starPowerClicks: 0,
+        shieldBlocks: 0,
+        heavyClickRequired: {},
+        reverseDirection: 1,
+        frozenCombo: false
+      },
+      
+      saveTimestamp: Date.now(),
+      saveVersion: '0.8.0'
+    };
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый метод сброса через загрузку пустого сейва
   performCompleteReset() {
     if (!this.confirmNuclearReset()) return;
 
@@ -180,7 +226,7 @@ export class SaveLoadManager extends CleanupMixin {
       console.log('🔥💀 NUCLEAR RESET INITIATED 💀🔥');
       eventBus.emit(GameEvents.NOTIFICATION, '🔥 NUCLEAR RESET IN PROGRESS...');
       
-      // Шаг 1: Создаем резервную копию перед уничтожением
+      // Создаем резервную копию
       try {
         this.storageManager.createBackup();
         console.log('✅ Backup created before nuclear reset');
@@ -188,28 +234,22 @@ export class SaveLoadManager extends CleanupMixin {
         console.warn('⚠️ Backup failed, continuing reset:', e);
       }
       
-      // Шаг 2: ПОЛНАЯ очистка всех возможных хранилищ
-      this.executeNuclearStorageWipe();
+      // ИСПРАВЛЕНИЕ: Используем пустой сейв вместо очистки localStorage
+      const emptySave = this.createEmptySaveData();
       
-      // Шаг 3: Очистка IndexedDB
-      this.clearIndexedDB();
+      // Сохраняем пустые данные в localStorage
+      localStorage.setItem('advancedClickerState', JSON.stringify(emptySave));
       
-      // Шаг 4: Очистка WebSQL (для старых браузеров)
-      this.clearWebSQL();
+      // Дополнительно очищаем основной ключ
+      this.storageManager.deleteSave();
       
-      // Шаг 5: Очистка всех cookies игры
-      this.clearGameCookies();
-      
-      // Шаг 6: Очистка кэша приложения
-      this.clearApplicationCache();
-      
-      // Шаг 7: Эмитируем событие полного сброса
+      // Эмитируем событие сброса
       eventBus.emit(GameEvents.GAME_RESET);
       
       eventBus.emit(GameEvents.NOTIFICATION, '💀 NUCLEAR RESET COMPLETE');
-      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Initiating total reload...');
+      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Reloading with empty data...');
       
-      // Шаг 8: Жесткая перезагрузка с очисткой кэша
+      // Принудительная перезагрузка
       this.createTimeout(() => {
         this.performNuclearReload();
       }, GAME_CONSTANTS.NUCLEAR_RELOAD_DELAY);
@@ -220,19 +260,17 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Более строгое подтверждение
+  // Подтверждение сброса
   confirmNuclearReset() {
     const warnings = [
       '🔥💀 NUCLEAR GAME RESET 💀🔥\n\nThis will COMPLETELY DESTROY:\n• All progress\n• All resources\n• All buildings\n• All skills\n• All reputation\n• EVERYTHING!\n\nAre you absolutely sure?',
       '⚠️💀 FINAL WARNING 💀⚠️\n\nThere is NO UNDO!\nALL data will be PERMANENTLY DESTROYED!\n\nType "DESTROY" to confirm:'
     ];
     
-    // Первое предупреждение
     if (!confirm(warnings[0])) {
       return false;
     }
     
-    // Второе предупреждение с вводом текста
     const confirmation = prompt(warnings[1]);
     if (confirmation !== 'DESTROY') {
       eventBus.emit(GameEvents.NOTIFICATION, '❌ Reset cancelled - incorrect confirmation');
@@ -242,272 +280,41 @@ export class SaveLoadManager extends CleanupMixin {
     return true;
   }
 
-  // ИСПРАВЛЕНИЕ: Полное уничтожение всех хранилищ
-  executeNuclearStorageWipe() {
-    console.log('💥 Executing nuclear storage wipe...');
-    
-    try {
-      // 1. Полная очистка localStorage
-      const localStorageKeys = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        localStorageKeys.push(localStorage.key(i));
-      }
-      
-      localStorageKeys.forEach(key => {
-        try {
-          localStorage.removeItem(key);
-          console.log(`🗑️ Removed localStorage: ${key}`);
-        } catch (e) {
-          console.warn(`Failed to remove localStorage key: ${key}`, e);
-        }
-      });
-      
-      // 2. Полная очистка sessionStorage
-      const sessionStorageKeys = [];
-      for (let i = 0; i < sessionStorage.length; i++) {
-        sessionStorageKeys.push(sessionStorage.key(i));
-      }
-      
-      sessionStorageKeys.forEach(key => {
-        try {
-          sessionStorage.removeItem(key);
-          console.log(`🗑️ Removed sessionStorage: ${key}`);
-        } catch (e) {
-          console.warn(`Failed to remove sessionStorage key: ${key}`, e);
-        }
-      });
-      
-      // 3. Принудительная очистка
-      try {
-        localStorage.clear();
-        sessionStorage.clear();
-        console.log('✅ Force cleared all storage');
-      } catch (e) {
-        console.warn('⚠️ Force clear failed:', e);
-      }
-      
-    } catch (error) {
-      console.error('💀 Nuclear storage wipe failed:', error);
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Очистка IndexedDB
-  async clearIndexedDB() {
-    try {
-      if (!window.indexedDB) return;
-      
-      console.log('🗑️ Clearing IndexedDB...');
-      
-      // Получаем список всех баз данных
-      if (indexedDB.databases) {
-        const databases = await indexedDB.databases();
-        
-        await Promise.all(databases.map(async (db) => {
-          return new Promise((resolve, reject) => {
-            const deleteReq = indexedDB.deleteDatabase(db.name);
-            deleteReq.onsuccess = () => {
-              console.log(`✅ Deleted IndexedDB: ${db.name}`);
-              resolve();
-            };
-            deleteReq.onerror = () => {
-              console.warn(`⚠️ Failed to delete IndexedDB: ${db.name}`);
-              resolve(); // Продолжаем даже при ошибке
-            };
-          });
-        }));
-      }
-      
-      // Очищаем известные базы данных игры
-      const gameDBNames = ['gameState', 'advancedClicker', 'clickerGame'];
-      await Promise.all(gameDBNames.map(async (name) => {
-        return new Promise((resolve) => {
-          const deleteReq = indexedDB.deleteDatabase(name);
-          deleteReq.onsuccess = () => {
-            console.log(`✅ Deleted game IndexedDB: ${name}`);
-            resolve();
-          };
-          deleteReq.onerror = () => resolve(); // Игнорируем ошибки
-        });
-      }));
-      
-    } catch (error) {
-      console.warn('⚠️ IndexedDB clear failed:', error);
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Очистка WebSQL (для старых браузеров)
-  clearWebSQL() {
-    try {
-      if (!window.openDatabase) return;
-      
-      console.log('🗑️ Clearing WebSQL...');
-      
-      // Очищаем известные WebSQL базы
-      const webSQLNames = ['gameState', 'advancedClicker'];
-      webSQLNames.forEach(name => {
-        try {
-          const db = openDatabase(name, '', '', '');
-          db.transaction(tx => {
-            tx.executeSql('DELETE FROM data');
-            console.log(`✅ Cleared WebSQL: ${name}`);
-          });
-        } catch (e) {
-          // Игнорируем ошибки WebSQL
-        }
-      });
-      
-    } catch (error) {
-      console.warn('⚠️ WebSQL clear failed:', error);
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Очистка cookies игры
-  clearGameCookies() {
-    try {
-      console.log('🗑️ Clearing game cookies...');
-      
-      const cookies = document.cookie.split(';');
-      const gameKeywords = ['game', 'clicker', 'save', 'state', 'advanced'];
-      
-      cookies.forEach(cookie => {
-        const eqPos = cookie.indexOf('=');
-        const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
-        
-        // Удаляем cookie если содержит игровые ключевые слова
-        if (gameKeywords.some(keyword => name.toLowerCase().includes(keyword))) {
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
-          document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
-          console.log(`✅ Cleared cookie: ${name}`);
-        }
-      });
-      
-    } catch (error) {
-      console.warn('⚠️ Cookie clear failed:', error);
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Очистка Application Cache
-  clearApplicationCache() {
-    try {
-      if (!window.applicationCache) return;
-      
-      console.log('🗑️ Clearing application cache...');
-      window.applicationCache.update();
-      
-    } catch (error) {
-      console.warn('⚠️ Application cache clear failed:', error);
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Ядерная перезагрузка
+  // Ядерная перезагрузка
   performNuclearReload() {
     console.log('🔥 Performing nuclear reload...');
     
-    const reloadMethods = [
-      // Метод 1: Полная перезагрузка с очисткой кэша
-      () => {
-        window.location.href = window.location.protocol + '//' + 
-                               window.location.host + 
-                               window.location.pathname + 
-                               '?nuclear_reset=' + Date.now() + 
-                               '&cache_bust=' + Math.random();
-      },
-      
-      // Метод 2: Замена с новыми параметрами
-      () => {
-        const url = new URL(window.location);
-        url.searchParams.set('nuclear_reset', Date.now().toString());
-        url.searchParams.set('cache_bust', Math.random().toString());
-        url.searchParams.set('force_reload', 'true');
-        window.location.replace(url.toString());
-      },
-      
-      // Метод 3: Жесткая перезагрузка
-      () => {
-        window.location.reload(true);
-      },
-      
-      // Метод 4: Assign с принудительными параметрами
-      () => {
-        window.location.assign(window.location.href + 
-                              (window.location.href.includes('?') ? '&' : '?') + 
-                              'nuclear_reset=' + Date.now());
-      },
-      
-      // Метод 5: Полная замена URL
-      () => {
-        window.location = window.location.protocol + '//' + 
-                         window.location.host + 
-                         window.location.pathname;
-      }
-    ];
-    
-    let methodIndex = 0;
-    
-    const tryReload = () => {
-      if (methodIndex >= reloadMethods.length) {
-        console.error('💀 ALL NUCLEAR RELOAD METHODS FAILED!');
-        this.showManualReloadDialog('nuclear');
-        return;
-      }
-      
+    // Принудительная перезагрузка с очисткой кэша
+    try {
+      window.location.href = window.location.protocol + '//' + 
+                             window.location.host + 
+                             window.location.pathname + 
+                             '?nuclear_reset=' + Date.now() + 
+                             '&cache_bust=' + Math.random();
+    } catch (e) {
       try {
-        console.log(`🔥 Nuclear reload attempt ${methodIndex + 1}...`);
-        reloadMethods[methodIndex]();
-      } catch (error) {
-        console.warn(`❌ Nuclear reload method ${methodIndex + 1} failed:`, error);
-        methodIndex++;
-        setTimeout(tryReload, 1000);
+        window.location.reload(true);
+      } catch (e2) {
+        this.showManualReloadDialog('nuclear');
       }
-    };
-    
-    tryReload();
+    }
   }
 
   // Безопасная перезагрузка страницы
   performReload(type) {
     console.log(`🔄 Performing ${type} reload...`);
     
-    const reloadMethods = [
-      () => {
-        const url = new URL(window.location);
-        url.searchParams.set(type, Date.now().toString());
-        window.location.replace(url.toString());
-      },
-      () => {
-        window.location.href = window.location.origin + window.location.pathname + `?${type}=` + Date.now();
-      },
-      () => {
-        window.location.assign(window.location.href + `?${type}=` + Date.now());
-      },
-      () => {
-        window.location.reload(true);
-      },
-      () => {
-        window.location = window.location;
-      }
-    ];
-    
-    let methodIndex = 0;
-    
-    const tryReload = () => {
-      if (methodIndex >= reloadMethods.length) {
-        console.error('💀 ALL RELOAD METHODS FAILED!');
-        this.showManualReloadDialog(type);
-        return;
-      }
-      
+    try {
+      const url = new URL(window.location);
+      url.searchParams.set(type, Date.now().toString());
+      window.location.replace(url.toString());
+    } catch (e) {
       try {
-        console.log(`🔄 Reload attempt ${methodIndex + 1}...`);
-        reloadMethods[methodIndex]();
-      } catch (error) {
-        console.warn(`❌ Reload method ${methodIndex + 1} failed:`, error);
-        methodIndex++;
-        setTimeout(tryReload, 1000);
+        window.location.reload(true);
+      } catch (e2) {
+        this.showManualReloadDialog(type);
       }
-    };
-    
-    tryReload();
+    }
   }
 
   // Показать диалог ручной перезагрузки
@@ -562,20 +369,13 @@ export class SaveLoadManager extends CleanupMixin {
     console.error('💀 EMERGENCY NUCLEAR RESET ACTIVATED');
     
     try {
-      // Экстренная очистка всего что можно
-      this.executeNuclearStorageWipe();
+      // Принудительная очистка localStorage
+      localStorage.clear();
+      sessionStorage.clear();
       
-      // Очищаем активные элементы
-      this.activeSaveElements.forEach(element => {
-        try {
-          if (document.body.contains(element)) {
-            document.body.removeChild(element);
-          }
-        } catch (e) {
-          console.warn('Failed to remove element:', e);
-        }
-      });
-      this.activeSaveElements.clear();
+      // Устанавливаем пустые данные
+      const emptySave = this.createEmptySaveData();
+      localStorage.setItem('advancedClickerState', JSON.stringify(emptySave));
       
     } catch (e) {
       console.error('Emergency nuclear cleanup failed:', e);
@@ -595,6 +395,17 @@ Please manually refresh the page:
 
 Error: ${error.message}`);
     }, 1000);
+  }
+
+  // БОНУС: Метод для создания тестового сейва с нулевыми данными
+  generateEmptySaveCode() {
+    try {
+      const emptySave = this.createEmptySaveData();
+      return this.storageManager.encodeData(JSON.stringify(emptySave));
+    } catch (error) {
+      console.error('Failed to generate empty save code:', error);
+      return null;
+    }
   }
 
   // Очистка всех активных элементов сохранения
