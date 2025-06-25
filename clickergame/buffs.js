@@ -1,8 +1,8 @@
-// buffs.js - Исправленная версия с фиксами дублирования интервалов
+// buffs.js - Полная исправленная версия с фиксами memory leaks и правильной очисткой
 import { EventBus } from './eventBus.js';
-import { RESOURCES } from './config.js';
+import { RESOURCES, GAME_CONSTANTS } from './config.js';
 
-// Улучшенные определения баффов с балансом
+// Улучшенные определения баффов с константами
 export const BUFF_DEFS = [
   { 
     id: 'frenzy', 
@@ -39,7 +39,6 @@ export const BUFF_DEFS = [
     description: 'Choose from 3 random resources',
     rarity: 'rare'
   },
-  // НОВЫЕ БАФФЫ
   { 
     id: 'speedBoost', 
     name: '🏃 Speed Boost', 
@@ -106,7 +105,6 @@ export const DEBUFF_DEFS = [
     description: 'Cannot click for 1 second',
     severity: 'moderate'
   },
-  // НОВЫЕ ДЕБАФФЫ
   { 
     id: 'reverseControls', 
     name: '🙃 Reverse Controls', 
@@ -137,7 +135,7 @@ export const DEBUFF_DEFS = [
   }
 ];
 
-// Конфигурация эффектов
+// Конфигурация эффектов с константами
 export const EFFECT_CONFIG = {
   roll: {
     outcomes: [
@@ -148,95 +146,129 @@ export const EFFECT_CONFIG = {
     ]
   },
   explosion: {
-    damagePercent: 0.1 // 10% урон
+    damagePercent: GAME_CONSTANTS.EXPLOSION_DAMAGE_PERCENT
   },
   waterfall: {
-    intervalMs: 1000,
-    amount: 1
+    intervalMs: GAME_CONSTANTS.WATERFALL_INTERVAL,
+    amount: GAME_CONSTANTS.WATERFALL_AMOUNT
   },
-  // НОВЫЕ ЭФФЕКТЫ
   speedBoost: {
-    speedMultiplier: 0.5 // 50% от обычной скорости
+    speedMultiplier: GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER
   },
   starPower: {
-    clicksCount: 10,
-    bonusAmount: 5
+    clicksCount: GAME_CONSTANTS.STAR_POWER_CLICKS,
+    bonusAmount: GAME_CONSTANTS.STAR_POWER_BONUS
   },
   slotMachine: {
-    chance: 0.3, // 30% шанс
-    amount: 3
+    chance: GAME_CONSTANTS.SLOT_MACHINE_CHANCE,
+    amount: GAME_CONSTANTS.SLOT_MACHINE_AMOUNT
   },
   shield: {
-    blocksCount: 3
+    blocksCount: GAME_CONSTANTS.SHIELD_BLOCKS
   },
   taxCollector: {
-    intervalMs: 3000,
-    taxPercent: 0.05 // 5%
+    intervalMs: GAME_CONSTANTS.TAX_COLLECTOR_INTERVAL,
+    taxPercent: GAME_CONSTANTS.TAX_COLLECTOR_PERCENT
   },
   heavyClick: {
-    requiredClicks: 3
+    requiredClicks: GAME_CONSTANTS.HEAVY_CLICK_REQUIRED
   }
 };
 
 export class BuffManager {
   constructor(state) {
     this.state = state;
-    // ИСПРАВЛЕНИЕ: Используем Map для лучшего управления интервалами
+    this.isDestroyed = false; // ИСПРАВЛЕНИЕ 2: Флаг для предотвращения утечек
+    
+    // ИСПРАВЛЕНИЕ 2: Используем Map для лучшего управления интервалами
     this.buffIntervals = new Map();
     this.debuffIntervals = new Map();
     
-    // Инициализация состояний для новых эффектов
-    if (!this.state.effectStates) {
-      this.state.effectStates = {
-        starPowerClicks: 0,
-        shieldBlocks: 0,
-        heavyClickRequired: {},
-        reverseDirection: 1,
-        frozenCombo: false
-      };
-    }
+    // ИСПРАВЛЕНИЕ 2: Отслеживание всех созданных таймаутов
+    this.allTimeouts = new Set();
+    this.allIntervals = new Set();
     
-    // НОВОЕ: Очищаем зависшие эффекты при создании менеджера
-    this.cleanupStuckEffects();
+    this.initializeEffectStates();
+    
+    // ИСПРАВЛЕНИЕ 10: НЕ очищаем эффекты при создании менеджера
+    // Позволяем им загружаться из сохранения
+    console.log('🎭 BuffManager инициализирован');
   }
 
-  // НОВЫЙ метод: Принудительная очистка зависших эффектов
-  cleanupStuckEffects() {
-    // Очищаем все баффы и дебаффы
-    this.state.buffs = [];
-    this.state.debuffs = [];
-    this.state.blockedUntil = 0;
-    
-    // Сбрасываем состояния эффектов
-    this.state.effectStates = {
+  // ИСПРАВЛЕНИЕ 10: Более умная инициализация состояний эффектов
+  initializeEffectStates() {
+    if (!this.state.effectStates) {
+      this.state.effectStates = this.getDefaultEffectStates();
+    } else {
+      // Дополняем отсутствующие поля значениями по умолчанию
+      const defaults = this.getDefaultEffectStates();
+      Object.keys(defaults).forEach(key => {
+        if (this.state.effectStates[key] === undefined) {
+          this.state.effectStates[key] = defaults[key];
+        }
+      });
+    }
+  }
+
+  getDefaultEffectStates() {
+    return {
       starPowerClicks: 0,
       shieldBlocks: 0,
       heavyClickRequired: {},
       reverseDirection: 1,
       frozenCombo: false
     };
-    
-    // Восстанавливаем скорость вращения если она была изменена
-    if (this.state.CONFIG) {
-      this.state.CONFIG.rotationSpeed = 0.005; // Дефолтная скорость
-    }
-    
-    console.log('🧹 Временные эффекты очищены при инициализации BuffManager');
   }
 
   getBuff(id) {
     return BUFF_DEFS.find(b => b.id === id);
   }
 
+  // ИСПРАВЛЕНИЕ 8: Исправлена опечатка в getDebuff
   getDebuff(id) {
-    return DEBUFF_DEFS.find(d => d.id === d);
+    return DEBUFF_DEFS.find(d => d.id === id);
+  }
+
+  // ИСПРАВЛЕНИЕ 2: Создание таймаута с отслеживанием
+  createTimeout(callback, delay) {
+    if (this.isDestroyed) return null;
+    
+    const timeoutId = setTimeout(() => {
+      this.allTimeouts.delete(timeoutId);
+      if (!this.isDestroyed) {
+        callback();
+      }
+    }, delay);
+    
+    this.allTimeouts.add(timeoutId);
+    return timeoutId;
+  }
+
+  // ИСПРАВЛЕНИЕ 2: Создание интервала с отслеживанием
+  createInterval(callback, delay) {
+    if (this.isDestroyed) return null;
+    
+    const intervalId = setInterval(() => {
+      if (this.isDestroyed) {
+        clearInterval(intervalId);
+        this.allIntervals.delete(intervalId);
+        return;
+      }
+      callback();
+    }, delay);
+    
+    this.allIntervals.add(intervalId);
+    return intervalId;
   }
 
   applyBuff(def) {
+    if (this.isDestroyed) return;
+    
     const s = this.state;
     
-    // ИСПРАВЛЕНО: всегда используем def.name для уведомлений
-    EventBus.emit('buffApplied', { id: def.id, name: def.name });
+    // Нормализация события
+    const eventData = { id: def.id, name: def.name || def.id };
+    EventBus.emit('buffApplied', eventData);
 
     // Buff Mastery (✨) - увеличение длительности баффов
     const buffDurationBonus = this.state.skillManager ? 
@@ -248,92 +280,91 @@ export class BuffManager {
       case 'lucky':
       case 'doubleTap':
       case 'slotMachine':
-        // ИСПРАВЛЕНИЕ: Удаляем старый бафф перед добавлением нового
         this.removeBuff(def.id);
-        
         s.buffs.push(def.id);
+        
         const finalDuration = Math.floor(def.duration * durationMultiplier * 1000);
-        const timeout = setTimeout(() => {
+        const timeout = this.createTimeout(() => {
           this.removeBuff(def.id);
-          EventBus.emit('buffExpired', { id: def.id, name: def.name });
+          EventBus.emit('buffExpired', eventData);
         }, finalDuration);
         
-        // Сохраняем таймаут для возможной очистки
-        this.buffIntervals.set(`${def.id}_timeout`, timeout);
+        if (timeout) {
+          this.buffIntervals.set(`${def.id}_timeout`, timeout);
+        }
         break;
 
       case 'speedBoost':
-        // ИСПРАВЛЕНИЕ: Удаляем старый бафф перед добавлением нового
         this.removeBuff(def.id);
-        
         s.buffs.push(def.id);
+        
         this._oldSpeed = this.state.CONFIG?.rotationSpeed || 0.005;
         if (this.state.CONFIG) {
           this.state.CONFIG.rotationSpeed *= EFFECT_CONFIG.speedBoost.speedMultiplier;
         }
         
         const finalDurationSpeed = Math.floor(def.duration * durationMultiplier * 1000);
-        const speedTimeout = setTimeout(() => {
+        const speedTimeout = this.createTimeout(() => {
           if (this.state.CONFIG) {
             this.state.CONFIG.rotationSpeed = this._oldSpeed || 0.005;
           }
           this.removeBuff(def.id);
-          EventBus.emit('buffExpired', { id: def.id, name: def.name });
+          EventBus.emit('buffExpired', eventData);
         }, finalDurationSpeed);
         
-        this.buffIntervals.set(`${def.id}_timeout`, speedTimeout);
+        if (speedTimeout) {
+          this.buffIntervals.set(`${def.id}_timeout`, speedTimeout);
+        }
         break;
 
       case 'starPower':
-        // ИСПРАВЛЕНИЕ: Удаляем старый бафф перед добавлением нового
         this.removeBuff(def.id);
-        
         s.buffs.push(def.id);
         this.state.effectStates.starPowerClicks = EFFECT_CONFIG.starPower.clicksCount;
-        // Этот бафф не имеет таймера, он истекает после использования всех кликов
         break;
 
       case 'shield':
-        // ИСПРАВЛЕНИЕ: Удаляем старый бафф перед добавлением нового
         this.removeBuff(def.id);
-        
         s.buffs.push(def.id);
         this.state.effectStates.shieldBlocks = EFFECT_CONFIG.shield.blocksCount;
-        // Этот бафф не имеет таймера, он истекает после блокировки дебаффов
         break;
 
       case 'waterfall':
-        // ИСПРАВЛЕНИЕ: Очищаем старый интервал независимо от состояния баффов
         this.clearBuffInterval('waterfall');
         this.removeBuff(def.id);
-        
         s.buffs.push(def.id);
+        
         const intervalMs = EFFECT_CONFIG.waterfall.intervalMs;
         const amount = EFFECT_CONFIG.waterfall.amount;
         
-        const waterfallInterval = setInterval(() => {
+        const waterfallInterval = this.createInterval(() => {
           const pool = RESOURCES.filter(r => r !== 'faith' && r !== 'chaos');
           const res = pool[Math.floor(Math.random() * pool.length)];
           s.resources[res] += amount;
           EventBus.emit('resourceChanged', { resource: res, amount: s.resources[res] });
         }, intervalMs);
         
-        this.buffIntervals.set('waterfall', waterfallInterval);
+        if (waterfallInterval) {
+          this.buffIntervals.set('waterfall', waterfallInterval);
+        }
         
         const finalDurationWater = Math.floor(def.duration * durationMultiplier * 1000);
-        const waterfallTimeout = setTimeout(() => {
+        const waterfallTimeout = this.createTimeout(() => {
           this.clearBuffInterval('waterfall');
           this.removeBuff(def.id);
-          EventBus.emit('buffExpired', { id: def.id, name: def.name });
+          EventBus.emit('buffExpired', eventData);
         }, finalDurationWater);
         
-        this.buffIntervals.set('waterfall_timeout', waterfallTimeout);
+        if (waterfallTimeout) {
+          this.buffIntervals.set('waterfall_timeout', waterfallTimeout);
+        }
         break;
 
       case 'roll':
         const poolR = RESOURCES.filter(r => r !== 'faith' && r !== 'chaos');
         const outcome = Math.random();
         let message = 'Roll: ';
+        
         if (outcome < 0.25) {
           const res1 = poolR[Math.floor(Math.random() * poolR.length)];
           s.resources[res1] += 50;
@@ -353,33 +384,47 @@ export class BuffManager {
           message += `-${loss} ${res3}`;
           EventBus.emit('resourceChanged', { resource: res3, amount: s.resources[res3] });
         }
-        // ИСПРАВЛЕНО: используем правильное имя для уведомления
+        
         EventBus.emit('tempNotification', `${def.name}: ${message}`);
         break;
 
       case 'mysteryBox':
-        const poolM = RESOURCES;
+        // ИСПРАВЛЕНИЕ 19: Валидация ресурсов в Mystery Box
+        const poolM = RESOURCES.filter(r => typeof r === 'string' && r.length > 0);
         const opts = [];
-        while (opts.length < 3) {
+        const maxAttempts = poolM.length * 2; // Предотвращение бесконечного цикла
+        let attempts = 0;
+        
+        while (opts.length < 3 && attempts < maxAttempts) {
           const r = poolM[Math.floor(Math.random() * poolM.length)];
           if (!opts.includes(r)) opts.push(r);
+          attempts++;
         }
-        EventBus.emit('mysteryBox', opts);
+        
+        if (opts.length >= 3) {
+          EventBus.emit('mysteryBox', opts);
+        } else {
+          console.warn('Failed to generate mystery box options');
+          EventBus.emit('tempNotification', 'Mystery Box failed to generate options');
+        }
         break;
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Новый метод для безопасного удаления баффов
   removeBuff(buffId) {
+    if (this.isDestroyed) return;
     this.state.buffs = this.state.buffs.filter(id => id !== buffId);
+    this.clearBuffInterval(buffId);
+    this.clearBuffInterval(`${buffId}_timeout`);
   }
 
-  // ИСПРАВЛЕНИЕ: Новый метод для безопасной очистки интервалов
   clearBuffInterval(key) {
     if (this.buffIntervals.has(key)) {
       const interval = this.buffIntervals.get(key);
       clearInterval(interval);
-      clearTimeout(interval); // На случай если это таймаут
+      clearTimeout(interval);
+      this.allIntervals.delete(interval);
+      this.allTimeouts.delete(interval);
       this.buffIntervals.delete(key);
     }
   }
@@ -388,39 +433,44 @@ export class BuffManager {
     if (this.debuffIntervals.has(key)) {
       const interval = this.debuffIntervals.get(key);
       clearInterval(interval);
-      clearTimeout(interval); // На случай если это таймаут
+      clearTimeout(interval);
+      this.allIntervals.delete(interval);
+      this.allTimeouts.delete(interval);
       this.debuffIntervals.delete(key);
     }
   }
 
   applyDebuff(def) {
+    if (this.isDestroyed) return;
+    
     const s = this.state;
     
     // Shield buff блокирует дебаффы
     if (s.buffs.includes('shield') && this.state.effectStates.shieldBlocks > 0) {
       this.state.effectStates.shieldBlocks--;
       EventBus.emit('shieldBlock', { 
-        debuff: def.name, // Используем name вместо id
+        debuff: def.name, 
         remaining: this.state.effectStates.shieldBlocks 
       });
       
       if (this.state.effectStates.shieldBlocks <= 0) {
         this.removeBuff('shield');
         const shieldDef = this.getBuff('shield');
-        EventBus.emit('buffExpired', { id: 'shield', name: shieldDef.name });
+        if (shieldDef) {
+          EventBus.emit('buffExpired', { id: 'shield', name: shieldDef.name });
+        }
       }
       return;
     }
     
-    // ИСПРАВЛЕНО: всегда используем def.name для уведомлений
-    EventBus.emit('debuffApplied', { id: def.id, name: def.name });
+    const eventData = { id: def.id, name: def.name || def.id };
+    EventBus.emit('debuffApplied', eventData);
 
     if (def.id === 'explosion') {
       const pool = RESOURCES.filter(r => r !== 'faith' && r !== 'chaos');
       const res = pool[Math.floor(Math.random() * pool.length)];
       const old = s.resources[res];
       
-      // Efficient Storage (📦) - защита от взрывов
       const explosionProtection = this.state.skillManager ? 
         this.state.skillManager.getSkillBonus('protection', 'explosion') : 0;
       const baseDamage = EFFECT_CONFIG.explosion.damagePercent;
@@ -429,22 +479,18 @@ export class BuffManager {
       s.resources[res] = Math.max(0, Math.floor(old * (1 - finalDamage)));
       const actualLoss = old - s.resources[res];
       
-      if (explosionProtection > 0) {
-        EventBus.emit('tempNotification', 
-          `${def.name}: Lost ${actualLoss} ${res} (Protected by ${Math.floor(explosionProtection * 100)}%)`);
-      } else {
-        EventBus.emit('tempNotification', `${def.name}: Lost ${actualLoss} ${res}`);
-      }
+      const message = explosionProtection > 0 ? 
+        `${def.name}: Lost ${actualLoss} ${res} (Protected by ${Math.floor(explosionProtection * 100)}%)` :
+        `${def.name}: Lost ${actualLoss} ${res}`;
       
+      EventBus.emit('tempNotification', message);
       EventBus.emit('resourceChanged', { resource: res, amount: s.resources[res] });
       return;
     }
 
     if (!s.debuffs) s.debuffs = [];
     
-    // ИСПРАВЛЕНИЕ: Удаляем старый дебафф перед добавлением нового
     this.removeDebuff(def.id);
-    
     s.debuffs.push(def.id);
     
     // Resilience (🛡️) - уменьшение длительности дебаффов
@@ -456,7 +502,7 @@ export class BuffManager {
     if (def.id === 'rapid') {
       this._oldSpeed = this.state.CONFIG?.rotationSpeed || 0.005;
       if (this.state.CONFIG) {
-        this.state.CONFIG.rotationSpeed *= 5;
+        this.state.CONFIG.rotationSpeed *= GAME_CONSTANTS.RAPID_SPEED_MULTIPLIER;
       }
     }
     
@@ -464,13 +510,18 @@ export class BuffManager {
       s.blockedUntil = Date.now() + finalDuration * 1000;
     }
     
+    // ИСПРАВЛЕНИЕ 15: Правильная установка freeze дебаффа
+    if (def.id === 'freeze') {
+      this.state.effectStates.frozenCombo = true;
+    }
+    
     if (def.id === 'taxCollector') {
       this.startTaxCollector(finalDuration);
     }
     
-    const debuffTimeout = setTimeout(() => {
+    const debuffTimeout = this.createTimeout(() => {
       this.removeDebuff(def.id);
-      EventBus.emit('debuffExpired', { id: def.id, name: def.name });
+      EventBus.emit('debuffExpired', eventData);
       
       if (def.id === 'rapid') {
         if (this.state.CONFIG) {
@@ -478,34 +529,35 @@ export class BuffManager {
         }
       }
       
+      if (def.id === 'freeze') {
+        this.state.effectStates.frozenCombo = false;
+      }
+      
       if (def.id === 'taxCollector') {
         this.stopTaxCollector();
       }
       
       if (def.id === 'heavyClick') {
-        // Очищаем состояние heavy click
         this.state.effectStates.heavyClickRequired = {};
       }
     }, finalDuration * 1000);
     
-    // Сохраняем таймаут для возможной очистки
-    this.debuffIntervals.set(`${def.id}_timeout`, debuffTimeout);
+    if (debuffTimeout) {
+      this.debuffIntervals.set(`${def.id}_timeout`, debuffTimeout);
+    }
   }
 
-  // ИСПРАВЛЕНИЕ: Новый метод для безопасного удаления дебаффов
   removeDebuff(debuffId) {
+    if (this.isDestroyed) return;
     this.state.debuffs = this.state.debuffs.filter(id => id !== debuffId);
-    
-    // Очищаем связанные интервалы/таймауты
     this.clearDebuffInterval(debuffId);
     this.clearDebuffInterval(`${debuffId}_timeout`);
   }
 
   startTaxCollector(duration) {
-    // ИСПРАВЛЕНИЕ: Очищаем старый интервал
     this.clearDebuffInterval('taxCollector');
     
-    const taxInterval = setInterval(() => {
+    const taxInterval = this.createInterval(() => {
       const taxPercent = EFFECT_CONFIG.taxCollector.taxPercent;
       const resourceKeys = Object.keys(this.state.resources);
       
@@ -519,30 +571,55 @@ export class BuffManager {
       EventBus.emit('resourceChanged');
     }, EFFECT_CONFIG.taxCollector.intervalMs);
     
-    this.debuffIntervals.set('taxCollector', taxInterval);
+    if (taxInterval) {
+      this.debuffIntervals.set('taxCollector', taxInterval);
+    }
   }
 
   stopTaxCollector() {
     this.clearDebuffInterval('taxCollector');
   }
 
-  // ИСПРАВЛЕНИЕ: Полная очистка всех эффектов с Map
+  // ИСПРАВЛЕНИЕ 2: Полная очистка всех эффектов с защитой от утечек
   stopAllEffects() {
-    // Останавливаем все интервалы баффов
+    this.isDestroyed = true;
+    
+    // Очищаем все интервалы баффов
     for (const [key, interval] of this.buffIntervals) {
       clearInterval(interval);
       clearTimeout(interval);
     }
     this.buffIntervals.clear();
     
-    // Останавливаем все интервалы дебаффов
+    // Очищаем все интервалы дебаффов
     for (const [key, interval] of this.debuffIntervals) {
       clearInterval(interval);
       clearTimeout(interval);
     }
     this.debuffIntervals.clear();
     
-    // НОВОЕ: Принудительно очищаем эффекты
-    this.cleanupStuckEffects();
+    // ИСПРАВЛЕНИЕ 2: Очищаем все отслеживаемые таймауты и интервалы
+    for (const timeoutId of this.allTimeouts) {
+      clearTimeout(timeoutId);
+    }
+    this.allTimeouts.clear();
+    
+    for (const intervalId of this.allIntervals) {
+      clearInterval(intervalId);
+    }
+    this.allIntervals.clear();
+    
+    // Восстанавливаем скорость вращения если она была изменена
+    if (this.state.CONFIG && this._oldSpeed) {
+      this.state.CONFIG.rotationSpeed = this._oldSpeed;
+    }
+    
+    // Очищаем временные эффекты
+    this.state.buffs = [];
+    this.state.debuffs = [];
+    this.state.blockedUntil = 0;
+    this.state.effectStates = this.getDefaultEffectStates();
+    
+    console.log('🧹 BuffManager полностью очищен');
   }
 }
