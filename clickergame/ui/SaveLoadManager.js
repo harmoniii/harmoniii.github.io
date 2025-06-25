@@ -1,4 +1,4 @@
-// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с ПОЛНЫМ ядерным сбросом
+// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с полным ядерным сбросом
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { StorageManager } from '../core/StorageManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
@@ -12,136 +12,44 @@ export class SaveLoadManager extends CleanupMixin {
     this.activeSaveElements = new Set();
   }
 
-// В SaveLoadManager.js - добавить проверки безопасности
-performSave() {
-  // БЕЗОПАСНОСТЬ: проверяем состояние перед сохранением
-  if (!this.gameState) {
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game state not available');
-    return;
-  }
-
-  if (this.gameState.isDestroyed === true) {
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game is destroyed');
-    return;
-  }
-
-  if (this.activeSaveElements.size > 0) {
-    eventBus.emit(GameEvents.NOTIFICATION, '💾 Save already in progress...');
-    return;
-  }
-
-  try {
-    // Проверяем наличие storageManager
-    if (!this.storageManager) {
-      throw new Error('StorageManager not available');
-    }
-
-    const saveCode = this.storageManager.exportToString(this.gameState);
-    
-    if (!saveCode) {
-      throw new Error('Export returned empty save code');
-    }
-
-    this.displaySaveCode(saveCode);
-    eventBus.emit(GameEvents.NOTIFICATION, '💾 Save created successfully!');
-    
-  } catch (error) {
-    console.error('❌ Save error:', error);
-    eventBus.emit(GameEvents.NOTIFICATION, `❌ Save failed: ${error.message}`);
-  }
-}
-
-// Безопасная перезагрузка страницы
-performReload(type) {
-  console.log(`🔄 Performing ${type} reload...`);
-  
-  // Останавливаем все таймеры перед перезагрузкой
-  this.managedTimeouts.forEach(timeoutId => {
-    try {
-      clearTimeout(timeoutId);
-    } catch (e) {
-      // Игнорируем ошибки очистки таймеров
-    }
-  });
-  
-  const reloadMethods = [
-    () => {
-      const url = new URL(window.location);
-      url.searchParams.set(type, Date.now().toString());
-      window.location.replace(url.toString());
-    },
-    () => {
-      window.location.href = window.location.origin + window.location.pathname + `?${type}=` + Date.now();
-    },
-    () => {
-      window.location.assign(window.location.href + `?${type}=` + Date.now());
-    },
-    () => {
-      window.location.reload(true);
-    },
-    () => {
-      window.location = window.location;
-    }
-  ];
-  
-  let methodIndex = 0;
-  
-  const tryReload = () => {
-    if (methodIndex >= reloadMethods.length) {
-      console.error('💀 ALL RELOAD METHODS FAILED!');
-      this.showManualReloadDialog(type);
+  // Выполнить сохранение
+  performSave() {
+    // БЕЗОПАСНОСТЬ: проверяем состояние перед сохранением
+    if (!this.gameState) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game state not available');
       return;
     }
-    
-    try {
-      console.log(`🔄 Reload attempt ${methodIndex + 1}...`);
-      reloadMethods[methodIndex]();
-    } catch (error) {
-      console.warn(`❌ Reload method ${methodIndex + 1} failed:`, error);
-      methodIndex++;
-      setTimeout(tryReload, 1000);
-    }
-  };
-  
-  tryReload();
-}
 
-// Показать диалог ручной перезагрузки
-showManualReloadDialog(type) {
-  const dialog = document.createElement('div');
-  dialog.style.cssText = `
-    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0,0,0,0.8); display: flex; 
-    align-items: center; justify-content: center;
-    z-index: 99999; font-family: Arial, sans-serif;
-    color: white;
-  `;
-  
-  dialog.innerHTML = `
-    <div style="
-      background: #333; padding: 30px; border-radius: 15px;
-      max-width: 500px; text-align: center;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-    ">
-      <h2 style="margin-top: 0;">🔄 ${type.toUpperCase()} COMPLETE</h2>
-      <p>Automatic reload failed. Please manually refresh:</p>
-      <div style="margin: 20px 0; font-size: 1.1em;">
-        <div>• Press <strong>F5</strong></div>
-        <div>• Press <strong>Ctrl+R</strong> (or Cmd+R on Mac)</div>
-        <div>• Close and reopen the page</div>
-      </div>
-      <button onclick="window.location.reload(true)" style="
-        background: #4CAF50; color: white; border: none;
-        padding: 15px 30px; border-radius: 8px; font-size: 1.1em;
-        cursor: pointer; font-weight: bold;
-      ">
-        🔄 Try Again
-      </button>
-    </div>
-  `;
-  
-  document.body.appendChild(dialog);
-}
+    if (this.gameState.isDestroyed === true) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game is destroyed');
+      return;
+    }
+
+    if (this.activeSaveElements.size > 0) {
+      eventBus.emit(GameEvents.NOTIFICATION, '💾 Save already in progress...');
+      return;
+    }
+
+    try {
+      // Проверяем наличие storageManager
+      if (!this.storageManager) {
+        throw new Error('StorageManager not available');
+      }
+
+      const saveCode = this.storageManager.exportToString(this.gameState);
+      
+      if (!saveCode) {
+        throw new Error('Export returned empty save code');
+      }
+
+      this.displaySaveCode(saveCode);
+      eventBus.emit(GameEvents.NOTIFICATION, '💾 Save created successfully!');
+      
+    } catch (error) {
+      console.error('❌ Save error:', error);
+      eventBus.emit(GameEvents.NOTIFICATION, `❌ Save failed: ${error.message}`);
+    }
+  }
 
   // Отобразить код сохранения
   displaySaveCode(saveCode) {
@@ -539,7 +447,7 @@ showManualReloadDialog(type) {
     const tryReload = () => {
       if (methodIndex >= reloadMethods.length) {
         console.error('💀 ALL NUCLEAR RELOAD METHODS FAILED!');
-        this.showManualReloadDialog();
+        this.showManualReloadDialog('nuclear');
         return;
       }
       
@@ -556,28 +464,76 @@ showManualReloadDialog(type) {
     tryReload();
   }
 
-  // ИСПРАВЛЕНИЕ: Диалог ручной перезагрузки
-  showManualReloadDialog() {
+  // Безопасная перезагрузка страницы
+  performReload(type) {
+    console.log(`🔄 Performing ${type} reload...`);
+    
+    const reloadMethods = [
+      () => {
+        const url = new URL(window.location);
+        url.searchParams.set(type, Date.now().toString());
+        window.location.replace(url.toString());
+      },
+      () => {
+        window.location.href = window.location.origin + window.location.pathname + `?${type}=` + Date.now();
+      },
+      () => {
+        window.location.assign(window.location.href + `?${type}=` + Date.now());
+      },
+      () => {
+        window.location.reload(true);
+      },
+      () => {
+        window.location = window.location;
+      }
+    ];
+    
+    let methodIndex = 0;
+    
+    const tryReload = () => {
+      if (methodIndex >= reloadMethods.length) {
+        console.error('💀 ALL RELOAD METHODS FAILED!');
+        this.showManualReloadDialog(type);
+        return;
+      }
+      
+      try {
+        console.log(`🔄 Reload attempt ${methodIndex + 1}...`);
+        reloadMethods[methodIndex]();
+      } catch (error) {
+        console.warn(`❌ Reload method ${methodIndex + 1} failed:`, error);
+        methodIndex++;
+        setTimeout(tryReload, 1000);
+      }
+    };
+    
+    tryReload();
+  }
+
+  // Показать диалог ручной перезагрузки
+  showManualReloadDialog(type) {
     const dialog = document.createElement('div');
     dialog.style.cssText = `
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.8);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 99999;
-      font-family: Arial, sans-serif;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8); display: flex; 
+      align-items: center; justify-content: center;
+      z-index: 99999; font-family: Arial, sans-serif;
       color: white;
     `;
     
+    const isNuclear = type === 'nuclear';
+    const title = isNuclear ? '🔥💀 NUCLEAR RESET COMPLETE 💀🔥' : `🔄 ${type.toUpperCase()} COMPLETE`;
+    const message = isNuclear ? 'All game data has been <strong>COMPLETELY DESTROYED</strong>!' : `${type} operation completed successfully!`;
+    
     dialog.innerHTML = `
       <div style="
-        background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        background: ${isNuclear ? 'linear-gradient(135deg, #ff4444 0%, #cc0000 100%)' : '#333'}; 
         padding: 40px; border-radius: 20px; text-align: center;
         max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
       ">
-        <h2 style="margin-top: 0; font-size: 2em;">🔥💀 NUCLEAR RESET COMPLETE 💀🔥</h2>
+        <h2 style="margin-top: 0; font-size: 2em;">${title}</h2>
         <p style="font-size: 1.2em; margin: 20px 0;">
-          All game data has been <strong>COMPLETELY DESTROYED</strong>!
+          ${message}
         </p>
         <p style="margin: 20px 0;">
           Please manually refresh the page to start fresh:
@@ -588,7 +544,7 @@ showManualReloadDialog(type) {
           <div>• Close and reopen the page</div>
         </div>
         <button onclick="window.location.reload(true)" style="
-          background: white; color: #ff4444; border: none;
+          background: white; color: ${isNuclear ? '#ff4444' : '#333'}; border: none;
           padding: 15px 30px; border-radius: 10px; font-size: 1.1em;
           font-weight: bold; cursor: pointer; margin-top: 20px;
           box-shadow: 0 4px 8px rgba(0,0,0,0.3);
@@ -639,52 +595,6 @@ Please manually refresh the page:
 
 Error: ${error.message}`);
     }, 1000);
-  }
-
-  // Перезагрузка страницы (для обычной загрузки)
-  performReload(type) {
-    console.log(`🔄 Performing ${type} reload...`);
-    
-    const reloadMethods = [
-      () => {
-        const url = new URL(window.location);
-        url.searchParams.set(type, Date.now().toString());
-        window.location.replace(url.toString());
-      },
-      () => {
-        window.location.href = window.location.origin + window.location.pathname + `?${type}=` + Date.now();
-      },
-      () => {
-        window.location.assign(window.location.href + `?${type}=` + Date.now());
-      },
-      () => {
-        window.location.reload(true);
-      },
-      () => {
-        window.location = window.location;
-      }
-    ];
-    
-    let methodIndex = 0;
-    
-    const tryReload = () => {
-      if (methodIndex >= reloadMethods.length) {
-        console.error('💀 ALL RELOAD METHODS FAILED!');
-        alert(`🔥 ${type.toUpperCase()} COMPLETE! 🔥\n\nPlease manually refresh the page (F5 or Ctrl+R)`);
-        return;
-      }
-      
-      try {
-        console.log(`🔄 Reload attempt ${methodIndex + 1}...`);
-        reloadMethods[methodIndex]();
-      } catch (error) {
-        console.warn(`❌ Reload method ${methodIndex + 1} failed:`, error);
-        methodIndex++;
-        setTimeout(tryReload, 1000);
-      }
-    };
-    
-    tryReload();
   }
 
   // Очистка всех активных элементов сохранения
