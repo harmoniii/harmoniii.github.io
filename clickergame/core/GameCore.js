@@ -1,4 +1,4 @@
-// core/GameCore.js - Основная логика игры
+// core/GameCore.js - Fixed version with correct cleanup method calls
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -142,12 +142,12 @@ export class GameCore extends CleanupMixin {
     // Автосохранение
     this.createInterval(() => {
       this.autoSave();
-    }, 30000); // Каждые 30 секунд
+    }, 30000, 'auto-save'); // Каждые 30 секунд
     
     // Проверка достижений
     this.createInterval(() => {
       this.checkAchievements();
-    }, GAME_CONSTANTS.COMBO_CHECK_INTERVAL);
+    }, GAME_CONSTANTS.COMBO_CHECK_INTERVAL, 'achievement-check');
     
     // Событие сброса игры
     eventBus.subscribe(GameEvents.GAME_RESET, () => {
@@ -169,7 +169,7 @@ export class GameCore extends CleanupMixin {
     });
     
     this.addEventListener(window, 'unload', () => {
-      this.cleanup();
+      this.destroy(); // Use correct method name
     });
     
     // Обработка потери фокуса для автосохранения
@@ -252,7 +252,7 @@ export class GameCore extends CleanupMixin {
     }
   }
 
-  // Обработка сброса игры
+  // Обработка сброса игры - FIXED: Use correct cleanup method
   handleGameReset() {
     console.log('🔥 Handling game reset...');
     
@@ -261,14 +261,41 @@ export class GameCore extends CleanupMixin {
       if (this.gameLoop) {
         this.gameLoop.stop();
       }
+
+      // Останавливаем все процессы менеджеров
+      this.stopAllGameProcesses();
       
-      // Выполняем полную очистку
-      this.cleanup();
+      // Выполняем полную очистку - Use destroy() instead of cleanup()
+      this.destroy();
       
       console.log('✅ Game reset handled');
       
     } catch (error) {
       console.error('💀 Error handling game reset:', error);
+    }
+  }
+
+  // Остановить все игровые процессы
+  stopAllGameProcesses() {
+    try {
+      console.log('🛑 Stopping all game processes...');
+      
+      // Останавливаем все менеджеры которые имеют методы остановки
+      if (this.managers.buff && typeof this.managers.buff.clearAllEffects === 'function') {
+        this.managers.buff.clearAllEffects();
+      }
+      
+      if (this.managers.building && typeof this.managers.building.stopAllProduction === 'function') {
+        this.managers.building.stopAllProduction();
+      }
+      
+      if (this.managers.skill && typeof this.managers.skill.stopAllGeneration === 'function') {
+        this.managers.skill.stopAllGeneration();
+      }
+      
+      console.log('✅ All game processes stopped');
+    } catch (error) {
+      console.warn('⚠️ Error stopping game processes:', error);
     }
   }
 
@@ -349,19 +376,31 @@ export class GameCore extends CleanupMixin {
 
   // Проверка активности игры
   isActive() {
+    return this.isActive() && this.gameState && this.gameLoop && this.gameLoop.isRunning();
+  }
+
+  // FIXED: Override the parent isActive method correctly
+  isGameActive() {
     return !this.isDestroyed && this.gameState && this.gameLoop && this.gameLoop.isRunning();
   }
 
-  // Деструктор
+  // Деструктор - FIXED: Use proper cleanup method name
   destroy() {
     console.log('🧹 Destroying GameCore...');
     
-    // Сохраняем перед уничтожением
-    this.autoSave();
-    
-    // Вызываем родительский деструктор
-    super.destroy();
-    
-    console.log('✅ GameCore destroyed');
+    try {
+      // Сохраняем перед уничтожением
+      this.autoSave();
+      
+      // Останавливаем все процессы
+      this.stopAllGameProcesses();
+      
+      // Вызываем родительский деструктор
+      super.destroy();
+      
+      console.log('✅ GameCore destroyed');
+    } catch (error) {
+      console.error('💀 Error during GameCore destruction:', error);
+    }
   }
 }
