@@ -130,149 +130,246 @@ export default class UIManager {
 
     // COMPLETELY FIXED Load function with proper reload
     this.btnLoad.addEventListener('click', () => {
-      const code = prompt('Paste save code:');
+      const code = prompt('🔄 LOAD SAVE\n\nPaste your save code:');
       if (!code || code.trim() === '') {
         this.showNotification('❌ No save code entered');
         return;
       }
       
       try {
+        console.log('🔄 Starting load process...');
+        
         // Try multiple decoding methods for compatibility
         let decoded;
         
         try {
           // New method (with encodeURIComponent)
           decoded = JSON.parse(decodeURIComponent(atob(code.trim())));
+          console.log('✅ Decoded with new method');
         } catch (e1) {
+          console.log('❌ New method failed, trying old method...');
           try {
             // Old method (without encodeURIComponent)
             decoded = JSON.parse(atob(code.trim()));
+            console.log('✅ Decoded with old method');
           } catch (e2) {
-            throw new Error('Could not decode save code');
+            console.error('❌ Both decode methods failed:', e1, e2);
+            throw new Error('Could not decode save code - format invalid');
           }
         }
         
         // Check if it looks like game state
-        if (!decoded || typeof decoded !== 'object') {
-          throw new Error('Invalid data format');
+        if (!decoded || typeof decoded !== 'object' || !decoded.resources) {
+          throw new Error('Invalid save data - missing required fields');
         }
         
-        // Clear localStorage first
-        localStorage.removeItem('gameState');
+        console.log('✅ Save data validated, proceeding...');
+        
+        // Stop all current game processes
+        try {
+          if (this.state.featureMgr) this.state.featureMgr.stopAllEffects();
+          if (this.state.buildingManager) this.state.buildingManager.stopAllProduction();
+          if (this.state.skillManager) this.state.skillManager.stopAllGeneration();
+        } catch (e) {
+          console.warn('Warning stopping managers:', e);
+        }
+        
+        // Clear ALL localStorage
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+          console.log('✅ Storage cleared');
+        } catch (e) {
+          console.warn('Warning clearing storage:', e);
+        }
         
         // Clear temporary effects from loaded data
         decoded.buffs = [];
         decoded.debuffs = [];
         decoded.blockedUntil = 0;
-        if (decoded.effectStates) {
-          decoded.effectStates = {
-            starPowerClicks: 0,
-            shieldBlocks: 0,
-            heavyClickRequired: {},
-            reverseDirection: 1,
-            frozenCombo: false
-          };
-        }
+        decoded.effectStates = {
+          starPowerClicks: 0,
+          shieldBlocks: 0,
+          heavyClickRequired: {},
+          reverseDirection: 1,
+          frozenCombo: false
+        };
         
         // Save the cleaned state to localStorage
         const jsonString = JSON.stringify(decoded);
         localStorage.setItem('gameState', btoa(encodeURIComponent(jsonString)));
+        console.log('✅ New save data stored');
         
-        this.showNotification('✅ Save loaded! Reloading page...');
-        console.log('✅ Save loaded, page will reload in 1 second');
+        this.showNotification('✅ Save loaded! Reloading in 2 seconds...');
+        console.log('🔄 Forcing page reload...');
         
-        // Force page reload after short delay
+        // Force hard reload
         setTimeout(() => {
-          window.location.reload(true); // true forces cache refresh
-        }, 1000);
+          // Multiple fallback methods
+          try {
+            window.location.replace(window.location.href + '?reload=' + Date.now());
+          } catch (e1) {
+            try {
+              window.location.href = window.location.href + '?reload=' + Date.now();
+            } catch (e2) {
+              try {
+                window.location.reload(true);
+              } catch (e3) {
+                window.location = window.location;
+              }
+            }
+          }
+        }, 2000);
         
       } catch (error) {
-        console.error('Load error:', error);
-        this.showNotification(`❌ Loading error: ${error.message}`);
+        console.error('❌ Load error:', error);
+        this.showNotification(`❌ Load failed: ${error.message}`);
       }
     });
     
-    // COMPLETELY FIXED RESET function with guaranteed page reload
+    // NUCLEAR RESET with double confirmation
     this.btnReset.addEventListener('click', () => {
       if (confirm('🔥 COMPLETE GAME RESET 🔥\n\nThis will delete ALL data forever!\nAre you sure?')) {
         if (confirm('⚠️ FINAL WARNING ⚠️\n\nAll progress will be lost!\nContinue reset?')) {
-          this.performHardReset();
+          this.performNuclearReset();
         }
       }
     });
   }
 
-  // COMPLETELY NEW hard reset function that guarantees cleanup
-  performHardReset() {
+  // NUCLEAR RESET METHOD - DESTROYS EVERYTHING
+  performNuclearReset() {
     try {
-      console.log('🔥 Starting complete game reset...');
+      console.log('🔥🔥🔥 NUCLEAR RESET INITIATED 🔥🔥🔥');
       
-      this.showNotification('🔥 Resetting game...');
+      this.showNotification('🔥 NUCLEAR RESET IN PROGRESS...');
       
-      // 1. Stop all running intervals and timers
+      // 1. Stop ALL possible game processes
       try {
-        if (this.state.featureMgr) {
-          this.state.featureMgr.stopAllEffects();
-        }
-        if (this.state.buildingManager) {
-          this.state.buildingManager.stopAllProduction();
-        }
-        if (this.state.skillManager) {
-          this.state.skillManager.stopAllGeneration();
-        }
+        console.log('🛑 Stopping all game managers...');
+        if (this.state.featureMgr) this.state.featureMgr.stopAllEffects();
+        if (this.state.buildingManager) this.state.buildingManager.stopAllProduction();
+        if (this.state.skillManager) this.state.skillManager.stopAllGeneration();
+        if (this.state.marketManager) this.state.marketManager.stopAllEffects?.();
       } catch (e) {
-        console.warn('Error stopping managers:', e);
+        console.warn('⚠️ Error stopping managers (continuing anyway):', e);
       }
       
-      // 2. Clear all possible localStorage keys
+      // 2. NUCLEAR CLEAR - Clear EVERYTHING possible
       try {
-        localStorage.removeItem('gameState');
+        console.log('💥 Clearing ALL storage...');
+        
+        // Clear localStorage completely
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          localStorage.removeItem(key);
+        }
+        
+        // Clear sessionStorage completely  
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+          const key = sessionStorage.key(i);
+          sessionStorage.removeItem(key);
+        }
+        
+        // Extra cleanup
         localStorage.clear();
         sessionStorage.clear();
+        
+        console.log('✅ Storage completely cleared');
       } catch (e) {
-        console.warn('Error clearing storage:', e);
+        console.warn('⚠️ Error clearing storage (continuing anyway):', e);
       }
       
-      // 3. Clear all intervals (nuclear option)
+      // 3. Clear ALL timers and intervals (nuclear option)
       try {
-        const highestId = setTimeout(() => {}, 0);
-        for (let i = 0; i < highestId; i++) {
+        console.log('⏰ Clearing ALL timers and intervals...');
+        
+        // Get the highest timeout/interval ID and clear everything
+        const maxId = setTimeout(() => {}, 0);
+        for (let i = 0; i <= maxId + 1000; i++) {
           clearTimeout(i);
           clearInterval(i);
         }
+        
+        console.log('✅ All timers cleared');
       } catch (e) {
-        console.warn('Error clearing intervals:', e);
+        console.warn('⚠️ Error clearing timers (continuing anyway):', e);
       }
       
-      // 4. Show final message and force reload
-      this.showNotification('✅ Reset complete! Reloading...');
-      console.log('✅ Reset complete, forcing page reload');
+      // 4. Reset the page URL to remove any parameters
+      try {
+        const baseUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, baseUrl);
+      } catch (e) {
+        console.warn('⚠️ Error resetting URL:', e);
+      }
       
-      // 5. Multiple fallback reload methods
-      setTimeout(() => {
+      // 5. Show final message
+      this.showNotification('💀 GAME COMPLETELY DESTROYED');
+      this.showNotification('🔄 Reloading in 3 seconds...');
+      
+      console.log('🔄 Starting nuclear reload sequence...');
+      
+      // 6. MULTIPLE FALLBACK RELOAD METHODS
+      let reloadAttempt = 0;
+      
+      const tryReload = () => {
+        reloadAttempt++;
+        console.log(`🔄 Reload attempt ${reloadAttempt}...`);
+        
         try {
-          window.location.href = window.location.href;
-        } catch (e) {
+          // Method 1: Replace location with timestamp
+          const timestamp = Date.now();
+          window.location.replace(window.location.origin + window.location.pathname + '?nuclear_reset=' + timestamp);
+        } catch (e1) {
+          console.warn(`❌ Reload method 1 failed:`, e1);
           try {
-            window.location.reload(true);
+            // Method 2: Assign new location
+            window.location.assign(window.location.origin + window.location.pathname + '?reset=' + Date.now());
           } catch (e2) {
+            console.warn(`❌ Reload method 2 failed:`, e2);
             try {
-              window.location = window.location;
+              // Method 3: Direct href change
+              window.location.href = window.location.origin + window.location.pathname + '?hard_reset=' + Date.now();
             } catch (e3) {
-              // Last resort - redirect to same page
-              window.location.assign(window.location.href);
+              console.warn(`❌ Reload method 3 failed:`, e3);
+              try {
+                // Method 4: Force reload
+                window.location.reload(true);
+              } catch (e4) {
+                console.warn(`❌ Reload method 4 failed:`, e4);
+                if (reloadAttempt < 3) {
+                  console.log('🔄 Retrying reload in 1 second...');
+                  setTimeout(tryReload, 1000);
+                } else {
+                  console.error('💀 ALL RELOAD METHODS FAILED! Manual refresh required.');
+                  alert('🔥 RESET COMPLETE! 🔥\n\nPlease manually refresh the page (F5 or Ctrl+R)');
+                }
+              }
             }
           }
         }
-      }, 1500);
+      };
+      
+      // Start reload after 3 seconds
+      setTimeout(tryReload, 3000);
       
     } catch (error) {
-      console.error('Reset error:', error);
+      console.error('💀 CRITICAL ERROR in nuclear reset:', error);
       
-      // Emergency fallback - just reload the page
-      this.showNotification('🔄 Emergency reload...');
+      // Emergency fallback - direct alert and manual refresh request
+      this.showNotification('💀 EMERGENCY FALLBACK ACTIVATED');
       setTimeout(() => {
-        window.location.reload(true);
+        alert(`🔥 RESET COMPLETED WITH ERRORS 🔥
+
+The game has been reset but some errors occurred.
+
+Please manually refresh the page:
+- Press F5, or
+- Press Ctrl+R, or  
+- Close and reopen the page
+
+Error: ${error.message}`);
       }, 1000);
     }
   }
