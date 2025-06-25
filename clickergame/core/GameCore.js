@@ -181,16 +181,45 @@ export class GameCore extends CleanupMixin {
     });
   }
 
-  // Автосохранение
-  autoSave() {
-    if (this.gameState) {
-      try {
-        this.storageManager.save(this.gameState);
-      } catch (error) {
-        console.warn('⚠️ Auto-save failed:', error);
-      }
-    }
+autoSave() {
+  // КРИТИЧЕСКИЕ ПРОВЕРКИ перед сохранением
+  if (!this.gameState) {
+    console.warn('⚠️ AutoSave: gameState is null, skipping save');
+    return false;
   }
+
+  if (this.isDestroyed === true) {
+    console.warn('⚠️ AutoSave: GameCore is destroyed, skipping save');
+    return false;
+  }
+
+  if (this.gameState.isDestroyed === true) {
+    console.warn('⚠️ AutoSave: GameState is destroyed, skipping save');
+    return false;
+  }
+
+  if (!this.storageManager) {
+    console.warn('⚠️ AutoSave: storageManager is null, skipping save');
+    return false;
+  }
+
+  try {
+    // Используем безопасное сохранение
+    const success = this.storageManager.safeSave(this.gameState);
+    
+    if (success) {
+      console.log('💾 Auto-save completed successfully');
+    } else {
+      console.warn('⚠️ Auto-save failed but no error thrown');
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('❌ Auto-save failed with error:', error);
+    return false;
+  }
+}
 
   // Проверка достижений
   checkAchievements() {
