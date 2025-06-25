@@ -1,484 +1,375 @@
-// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с рабочей загрузкой
+// ui/SaveLoadManager.js - УПРОЩЕННАЯ и надежная версия
 import { CleanupMixin } from '../core/CleanupManager.js';
-import { StorageManager } from '../core/StorageManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
-import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 export class SaveLoadManager extends CleanupMixin {
   constructor(gameState) {
     super();
     this.gameState = gameState;
-    this.storageManager = new StorageManager();
-    this.activeSaveElements = new Set();
   }
 
-  // Выполнить сохранение
+  // УПРОЩЕННОЕ СОХРАНЕНИЕ - просто JSON в base64
   performSave() {
-    if (!this.gameState || this.gameState.isDestroyed === true) {
-      eventBus.emit(GameEvents.NOTIFICATION, '❌ Cannot save - game state not available');
-      return;
-    }
-
-    if (this.activeSaveElements.size > 0) {
-      eventBus.emit(GameEvents.NOTIFICATION, '💾 Save already in progress...');
-      return;
-    }
-
     try {
-      const saveCode = this.storageManager.exportToString(this.gameState);
+      console.log('💾 Starting save...');
       
-      if (!saveCode) {
-        throw new Error('Export returned empty save code');
+      if (!this.gameState || this.gameState.isDestroyed) {
+        throw new Error('Game state not available');
       }
 
-      this.displaySaveCode(saveCode);
-      eventBus.emit(GameEvents.NOTIFICATION, '💾 Save created successfully!');
+      // Получаем чистые данные из gameState
+      const saveData = {
+        resources: {...(this.gameState.resources || {})},
+        combo: {...(this.gameState.combo || {count: 0, deadline: 0})},
+        skillPoints: this.gameState.skillPoints || 0,
+        targetZone: this.gameState.targetZone || 0,
+        buildings: {...(this.gameState.buildings || {})},
+        skills: {...(this.gameState.skills || {})},
+        skillStates: {...(this.gameState.skillStates || {})},
+        market: {...(this.gameState.market || {})},
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+
+      // Простое кодирование: JSON -> base64
+      const jsonString = JSON.stringify(saveData);
+      const saveCode = btoa(jsonString);
+      
+      console.log('✅ Save data created:', saveData);
+      this.showSaveCode(saveCode);
+      
+      eventBus.emit(GameEvents.NOTIFICATION, '💾 Save code created! Copy it.');
       
     } catch (error) {
-      console.error('❌ Save error:', error);
+      console.error('❌ Save failed:', error);
       eventBus.emit(GameEvents.NOTIFICATION, `❌ Save failed: ${error.message}`);
     }
   }
 
-  // Отобразить код сохранения
-  displaySaveCode(saveCode) {
-    const textarea = this.createSaveTextarea(saveCode);
-    this.activeSaveElements.add(textarea);
-    document.body.appendChild(textarea);
-    
-    textarea.focus();
-    textarea.select();
-    
-    this.copyToClipboard(saveCode);
-    
-    this.createTimeout(() => {
-      this.cleanupSaveElement(textarea);
-    }, GAME_CONSTANTS.SAVE_ELEMENT_TIMEOUT);
-    
-    const blurHandler = () => this.cleanupSaveElement(textarea);
-    textarea.addEventListener('blur', blurHandler);
-    textarea._blurHandler = blurHandler;
-  }
-
-  // Создать textarea для кода сохранения
-  createSaveTextarea(saveCode) {
-    const textarea = document.createElement('textarea');
-    textarea.value = saveCode;
-    textarea.readOnly = true;
-    
-    Object.assign(textarea.style, {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '80%',
-      maxWidth: '600px',
-      height: '200px',
-      zIndex: '9999',
-      background: 'white',
-      border: '2px solid #333',
-      borderRadius: '8px',
-      padding: '10px',
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-      resize: 'none'
-    });
-    
-    return textarea;
-  }
-
-  // Скопировать в буфер обмена
-  async copyToClipboard(text) {
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(text);
-        eventBus.emit(GameEvents.NOTIFICATION, '📋 Save code copied to clipboard!');
-      } else {
-        eventBus.emit(GameEvents.NOTIFICATION, '💾 Save code ready. Copy it manually.');
-      }
-    } catch (error) {
-      console.warn('Clipboard copy failed:', error);
-      eventBus.emit(GameEvents.NOTIFICATION, '💾 Save code ready. Copy it manually.');
-    }
-  }
-
-  // Очистить элемент сохранения
-  cleanupSaveElement(textarea) {
-    if (!this.activeSaveElements.has(textarea)) return;
-    
-    if (textarea._blurHandler) {
-      textarea.removeEventListener('blur', textarea._blurHandler);
-      delete textarea._blurHandler;
-    }
-    
-    if (document.body.contains(textarea)) {
-      document.body.removeChild(textarea);
-    }
-    
-    this.activeSaveElements.delete(textarea);
-  }
-
-  // ИСПРАВЛЕНИЕ: Полностью переписанный метод загрузки
+  // УПРОЩЕННАЯ ЗАГРУЗКА - сразу применяем без перезагрузки
   performLoad() {
-    const code = prompt('🔄 LOAD SAVE\n\nPaste your save code:');
-    if (!code || code.trim() === '') {
-      eventBus.emit(GameEvents.NOTIFICATION, '❌ No save code entered');
-      return;
-    }
-
     try {
-      console.log('🔄 Starting load process...');
-      
-      // ИСПРАВЛЕНИЕ: Сначала проверяем валидность кода
-      const saveData = this.storageManager.importFromString(code.trim());
-      
-      if (!saveData || typeof saveData !== 'object') {
-        throw new Error('Invalid save data format');
+      const code = prompt('🔄 Paste your save code:');
+      if (!code || !code.trim()) {
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ No code entered');
+        return;
       }
 
-      console.log('✅ Save code validated successfully');
+      console.log('🔄 Starting load...');
       
-      // ИСПРАВЛЕНИЕ: Создаем резервную копию текущего состояния
-      if (this.gameState && !this.gameState.isDestroyed) {
-        try {
-          this.storageManager.createBackup();
-          console.log('✅ Backup created');
-        } catch (backupError) {
-          console.warn('⚠️ Could not create backup:', backupError);
-        }
-      }
+      // Простое декодирование: base64 -> JSON
+      const jsonString = atob(code.trim());
+      const saveData = JSON.parse(jsonString);
       
-      // ИСПРАВЛЕНИЕ: Сохраняем новые данные в localStorage напрямую
-      try {
-        const jsonString = JSON.stringify(saveData);
-        localStorage.setItem('advancedClickerState', jsonString);
-        console.log('✅ Save data written to localStorage');
-      } catch (storageError) {
-        throw new Error(`Failed to save to localStorage: ${storageError.message}`);
-      }
+      console.log('✅ Save data loaded:', saveData);
       
-      eventBus.emit(GameEvents.NOTIFICATION, '✅ Save loaded! Reloading page...');
+      // КЛЮЧЕВОЕ ИЗМЕНЕНИЕ: Применяем данные сразу, без перезагрузки
+      this.applySaveData(saveData);
       
-      // ИСПРАВЛЕНИЕ: Добавляем флаг перезагрузки для отладки
-      sessionStorage.setItem('loadInProgress', 'true');
-      
-      this.createTimeout(() => {
-        this.performReload('load');
-      }, GAME_CONSTANTS.RELOAD_DELAY);
+      eventBus.emit(GameEvents.NOTIFICATION, '✅ Game loaded successfully!');
       
     } catch (error) {
-      console.error('❌ Load error:', error);
+      console.error('❌ Load failed:', error);
       
-      // ИСПРАВЛЕНИЕ: Более детальная информация об ошибке
-      let errorMessage = 'Load failed';
-      if (error.message.includes('decode')) {
-        errorMessage = 'Invalid save code format';
-      } else if (error.message.includes('JSON')) {
-        errorMessage = 'Corrupted save data';
-      } else if (error.message.includes('localStorage')) {
-        errorMessage = 'Storage error - try again';
+      if (error.message.includes('Invalid character')) {
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ Invalid save code format');
       } else {
-        errorMessage = error.message;
+        eventBus.emit(GameEvents.NOTIFICATION, `❌ Load failed: ${error.message}`);
       }
-      
-      eventBus.emit(GameEvents.NOTIFICATION, `❌ ${errorMessage}`);
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Создаем пустой сейв с нулевыми данными
-  createEmptySaveData() {
-    return {
-      // Все ресурсы = 0
-      resources: {
-        gold: 0,
-        wood: 0,
-        stone: 0,
-        food: 0,
-        water: 0,
-        iron: 0,
-        people: 0,
-        energy: 0,
-        science: 0,
-        faith: 0,
-        chaos: 0
-      },
-      
-      // Сброс комбо
-      combo: {
-        lastZone: null,
-        count: 0,
-        deadline: 0,
-        lastAngle: null
-      },
-      
-      // Сброс skill points
-      skillPoints: 0,
-      
-      // Сброс зон
-      targetZone: 0,
-      previousTargetZone: 0,
-      
-      // Сброс зданий
-      buildings: {},
-      
-      // Сброс навыков
-      skills: {},
-      
-      // Сброс состояний навыков
-      skillStates: {
-        missProtectionCharges: 0,
-        autoClickerActive: false
-      },
-      
-      // Сброс маркета
-      market: {
-        dailyDeals: [],
-        purchaseHistory: [],
-        reputation: 0,
-        permanentBonuses: {}
-      },
-      
-      // Очистка эффектов
-      buffs: [],
-      debuffs: [],
-      blockedUntil: 0,
-      effectStates: {
+  // ПРИМЕНЕНИЕ ДАННЫХ СРАЗУ К ИГРОВОМУ СОСТОЯНИЮ
+  applySaveData(saveData) {
+    console.log('📥 Applying save data to game state...');
+    
+    try {
+      // Обновляем ресурсы
+      if (saveData.resources) {
+        Object.keys(this.gameState.resources).forEach(resource => {
+          this.gameState.resources[resource] = saveData.resources[resource] || 0;
+        });
+      }
+
+      // Обновляем комбо
+      if (saveData.combo) {
+        this.gameState.combo = {
+          count: saveData.combo.count || 0,
+          deadline: saveData.combo.deadline || 0,
+          lastZone: saveData.combo.lastZone || null,
+          lastAngle: saveData.combo.lastAngle || null
+        };
+      }
+
+      // Обновляем skill points
+      this.gameState.skillPoints = Math.max(0, saveData.skillPoints || 0);
+
+      // Обновляем зоны
+      this.gameState.targetZone = saveData.targetZone || 0;
+      this.gameState.previousTargetZone = saveData.previousTargetZone || 0;
+
+      // Обновляем здания
+      if (saveData.buildings) {
+        Object.keys(this.gameState.buildings).forEach(buildingId => {
+          if (saveData.buildings[buildingId]) {
+            this.gameState.buildings[buildingId] = {
+              level: Math.max(0, saveData.buildings[buildingId].level || 0),
+              active: Boolean(saveData.buildings[buildingId].active)
+            };
+          }
+        });
+      }
+
+      // Обновляем навыки
+      if (saveData.skills) {
+        Object.keys(this.gameState.skills).forEach(skillId => {
+          if (saveData.skills[skillId]) {
+            this.gameState.skills[skillId] = {
+              level: Math.max(0, saveData.skills[skillId].level || 0)
+            };
+          }
+        });
+      }
+
+      // Обновляем состояния навыков
+      if (saveData.skillStates) {
+        this.gameState.skillStates = {
+          ...this.gameState.skillStates,
+          ...saveData.skillStates
+        };
+      }
+
+      // Обновляем маркет
+      if (saveData.market) {
+        this.gameState.market = {
+          ...this.gameState.market,
+          ...saveData.market
+        };
+      }
+
+      // Сбрасываем временные эффекты
+      this.gameState.buffs = [];
+      this.gameState.debuffs = [];
+      this.gameState.blockedUntil = 0;
+      this.gameState.effectStates = {
         starPowerClicks: 0,
         shieldBlocks: 0,
         heavyClickRequired: {},
         reverseDirection: 1,
         frozenCombo: false
-      },
-      
-      saveTimestamp: Date.now(),
-      saveVersion: '0.8.0'
-    };
-  }
+      };
 
-  // ИСПРАВЛЕНИЕ: Генерация кода сброса вместо ядерного уничтожения
-  performReset() {
-    if (!this.confirmReset()) return;
+      // ВАЖНО: Уведомляем систему об изменениях
+      eventBus.emit(GameEvents.RESOURCE_CHANGED);
+      eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
+      eventBus.emit(GameEvents.COMBO_CHANGED, this.gameState.combo);
 
-    try {
-      console.log('🔄 Generating reset save code...');
-      
-      // Создаем пустые данные
-      const emptySave = this.createEmptySaveData();
-      
-      // Генерируем код для пустого сейва
-      const resetCode = this.storageManager.encodeData(JSON.stringify(emptySave));
-      
-      if (!resetCode) {
-        throw new Error('Failed to generate reset code');
-      }
+      // Перезапускаем менеджеры если нужно
+      this.restartManagers();
 
-      // Отображаем код сброса
-      this.displayResetCode(resetCode);
-      
-      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Reset code generated! Use Load button to apply it.');
+      console.log('✅ Save data applied successfully');
       
     } catch (error) {
-      console.error('❌ Reset code generation failed:', error);
+      console.error('❌ Error applying save data:', error);
+      throw new Error(`Failed to apply save data: ${error.message}`);
+    }
+  }
+
+  // ПЕРЕЗАПУСК МЕНЕДЖЕРОВ ПОСЛЕ ЗАГРУЗКИ
+  restartManagers() {
+    try {
+      // Перезапускаем производство зданий
+      if (this.gameState.buildingManager) {
+        this.gameState.buildingManager.startProduction();
+      }
+
+      // Перезапускаем генерацию навыков
+      if (this.gameState.skillManager) {
+        this.gameState.skillManager.startGeneration();
+      }
+
+      // Обновляем UI
+      if (this.gameState.managers && this.gameState.managers.ui) {
+        this.gameState.managers.ui.forceUpdate();
+      }
+
+      console.log('✅ Managers restarted');
+    } catch (error) {
+      console.warn('⚠️ Some managers failed to restart:', error);
+    }
+  }
+
+  // ПРОСТОЙ СБРОС ИГРЫ
+  performReset() {
+    const confirmed = confirm(`🔄 RESET GAME
+
+This will reset ALL progress:
+• All resources to 0
+• All buildings to level 0
+• All skills to level 0
+• All achievements lost
+
+This action cannot be undone!
+
+Are you sure?`);
+
+    if (!confirmed) return;
+
+    try {
+      console.log('🔄 Resetting game...');
+      
+      // Создаем пустое состояние
+      const emptyData = {
+        resources: {
+          gold: 0, wood: 0, stone: 0, food: 0, water: 0, iron: 0,
+          people: 0, energy: 0, science: 0, faith: 0, chaos: 0
+        },
+        combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
+        skillPoints: 0,
+        targetZone: 0,
+        buildings: {},
+        skills: {},
+        skillStates: { missProtectionCharges: 0, autoClickerActive: false },
+        market: { dailyDeals: [], purchaseHistory: [], reputation: 0 },
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+
+      // Применяем пустые данные
+      this.applySaveData(emptyData);
+      
+      eventBus.emit(GameEvents.NOTIFICATION, '🔄 Game reset successfully!');
+      
+    } catch (error) {
+      console.error('❌ Reset failed:', error);
       eventBus.emit(GameEvents.NOTIFICATION, `❌ Reset failed: ${error.message}`);
     }
   }
 
-  // Отобразить код сброса
-  displayResetCode(resetCode) {
-    const textarea = this.createResetTextarea(resetCode);
-    this.activeSaveElements.add(textarea);
-    document.body.appendChild(textarea);
-    
+  // ПОКАЗАТЬ КОД СОХРАНЕНИЯ
+  showSaveCode(saveCode) {
+    // Создаем модальное окно с кодом
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8); display: flex;
+      align-items: center; justify-content: center;
+      z-index: 10000; font-family: Arial, sans-serif;
+    `;
+
+    const content = document.createElement('div');
+    content.style.cssText = `
+      background: white; padding: 30px; border-radius: 15px;
+      max-width: 600px; width: 90%; text-align: center;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    `;
+
+    const textarea = document.createElement('textarea');
+    textarea.value = saveCode;
+    textarea.readOnly = true;
+    textarea.style.cssText = `
+      width: 100%; height: 150px; margin: 20px 0;
+      font-family: monospace; font-size: 12px;
+      border: 2px solid #ddd; border-radius: 8px;
+      padding: 10px; resize: none;
+    `;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.textContent = '📋 Copy Code';
+    copyBtn.style.cssText = `
+      background: #4CAF50; color: white; border: none;
+      padding: 10px 20px; border-radius: 8px; cursor: pointer;
+      font-size: 16px; margin: 0 10px;
+    `;
+
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = '✖️ Close';
+    closeBtn.style.cssText = `
+      background: #f44336; color: white; border: none;
+      padding: 10px 20px; border-radius: 8px; cursor: pointer;
+      font-size: 16px; margin: 0 10px;
+    `;
+
+    content.innerHTML = '<h2>💾 Save Code</h2><p>Copy this code to save your progress:</p>';
+    content.appendChild(textarea);
+    content.appendChild(copyBtn);
+    content.appendChild(closeBtn);
+    modal.appendChild(content);
+    document.body.appendChild(modal);
+
+    // Автовыделение текста
     textarea.focus();
     textarea.select();
-    
-    this.copyToClipboard(resetCode);
-    
-    this.createTimeout(() => {
-      this.cleanupSaveElement(textarea);
-    }, GAME_CONSTANTS.SAVE_ELEMENT_TIMEOUT);
-    
-    const blurHandler = () => this.cleanupSaveElement(textarea);
-    textarea.addEventListener('blur', blurHandler);
-    textarea._blurHandler = blurHandler;
-  }
 
-  // Создать textarea для кода сброса
-  createResetTextarea(resetCode) {
-    const textarea = document.createElement('textarea');
-    textarea.value = resetCode;
-    textarea.readOnly = true;
-    
-    Object.assign(textarea.style, {
-      position: 'fixed',
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      width: '80%',
-      maxWidth: '600px',
-      height: '200px',
-      zIndex: '9999',
-      background: '#ffeeee',
-      border: '3px solid #ff4444',
-      borderRadius: '8px',
-      padding: '10px',
-      fontSize: '12px',
-      fontFamily: 'monospace',
-      boxShadow: '0 4px 20px rgba(255,68,68,0.3)',
-      resize: 'none'
-    });
-    
-    return textarea;
-  }
-
-  // Подтверждение сброса
-  confirmReset() {
-    const message = `🔄 GAME RESET
-
-This will generate a save code that resets:
-• All resources to 0
-• All buildings to level 0
-• All skills to level 0
-• All progress to beginning
-
-The reset code will be generated for you to load manually.
-Your current save will NOT be automatically deleted.
-
-Continue?`;
-    
-    return confirm(message);
-  }
-
-  // ИСПРАВЛЕНИЕ: Улучшенная перезагрузка страницы
-  performReload(type) {
-    console.log(`🔄 Performing ${type} reload...`);
-    
-    try {
-      // ИСПРАВЛЕНИЕ: Используем более надежный метод перезагрузки
-      if (typeof window.location.reload === 'function') {
-        window.location.reload(true);
-      } else {
-        // Fallback
-        window.location.href = window.location.href;
-      }
-    } catch (e) {
-      console.warn('Standard reload failed, trying alternative methods:', e);
-      
+    // Обработчики
+    copyBtn.onclick = async () => {
       try {
-        const url = new URL(window.location);
-        url.searchParams.set('reload_' + type, Date.now().toString());
-        window.location.replace(url.toString());
-      } catch (e2) {
-        console.warn('URL reload failed, showing manual reload dialog:', e2);
-        this.showManualReloadDialog(type);
+        await navigator.clipboard.writeText(saveCode);
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => copyBtn.textContent = '📋 Copy Code', 2000);
+      } catch (err) {
+        // Fallback для старых браузеров
+        textarea.select();
+        document.execCommand('copy');
+        copyBtn.textContent = '✅ Copied!';
+        setTimeout(() => copyBtn.textContent = '📋 Copy Code', 2000);
       }
-    }
+    };
+
+    closeBtn.onclick = () => {
+      document.body.removeChild(modal);
+    };
+
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    };
+
+    // Автозакрытие через 30 секунд
+    setTimeout(() => {
+      if (document.body.contains(modal)) {
+        document.body.removeChild(modal);
+      }
+    }, 30000);
   }
 
-  // Показать диалог ручной перезагрузки
-  showManualReloadDialog(type) {
-    const dialog = document.createElement('div');
-    dialog.style.cssText = `
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.8); display: flex; 
-      align-items: center; justify-content: center;
-      z-index: 99999; font-family: Arial, sans-serif;
-      color: white;
-    `;
+  // ТЕСТИРОВАНИЕ СИСТЕМЫ
+  test() {
+    console.log('🧪 Testing save/load system...');
     
-    dialog.innerHTML = `
-      <div style="
-        background: #333; padding: 40px; border-radius: 20px; text-align: center;
-        max-width: 500px; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
-      ">
-        <h2 style="margin-top: 0; font-size: 2em;">🔄 ${type.toUpperCase()} COMPLETE</h2>
-        <p style="font-size: 1.2em; margin: 20px 0;">
-          ${type} operation completed successfully!
-        </p>
-        <p style="margin: 20px 0;">
-          Please manually refresh the page:
-        </p>
-        <div style="font-size: 1.1em; margin: 20px 0;">
-          <div>• Press <strong>F5</strong></div>
-          <div>• Press <strong>Ctrl+R</strong> (or Cmd+R on Mac)</div>
-          <div>• Close and reopen the page</div>
-        </div>
-        <button onclick="window.location.reload(true)" style="
-          background: #4CAF50; color: white; border: none;
-          padding: 15px 30px; border-radius: 10px; font-size: 1.1em;
-          font-weight: bold; cursor: pointer; margin-top: 20px;
-          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-        ">
-          🔄 Try Auto-Reload Again
-        </button>
-      </div>
-    `;
-    
-    document.body.appendChild(dialog);
-  }
-
-  // ИСПРАВЛЕНИЕ: Добавляем метод тестирования загрузки
-  testLoad(testData = null) {
     try {
-      const data = testData || this.createEmptySaveData();
-      const code = this.storageManager.encodeData(JSON.stringify(data));
-      
-      console.log('🧪 Test save code generated:', code);
-      console.log('🧪 Test data:', data);
-      
-      // Проверяем декодирование
-      const decoded = this.storageManager.importFromString(code);
-      console.log('🧪 Decoded data:', decoded);
-      
-      return {
-        success: true,
-        originalData: data,
-        code: code,
-        decodedData: decoded
+      // Создаем тестовые данные
+      const testData = {
+        resources: { gold: 100, wood: 50 },
+        skillPoints: 10,
+        combo: { count: 5 },
+        timestamp: Date.now(),
+        version: '1.0'
       };
+
+      // Кодируем
+      const code = btoa(JSON.stringify(testData));
+      console.log('Generated code:', code);
+
+      // Декодируем
+      const decoded = JSON.parse(atob(code));
+      console.log('Decoded data:', decoded);
+
+      console.log('✅ Save/Load system test passed!');
+      return { success: true, code, testData, decoded };
       
     } catch (error) {
-      console.error('🧪 Test failed:', error);
-      return {
-        success: false,
-        error: error.message
-      };
+      console.error('❌ Save/Load system test failed:', error);
+      return { success: false, error: error.message };
     }
-  }
-
-  // Генерация кода с пустыми данными (для отладки)
-  generateEmptySaveCode() {
-    try {
-      const emptySave = this.createEmptySaveData();
-      return this.storageManager.encodeData(JSON.stringify(emptySave));
-    } catch (error) {
-      console.error('Failed to generate empty save code:', error);
-      return null;
-    }
-  }
-
-  // Очистка всех активных элементов сохранения
-  cleanupAllSaveElements() {
-    const elementsToClean = Array.from(this.activeSaveElements);
-    elementsToClean.forEach(element => {
-      this.cleanupSaveElement(element);
-    });
-  }
-
-  // ИСПРАВЛЕНИЕ: Добавляем метод проверки состояния загрузки
-  checkLoadStatus() {
-    const loadInProgress = sessionStorage.getItem('loadInProgress');
-    if (loadInProgress === 'true') {
-      sessionStorage.removeItem('loadInProgress');
-      console.log('✅ Load operation completed successfully');
-      eventBus.emit(GameEvents.NOTIFICATION, '✅ Game loaded from save!');
-    }
-  }
-
-  // Деструктор
-  destroy() {
-    this.cleanupAllSaveElements();
-    super.destroy();
   }
 }
+
+// Добавляем глобальную функцию для тестирования
+window.testSaveLoadSystem = () => {
+  if (window.gameCore?.managers?.ui?.saveLoadManager) {
+    return window.gameCore.managers.ui.saveLoadManager.test();
+  }
+  return 'SaveLoadManager not available';
+};
