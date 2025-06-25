@@ -101,17 +101,19 @@ export default class UIManager extends CleanupMixin {
       this.togglePanel('info');
     });
     
-    // ИСПРАВЛЕНИЕ: Используем исправленный SaveLoadManager
+    // УПРОЩЕННЫЕ обработчики Save/Load/Reset
     this.addEventListener(this.btnSave, 'click', () => {
+      console.log('💾 Save button clicked');
       this.saveLoadManager.performSave();
     });
     
     this.addEventListener(this.btnLoad, 'click', () => {
+      console.log('🔄 Load button clicked');
       this.saveLoadManager.performLoad();
     });
     
-    // ИСПРАВЛЕНИЕ: Простой сброс через генерацию кода
     this.addEventListener(this.btnReset, 'click', () => {
+      console.log('🔄 Reset button clicked');
       this.saveLoadManager.performReset();
     });
     
