@@ -3,83 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Advanced Clicker v1.0.8 - Nuclear Reset Edition</title>
+  <title>Advanced Clicker v1.0.8 - Fixed Version</title>
   <link rel="stylesheet" href="styles.css">
-  <style>
-    /* Встроенные критические стили для кнопки сброса */
-    #reset-button {
-      border-color: #ff4444 !important;
-      background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%) !important;
-      color: white !important;
-      position: relative !important;
-      font-weight: 900 !important;
-      text-transform: uppercase !important;
-      letter-spacing: 1px !important;
-      border-width: 3px !important;
-      box-shadow: 
-        0 0 20px rgba(255, 68, 68, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
-    }
-
-    #reset-button::before {
-      content: '☢️💀' !important;
-      position: absolute !important;
-      left: 10px !important;
-      top: 50% !important;
-      transform: translateY(-50%) !important;
-      font-size: 1.2em !important;
-      animation: dangerPulse 2s ease-in-out infinite !important;
-    }
-
-    #reset-button:hover {
-      background: linear-gradient(135deg, #ff6666 0%, #ff0000 100%) !important;
-      box-shadow: 
-        0 0 30px rgba(255, 68, 68, 0.6),
-        0 4px 15px rgba(255, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-      border-color: #ff0000 !important;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8) !important;
-    }
-
-    @keyframes dangerPulse {
-      0%, 100% { 
-        opacity: 1; 
-        transform: translateY(-50%) scale(1); 
-      }
-      50% { 
-        opacity: 0.7; 
-        transform: translateY(-50%) scale(1.1); 
-      }
-    }
-
-    /* Стили для экстренных сообщений */
-    .nuclear-alert {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
-      color: white;
-      padding: 15px 25px;
-      border-radius: 10px;
-      border: 2px solid #ff6666;
-      z-index: 10000;
-      font-weight: bold;
-      box-shadow: 0 4px 20px rgba(255, 68, 68, 0.5);
-      animation: nuclearAlert 0.5s ease-out;
-    }
-
-    @keyframes nuclearAlert {
-      0% {
-        transform: translateX(-50%) translateY(-100%);
-        opacity: 0;
-      }
-      100% {
-        transform: translateX(-50%) translateY(0);
-        opacity: 1;
-      }
-    }
-  </style>
 </head>
 <body>
   <!-- Навигация сверху -->
@@ -100,17 +25,11 @@
   <!-- Панель, которая меняется в зависимости от кнопки -->
   <div id="panel-container" class="list-panel hidden"></div>
 
-  <!-- ИСПРАВЛЕНИЕ: Улучшенные кнопки управления с ядерным сбросом -->
+  <!-- Кнопки управления -->
   <div id="controls-bottom">
-    <button id="load-button" title="Load a saved game">
-      📁 Load Game
-    </button>
-    <button id="save-button" title="Save current progress">
-      💾 Save Game
-    </button>
-    <button id="reset-button" title="⚠️ NUCLEAR RESET - DESTROYS ALL DATA ⚠️">
-      💀 NUCLEAR RESET 💀
-    </button>
+    <button id="load-button">📁 Load Game</button>
+    <button id="save-button">💾 Save Game</button>
+    <button id="reset-button">💀 NUCLEAR RESET 💀</button>
   </div>
 
   <!-- Уведомления и модалки -->
@@ -118,145 +37,17 @@
   <div id="mystery-modal" class="modal hidden"></div>
   <div id="info-modal" class="modal hidden"></div>
 
-  <!-- Контейнер для индикаторов эффектов (создается автоматически) -->
+  <!-- Контейнер для индикаторов эффектов -->
   <div id="effect-indicators" class="effect-indicators"></div>
-
-  <!-- Скрытое сообщение о версии -->
-  <div style="
-    position: fixed; 
-    bottom: 10px; 
-    right: 10px; 
-    background: rgba(0,0,0,0.7); 
-    color: white; 
-    padding: 5px 10px; 
-    border-radius: 5px; 
-    font-size: 12px;
-    z-index: 1000;
-  ">
-    Advanced Clicker v1.0.8 - Nuclear Reset Edition<br>
-    <span style="color: #ff6666;">⚠️ Complete Data Destruction Capable ⚠️</span>
-  </div>
-
-  <!-- Критическое предупреждение для разработчиков -->
-  <script>
-    // КРИТИЧЕСКОЕ ПРЕДУПРЕЖДЕНИЕ для разработчиков
-    console.log(`%c🔥💀 NUCLEAR RESET EDITION 💀🔥`, 
-      'background: #ff0000; color: white; font-size: 20px; font-weight: bold; padding: 10px;');
-    console.log(`%cThis version includes COMPLETE DATA DESTRUCTION capabilities!`, 
-      'background: #ffaa00; color: black; font-size: 14px; font-weight: bold; padding: 5px;');
-    console.log(`%cReset button will destroy ALL browser data related to this game.`, 
-      'color: #ff0000; font-size: 12px; font-weight: bold;');
-    
-    // Функция экстренного сброса через консоль (для разработчиков)
-    window.emergencyNuclearReset = function() {
-      if (confirm('🔥💀 EMERGENCY NUCLEAR RESET 💀🔥\n\nThis will DESTROY ALL GAME DATA!\nAre you absolutely sure?')) {
-        if (prompt('Type "DESTROY" to confirm:') === 'DESTROY') {
-          // Импортируем и выполняем полное уничтожение
-          import('./utils/NuclearCleanup.js').then(module => {
-            return module.NuclearCleanup.performTotalAnnihilation();
-          }).then(result => {
-            console.log('Nuclear reset result:', result);
-            if (result.success) {
-              alert('💀 NUCLEAR RESET COMPLETE 💀\nAll data destroyed!\nReloading page...');
-              location.reload(true);
-            } else {
-              alert('💀 NUCLEAR RESET FAILED 💀\nSome data may remain!');
-            }
-          }).catch(error => {
-            console.error('Nuclear reset failed:', error);
-            alert('💀 NUCLEAR RESET ERROR 💀\nCheck console for details.');
-          });
-        }
-      }
-    };
-
-    // Функция для проверки состояния данных
-    window.checkDataStatus = function() {
-      const status = {
-        localStorage: localStorage.length,
-        sessionStorage: sessionStorage.length,
-        cookies: document.cookie.split(';').filter(c => c.trim()).length,
-        indexedDB: 'Unknown (async check required)',
-        gameCore: !!window.gameCore
-      };
-      console.table(status);
-      return status;
-    };
-
-    // Предупреждение о том, что игра содержит ядерные возможности
-    if (localStorage.getItem('nuclear_warning_shown') !== 'true') {
-      setTimeout(() => {
-        const warning = document.createElement('div');
-        warning.className = 'nuclear-alert';
-        warning.innerHTML = `
-          <div style="text-align: center;">
-            ☢️💀 <strong>NUCLEAR RESET EDITION</strong> 💀☢️<br>
-            <small>This version can completely destroy all game data!</small>
-          </div>
-        `;
-        document.body.appendChild(warning);
-        
-        setTimeout(() => {
-          if (warning.parentNode) {
-            warning.remove();
-          }
-        }, 5000);
-        
-        localStorage.setItem('nuclear_warning_shown', 'true');
-      }, 1000);
-    }
-  </script>
 
   <!-- Основная загрузка игры -->
   <script type="module" src="game.js"></script>
-
-  <!-- Дополнительная информация для пользователей -->
-  <noscript>
-    <div style="
-      position: fixed; top: 50%; left: 50%; 
-      transform: translate(-50%, -50%);
-      background: #ff4444; color: white; 
-      padding: 20px; border-radius: 10px;
-      text-align: center; z-index: 99999;
-    ">
-      <h3>⚠️ JavaScript Required ⚠️</h3>
-      <p>This game requires JavaScript to function.</p>
-      <p>Please enable JavaScript in your browser.</p>
-    </div>
-  </noscript>
-
-  <!-- Определение типа устройства для оптимизации -->
-  <script>
-    // Определяем тип устройства для UI адаптации
-    window.deviceInfo = {
-      isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
-      isTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-      screenWidth: window.screen.width,
-      screenHeight: window.screen.height,
-      devicePixelRatio: window.devicePixelRatio || 1
-    };
-
-    // Адаптируем размер canvas для мобильных устройств
-    if (window.deviceInfo.isMobile) {
-      document.addEventListener('DOMContentLoaded', () => {
-        const canvas = document.getElementById('gameCanvas');
-        if (canvas) {
-          const maxSize = Math.min(window.innerWidth * 0.8, 400);
-          canvas.width = maxSize;
-          canvas.height = maxSize;
-          canvas.style.maxWidth = '100%';
-          canvas.style.height = 'auto';
-        }
-      });
-    }
-  </script>
 
   <!-- Обработка ошибок загрузки -->
   <script>
     window.addEventListener('error', (e) => {
       console.error('Game loading error:', e);
       
-      // Показываем сообщение об ошибке пользователю
       const errorDiv = document.createElement('div');
       errorDiv.style.cssText = `
         position: fixed; top: 20px; right: 20px;
@@ -276,7 +67,6 @@
       `;
       document.body.appendChild(errorDiv);
       
-      // Автоматическое удаление через 10 секунд
       setTimeout(() => {
         if (errorDiv.parentNode) {
           errorDiv.remove();
@@ -284,16 +74,5 @@
       }, 10000);
     });
   </script>
-
-  <!-- Мета-информация для SEO и социальных сетей -->
-  <meta name="description" content="Advanced Clicker Game - Nuclear Reset Edition with complete data destruction capabilities">
-  <meta name="keywords" content="clicker game, incremental game, browser game, nuclear reset">
-  <meta name="author" content="Advanced Clicker Development Team">
-  
-  <!-- Предотвращение кэширования для разработки -->
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-
 </body>
 </html>
