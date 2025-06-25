@@ -54,29 +54,63 @@ export default class UIManager {
     this.infoModal.addEventListener('click',    () => this.infoModal.classList.add('hidden'));
     this.mysteryModal.addEventListener('click', () => this.mysteryModal.classList.add('hidden'));
 
-    // FIXED Save function
+    // COMPLETELY FIXED Save function - saves EVERYTHING
     this.btnSave.addEventListener('click', () => {
       try {
-        const copy = { ...this.state };
-        delete copy.featureMgr;
-        delete copy.buildingManager;
-        delete copy.skillManager;
-        delete copy.marketManager;
-        delete copy.CONFIG;
-        
-        // Clear temporary effects before saving
-        copy.buffs = [];
-        copy.debuffs = [];
-        copy.blockedUntil = 0;
-        copy.effectStates = {
-          starPowerClicks: 0,
-          shieldBlocks: 0,
-          heavyClickRequired: {},
-          reverseDirection: 1,
-          frozenCombo: false
+        // Create a complete copy of the state for saving
+        const saveData = {
+          // Core game state
+          resources: { ...this.state.resources },
+          combo: { ...this.state.combo },
+          skillPoints: this.state.skillPoints || 0,
+          targetZone: this.state.targetZone,
+          
+          // Buildings (levels and active status)
+          buildings: {},
+          
+          // Skills (levels)
+          skills: {},
+          
+          // Skill states (charges, etc)
+          skillStates: { ...this.state.skillStates },
+          
+          // Market state
+          market: { ...this.state.market },
+          
+          // Clear temporary effects before saving
+          buffs: [],
+          debuffs: [],
+          blockedUntil: 0,
+          effectStates: {
+            starPowerClicks: 0,
+            shieldBlocks: 0,
+            heavyClickRequired: {},
+            reverseDirection: 1,
+            frozenCombo: false
+          },
+          
+          // Metadata
+          saveTimestamp: Date.now(),
+          saveVersion: '0.7.2'
         };
         
-        const jsonString = JSON.stringify(copy);
+        // Copy buildings data
+        if (this.state.buildings) {
+          Object.keys(this.state.buildings).forEach(buildingId => {
+            saveData.buildings[buildingId] = { ...this.state.buildings[buildingId] };
+          });
+        }
+        
+        // Copy skills data
+        if (this.state.skills) {
+          Object.keys(this.state.skills).forEach(skillId => {
+            saveData.skills[skillId] = { ...this.state.skills[skillId] };
+          });
+        }
+        
+        console.log('💾 Saving complete game state:', saveData);
+        
+        const jsonString = JSON.stringify(saveData);
         const saveCode = btoa(encodeURIComponent(jsonString));
         
         // Show code in textarea for easy copying
@@ -158,10 +192,15 @@ export default class UIManager {
           }
         }
         
-        // Check if it looks like game state
+        // Check if it looks like valid game save data
         if (!decoded || typeof decoded !== 'object' || !decoded.resources) {
           throw new Error('Invalid save data - missing required fields');
         }
+        
+        console.log('✅ Save data validated:', decoded);
+        console.log('📊 Resources to load:', decoded.resources);
+        console.log('🏠 Buildings to load:', decoded.buildings);
+        console.log('🎯 Skills to load:', decoded.skills);
         
         console.log('✅ Save data validated, proceeding...');
         
@@ -183,7 +222,7 @@ export default class UIManager {
           console.warn('Warning clearing storage:', e);
         }
         
-        // Clear temporary effects from loaded data
+        // Clear temporary effects from loaded data and ensure clean state
         decoded.buffs = [];
         decoded.debuffs = [];
         decoded.blockedUntil = 0;
@@ -194,6 +233,18 @@ export default class UIManager {
           reverseDirection: 1,
           frozenCombo: false
         };
+        
+        // Ensure all required fields exist with defaults
+        if (!decoded.resources) decoded.resources = {};
+        if (!decoded.buildings) decoded.buildings = {};
+        if (!decoded.skills) decoded.skills = {};
+        if (!decoded.skillStates) decoded.skillStates = {};
+        if (!decoded.market) decoded.market = {};
+        if (!decoded.combo) decoded.combo = { count: 0, deadline: 0, lastZone: null, lastAngle: null };
+        if (typeof decoded.skillPoints !== 'number') decoded.skillPoints = 0;
+        if (typeof decoded.targetZone !== 'number') decoded.targetZone = 0;
+        
+        console.log('🧹 Cleaned save data ready for loading');
         
         // Save the cleaned state to localStorage
         const jsonString = JSON.stringify(decoded);
