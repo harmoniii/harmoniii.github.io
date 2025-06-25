@@ -1,4 +1,4 @@
-// ui.js - Complete version with all text in English
+// ui.js - Fixed version with working Reset and Load buttons
 import { EventBus } from './eventBus.js';
 import { SKILL_CATEGORIES, SKILL_DEFS, SkillManager } from './skills.js';
 import { BUILDING_DEFS } from './buildings.js';
@@ -128,7 +128,7 @@ export default class UIManager {
       }
     });
 
-    // FIXED Load function
+    // COMPLETELY FIXED Load function with proper reload
     this.btnLoad.addEventListener('click', () => {
       const code = prompt('Paste save code:');
       if (!code || code.trim() === '') {
@@ -157,18 +157,10 @@ export default class UIManager {
           throw new Error('Invalid data format');
         }
         
-        // Stop all effects before loading
-        if (this.state.featureMgr) {
-          this.state.featureMgr.stopAllEffects();
-        }
-        if (this.state.buildingManager) {
-          this.state.buildingManager.stopAllProduction();
-        }
-        if (this.state.skillManager) {
-          this.state.skillManager.stopAllGeneration();
-        }
+        // Clear localStorage first
+        localStorage.removeItem('gameState');
         
-        // Clear temporary effects
+        // Clear temporary effects from loaded data
         decoded.buffs = [];
         decoded.debuffs = [];
         decoded.blockedUntil = 0;
@@ -182,14 +174,17 @@ export default class UIManager {
           };
         }
         
-        // Apply loaded state
-        Object.assign(this.state, decoded);
+        // Save the cleaned state to localStorage
+        const jsonString = JSON.stringify(decoded);
+        localStorage.setItem('gameState', btoa(encodeURIComponent(jsonString)));
         
-        // Signal game reset for manager reinitialization
-        EventBus.emit('gameReset');
+        this.showNotification('✅ Save loaded! Reloading page...');
+        console.log('✅ Save loaded, page will reload in 1 second');
         
-        this.showNotification('✅ Game loaded successfully!');
-        console.log('✅ Game loaded successfully, temporary effects cleared');
+        // Force page reload after short delay
+        setTimeout(() => {
+          window.location.reload(true); // true forces cache refresh
+        }, 1000);
         
       } catch (error) {
         console.error('Load error:', error);
@@ -197,42 +192,87 @@ export default class UIManager {
       }
     });
     
-    // FIXED RESET - simplified and reliable version
+    // COMPLETELY FIXED RESET function with guaranteed page reload
     this.btnReset.addEventListener('click', () => {
       if (confirm('🔥 COMPLETE GAME RESET 🔥\n\nThis will delete ALL data forever!\nAre you sure?')) {
         if (confirm('⚠️ FINAL WARNING ⚠️\n\nAll progress will be lost!\nContinue reset?')) {
-          this.performSimpleReset();
+          this.performHardReset();
         }
       }
     });
   }
 
-  // NEW simplified reset function
-  performSimpleReset() {
+  // COMPLETELY NEW hard reset function that guarantees cleanup
+  performHardReset() {
     try {
-      console.log('🔄 Starting simple game reset...');
+      console.log('🔥 Starting complete game reset...');
       
-      // 1. Show notification
       this.showNotification('🔥 Resetting game...');
       
-      // 2. Clear localStorage
-      localStorage.removeItem('gameState');
-      localStorage.clear();
+      // 1. Stop all running intervals and timers
+      try {
+        if (this.state.featureMgr) {
+          this.state.featureMgr.stopAllEffects();
+        }
+        if (this.state.buildingManager) {
+          this.state.buildingManager.stopAllProduction();
+        }
+        if (this.state.skillManager) {
+          this.state.skillManager.stopAllGeneration();
+        }
+      } catch (e) {
+        console.warn('Error stopping managers:', e);
+      }
       
-      // 3. Show final notification
-      this.showNotification('✅ Game reset! Please refresh the page.');
+      // 2. Clear all possible localStorage keys
+      try {
+        localStorage.removeItem('gameState');
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch (e) {
+        console.warn('Error clearing storage:', e);
+      }
       
-      // 4. Simple reload after short time
+      // 3. Clear all intervals (nuclear option)
+      try {
+        const highestId = setTimeout(() => {}, 0);
+        for (let i = 0; i < highestId; i++) {
+          clearTimeout(i);
+          clearInterval(i);
+        }
+      } catch (e) {
+        console.warn('Error clearing intervals:', e);
+      }
+      
+      // 4. Show final message and force reload
+      this.showNotification('✅ Reset complete! Reloading...');
+      console.log('✅ Reset complete, forcing page reload');
+      
+      // 5. Multiple fallback reload methods
       setTimeout(() => {
-        window.location.reload();
-      }, 2000);
+        try {
+          window.location.href = window.location.href;
+        } catch (e) {
+          try {
+            window.location.reload(true);
+          } catch (e2) {
+            try {
+              window.location = window.location;
+            } catch (e3) {
+              // Last resort - redirect to same page
+              window.location.assign(window.location.href);
+            }
+          }
+        }
+      }, 1500);
       
     } catch (error) {
       console.error('Reset error:', error);
-      // If something goes wrong - just reload
-      this.showNotification('🔄 Force reloading...');
+      
+      // Emergency fallback - just reload the page
+      this.showNotification('🔄 Emergency reload...');
       setTimeout(() => {
-        window.location.reload();
+        window.location.reload(true);
       }, 1000);
     }
   }
