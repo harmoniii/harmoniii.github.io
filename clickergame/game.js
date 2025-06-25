@@ -56,18 +56,26 @@ function setupErrorHandlers() {
   });
 }
 
-// Современные обработчики закрытия страницы
 function setupModernPageHandlers() {
   const handlePageUnload = () => {
-    console.log('👋 Page unloading, saving...');
+    console.log('👋 Page unloading, attempting save...');
     
-    if (gameCore && typeof gameCore.autoSave === 'function') {
+    // БЕЗОПАСНАЯ проверка перед сохранением
+    if (gameCore && 
+        typeof gameCore.autoSave === 'function' && 
+        gameCore.isDestroyed !== true) {
       try {
-        gameCore.autoSave();
-        console.log('✅ Final save completed');
+        const saveResult = gameCore.autoSave();
+        if (saveResult) {
+          console.log('✅ Final save completed successfully');
+        } else {
+          console.log('⚠️ Final save completed with warnings');
+        }
       } catch (error) {
         console.warn('⚠️ Error during final save:', error);
       }
+    } else {
+      console.log('ℹ️ Skipping final save - gameCore not available or destroyed');
     }
   };
   
@@ -76,7 +84,10 @@ function setupModernPageHandlers() {
   });
   
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden && gameCore && typeof gameCore.autoSave === 'function') {
+    if (document.hidden && 
+        gameCore && 
+        typeof gameCore.autoSave === 'function' && 
+        gameCore.isDestroyed !== true) {
       try {
         gameCore.autoSave();
         console.log('💾 Auto-save on page hide');
@@ -86,6 +97,7 @@ function setupModernPageHandlers() {
     }
   });
   
+  // Современные API для управления жизненным циклом страницы
   if ('onfreeze' in window) {
     window.addEventListener('freeze', handlePageUnload);
   }
@@ -93,6 +105,30 @@ function setupModernPageHandlers() {
   if ('onpagehide' in window) {
     window.addEventListener('pagehide', handlePageUnload);
   }
+}
+
+// УЛУЧШЕННЫЙ обработчик ошибок
+function setupErrorHandlers() {
+  window.addEventListener('error', (event) => {
+    console.error('💀 Global error:', event.error);
+    
+    // Безопасная попытка экстренного сохранения
+    if (gameCore && 
+        typeof gameCore.autoSave === 'function' && 
+        gameCore.isDestroyed !== true) {
+      try {
+        gameCore.autoSave();
+        console.log('✅ Emergency save completed');
+      } catch (saveError) {
+        console.error('❌ Emergency save failed:', saveError);
+      }
+    }
+  });
+  
+  window.addEventListener('unhandledrejection', (event) => {
+    console.error('💀 Unhandled promise rejection:', event.reason);
+    event.preventDefault();
+  });
 }
 
 function handleCriticalError(error) {

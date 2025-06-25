@@ -151,36 +151,99 @@ export class GameState {
 
   // Получить состояние для сохранения
   getSaveData() {
-    if (this.isDestroyed) return null;
-    
-    return {
-      resources: { ...this.resources },
-      combo: { ...this.combo },
-      skillPoints: this.validateSkillPoints(this.skillPoints),
-      targetZone: this.targetZone,
-      previousTargetZone: this.previousTargetZone,
-      buildings: { ...this.buildings },
-      skills: { ...this.skills },
-      skillStates: { ...this.skillStates },
-      market: { ...this.market },
+    // КРИТИЧЕСКАЯ ПРОВЕРКА: если объект уничтожен, не сохраняем
+    if (this.isDestroyed) {
+      console.warn('⚠️ GameState.getSaveData: Object is destroyed, returning null');
+      return null;
+    }
+  
+    try {
+      // Создаем безопасную копию данных с валидацией
+      const saveData = {
+        // Основные ресурсы с валидацией
+        resources: this.resources ? { ...this.resources } : {},
+        
+        // Комбо с валидацией
+        combo: this.combo ? { ...this.combo } : { count: 0, deadline: 0, lastZone: null, lastAngle: null },
+        
+        // Skill Points с валидацией
+        skillPoints: this.validateSkillPoints(this.skillPoints || 0),
+        
+        // Зоны
+        targetZone: typeof this.targetZone === 'number' ? this.targetZone : 0,
+        previousTargetZone: typeof this.previousTargetZone === 'number' ? this.previousTargetZone : 0,
+        
+        // Здания
+        buildings: this.buildings ? { ...this.buildings } : {},
+        
+        // Навыки
+        skills: this.skills ? { ...this.skills } : {},
+        
+        // Состояния навыков
+        skillStates: this.skillStates ? { ...this.skillStates } : {},
+        
+        // Маркет
+        market: this.market ? { ...this.market } : {},
+        
+        // НЕ сохраняем временные эффекты
+        buffs: [],
+        debuffs: [],
+        blockedUntil: 0,
+        effectStates: {
+          starPowerClicks: 0,
+          shieldBlocks: 0,
+          heavyClickRequired: {},
+          reverseDirection: 1,
+          frozenCombo: false
+        },
+        
+        // Метаданные будут добавлены в StorageManager
+        saveTimestamp: Date.now(),
+        saveVersion: '0.8.0'
+      };
+  
+      // Дополнительная валидация ресурсов
+      Object.keys(saveData.resources).forEach(resource => {
+        const value = saveData.resources[resource];
+        if (typeof value !== 'number' || isNaN(value) || value < 0) {
+          console.warn(`Invalid resource value for ${resource}: ${value}, setting to 0`);
+          saveData.resources[resource] = 0;
+        }
+      });
+  
+      console.log('✅ GameState.getSaveData: Save data created successfully');
+      return saveData;
+  
+    } catch (error) {
+      console.error('❌ GameState.getSaveData: Error creating save data:', error);
       
-      // Временные эффекты не сохраняем
-      buffs: [],
-      debuffs: [],
-      blockedUntil: 0,
-      effectStates: {
-        starPowerClicks: 0,
-        shieldBlocks: 0,
-        heavyClickRequired: {},
-        reverseDirection: 1,
-        frozenCombo: false
-      },
-      
-      saveTimestamp: Date.now(),
-      saveVersion: '0.8.0'
-    };
+      // Возвращаем минимальные безопасные данные
+      return {
+        resources: {},
+        combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
+        skillPoints: 0,
+        targetZone: 0,
+        previousTargetZone: 0,
+        buildings: {},
+        skills: {},
+        skillStates: {},
+        market: {},
+        buffs: [],
+        debuffs: [],
+        blockedUntil: 0,
+        effectStates: {
+          starPowerClicks: 0,
+          shieldBlocks: 0,
+          heavyClickRequired: {},
+          reverseDirection: 1,
+          frozenCombo: false
+        },
+        saveTimestamp: Date.now(),
+        saveVersion: '0.8.0'
+      };
+    }
   }
-
+  
   // Загрузить состояние
   loadSaveData(data) {
     if (this.isDestroyed || !data || typeof data !== 'object') {
