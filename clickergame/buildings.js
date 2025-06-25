@@ -1,5 +1,6 @@
-// buildings.js
+// buildings.js - Исправленная версия с общими методами валидации
 import { EventBus } from './eventBus.js';
+import { GAME_CONSTANTS } from './config.js';
 
 export const BUILDING_DEFS = [
   {
@@ -109,11 +110,58 @@ export const BUILDING_DEFS = [
   }
 ];
 
+// ИСПРАВЛЕНИЕ 16: Базовый класс для валидации ресурсов
+class ResourceValidator {
+  static validateResources(state, price) {
+    if (!state || !state.resources || !price) return false;
+    
+    return Object.entries(price).every(([resource, amount]) => {
+      const available = state.resources[resource] || 0;
+      return typeof available === 'number' && available >= amount;
+    });
+  }
+  
+  static spendResources(state, price) {
+    if (!this.validateResources(state, price)) return false;
+    
+    try {
+      Object.entries(price).forEach(([resource, amount]) => {
+        const currentAmount = state.resources[resource] || 0;
+        const newAmount = Math.max(0, currentAmount - amount);
+        
+        // Проверяем на валидность
+        if (typeof newAmount === 'number' && !isNaN(newAmount)) {
+          state.resources[resource] = newAmount;
+        } else {
+          throw new Error(`Invalid resource calculation for ${resource}`);
+        }
+      });
+      return true;
+    } catch (error) {
+      console.warn('Error spending resources:', error);
+      return false;
+    }
+  }
+  
+  static calculateScaledPrice(basePrice, level, multiplier = 1.5) {
+    const scaledPrice = {};
+    const scalingFactor = Math.pow(multiplier, Math.max(0, level));
+    
+    Object.entries(basePrice).forEach(([resource, amount]) => {
+      scaledPrice[resource] = Math.max(1, Math.floor(amount * scalingFactor));
+    });
+    
+    return scaledPrice;
+  }
+}
+
 export class BuildingManager {
   constructor(state) {
     this.state = state;
     this.buildings = state.buildings || {};
-    this.intervals = {};
+    this.intervals = new Map(); // ИСПРАВЛЕНИЕ 2: Используем Map для лучшего управления
+    this.isDestroyed = false; // ИСПРАВЛЕНИЕ 2: Флаг для предотвращения утечек
+    
     this.initBuildings();
     this.startProduction();
   }
@@ -126,9 +174,27 @@ export class BuildingManager {
         this.state.buildings[def.id] = { level: 0, active: false };
       });
     }
+    
+    // Валидируем существующие здания
+    this.validateBuildings();
     this.buildings = this.state.buildings;
   }
 
+  // Валидация зданий после загрузки
+  validateBuildings() {
+    BUILDING_DEFS.forEach(def => {
+      if (!this.state.buildings[def.id]) {
+        this.state.buildings[def.id] = { level: 0, active: false };
+      } else {
+        const building = this.state.buildings[def.id];
+        // Валидируем уровень
+        building.level = Math.max(0, Math.min(Math.floor(building.level || 0), def.maxLevel));
+        building.active = Boolean(building.active && building.level > 0);
+      }
+    });
+  }
+
+  // ИСПРАВЛЕНИЕ 16: Использование общего метода валидации
   canAfford(buildingId, level = null) {
     const def = BUILDING_DEFS.find(b => b.id === buildingId);
     if (!def) return false;
@@ -136,21 +202,17 @@ export class BuildingManager {
     const currentLevel = level !== null ? level : this.buildings[buildingId].level;
     const price = this.calculatePrice(def.price, currentLevel);
     
-    return Object.entries(price).every(([resource, amount]) => 
-      this.state.resources[resource] >= amount
-    );
+    return ResourceValidator.validateResources(this.state, price);
   }
 
+  // ИСПРАВЛЕНИЕ 16: Использование общего метода для расчета цены
   calculatePrice(basePrice, level) {
-    const multiplier = Math.pow(1.5, level);
-    const price = {};
-    Object.entries(basePrice).forEach(([resource, amount]) => {
-      price[resource] = Math.floor(amount * multiplier);
-    });
-    return price;
+    return ResourceValidator.calculateScaledPrice(basePrice, level, 1.5);
   }
 
   buyBuilding(buildingId) {
+    if (this.isDestroyed) return false;
+    
     const def = BUILDING_DEFS.find(b => b.id === buildingId);
     if (!def) return false;
 
@@ -158,12 +220,9 @@ export class BuildingManager {
     if (currentLevel >= def.maxLevel) return false;
 
     const price = this.calculatePrice(def.price, currentLevel);
-    if (!this.canAfford(buildingId)) return false;
-
-    // Списываем ресурсы
-    Object.entries(price).forEach(([resource, amount]) => {
-      this.state.resources[resource] -= amount;
-    });
+    
+    // ИСПРАВЛЕНИЕ 16: Использование общего метода для списания ресурсов
+    if (!ResourceValidator.spendResources(this.state, price)) return false;
 
     // Повышаем уровень
     this.buildings[buildingId].level++;
@@ -180,6 +239,8 @@ export class BuildingManager {
   }
 
   startProduction() {
+    if (this.isDestroyed) return;
+    
     BUILDING_DEFS.forEach(def => {
       if (this.buildings[def.id] && this.buildings[def.id].level > 0) {
         this.startBuildingProduction(def.id);
@@ -188,41 +249,65 @@ export class BuildingManager {
   }
 
   startBuildingProduction(buildingId) {
+    if (this.isDestroyed) return;
+    
     const def = BUILDING_DEFS.find(b => b.id === buildingId);
     if (!def || !def.production) return;
 
-    // Очищаем предыдущий интервал если есть
-    if (this.intervals[buildingId]) {
-      clearInterval(this.intervals[buildingId]);
-    }
+    // ИСПРАВЛЕНИЕ 2: Очищаем предыдущий интервал если есть
+    this.stopBuildingProduction(buildingId);
 
     const building = this.buildings[buildingId];
     if (!building.active || building.level <= 0) return;
 
-    this.intervals[buildingId] = setInterval(() => {
-      const level = building.level;
-      const production = def.production;
-      
-      // Количество ресурса зависит от уровня
-      const amount = production.amount * level;
-      this.state.resources[production.resource] += amount;
-      
-      // Специальные эффекты
-      if (def.special) {
-        if (def.special.reduces) {
-          const reduceAmount = def.special.amount * level;
-          this.state.resources[def.special.reduces] = Math.max(0, 
-            this.state.resources[def.special.reduces] - reduceAmount);
-        }
+    const interval = setInterval(() => {
+      if (this.isDestroyed) {
+        clearInterval(interval);
+        return;
       }
+      
+      try {
+        const level = building.level;
+        const production = def.production;
+        
+        // Количество ресурса зависит от уровня
+        const amount = production.amount * level;
+        
+        // Проверяем на переполнение ресурсов
+        const currentAmount = this.state.resources[production.resource] || 0;
+        const newAmount = Math.min(
+          currentAmount + amount,
+          GAME_CONSTANTS.MAX_SAFE_RESOURCE_VALUE
+        );
+        this.state.resources[production.resource] = newAmount;
+        
+        // Специальные эффекты
+        if (def.special && def.special.reduces) {
+          const reduceAmount = def.special.amount * level;
+          const currentNegative = this.state.resources[def.special.reduces] || 0;
+          const newNegative = Math.max(0, currentNegative - reduceAmount);
+          this.state.resources[def.special.reduces] = newNegative;
+        }
 
-      EventBus.emit('resourceChanged');
-      EventBus.emit('buildingProduced', { 
-        buildingId, 
-        resource: production.resource, 
-        amount 
-      });
+        EventBus.emit('resourceChanged');
+        EventBus.emit('buildingProduced', { 
+          buildingId, 
+          resource: production.resource, 
+          amount 
+        });
+      } catch (error) {
+        console.warn(`Error in building production for ${buildingId}:`, error);
+      }
     }, def.production.interval);
+    
+    this.intervals.set(buildingId, interval);
+  }
+
+  stopBuildingProduction(buildingId) {
+    if (this.intervals.has(buildingId)) {
+      clearInterval(this.intervals.get(buildingId));
+      this.intervals.delete(buildingId);
+    }
   }
 
   getBuildingInfo(buildingId) {
@@ -257,11 +342,19 @@ export class BuildingManager {
         bonus += def.special.value * building.level;
       }
     });
-    return bonus;
+    return Math.min(bonus, 1.0); // Ограничиваем максимальный бонус
   }
 
+  // ИСПРАВЛЕНИЕ 2: Полная очистка всех интервалов
   stopAllProduction() {
-    Object.values(this.intervals).forEach(interval => clearInterval(interval));
-    this.intervals = {};
+    this.isDestroyed = true;
+    
+    // Останавливаем все интервалы
+    for (const [buildingId, interval] of this.intervals) {
+      clearInterval(interval);
+    }
+    this.intervals.clear();
+    
+    console.log('🧹 BuildingManager production stopped');
   }
 }
