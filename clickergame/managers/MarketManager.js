@@ -109,7 +109,7 @@ export const MARKET_ITEMS = [
     name: 'Resource Bundle',
     icon: '📦',
     description: 'Mixed package of basic resources',
-    price: { gold: 5000 },
+    price: { gold: 50000 },
     reward: { wood: 10, stone: 10, food: 10, water: 10, iron: 5 },
     category: 'resources'
   },
