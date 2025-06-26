@@ -1,4 +1,4 @@
-/* styles.css - ИСПРАВЛЕННАЯ версия с отдельным индикатором комбо */
+/* styles.css - ИСПРАВЛЕННАЯ версия с боковым расположением комбо и энергии */
 
 /* Сброс отступов и флекс-контейнер */
 body, html {
@@ -63,7 +63,7 @@ body::before {
   background: #2196F3;
 }
 
-/* ИСПРАВЛЕНИЕ: Основная зона игры с отдельным индикатором комбо */
+/* ИСПРАВЛЕНИЕ: Основная зона игры с горизонтальным расположением */
 #game-area {
   display: flex; 
   flex-direction: column;
@@ -79,73 +79,145 @@ body::before {
   margin: 0 auto;
 }
 
-/* ИСПРАВЛЕНИЕ: Контейнер для игрового колеса и ресурсов */
+/* ИСПРАВЛЕНИЕ: Контейнер для игрового колеса с боковыми индикаторами */
 .game-wheel-container {
   display: flex;
   align-items: center;
   gap: 2rem;
   width: 100%;
   justify-content: center;
+  position: relative;
 }
 
-/* ИСПРАВЛЕНИЕ: Новый индикатор комбо над колесом */
+/* ИСПРАВЛЕНИЕ: Индикатор комбо слева от колеса (компактный) */
 .combo-indicator {
   position: relative;
   background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
   border: 3px solid #FF8C00;
-  border-radius: 25px;
-  padding: 15px 30px;
-  margin-bottom: 1rem;
+  border-radius: 20px;
+  padding: 12px 20px;
   box-shadow: 
-    0 8px 20px rgba(255, 165, 0, 0.4),
-    inset 0 2px 10px rgba(255, 255, 255, 0.3);
+    0 6px 15px rgba(255, 165, 0, 0.4),
+    inset 0 2px 8px rgba(255, 255, 255, 0.3);
   text-align: center;
-  min-width: 200px;
+  min-width: 120px;
+  max-width: 160px;
   animation: comboGlow 2s ease-in-out infinite alternate;
+  order: 1; /* Слева от колеса */
 }
 
 .combo-indicator .combo-title {
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   font-weight: bold;
   color: #8B4513;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-  margin-bottom: 5px;
+  margin-bottom: 3px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .combo-indicator .combo-value {
-  font-size: 2.5rem;
+  font-size: 2rem;
   font-weight: 900;
   color: #B8860B;
   text-shadow: 
     0 2px 4px rgba(0, 0, 0, 0.3),
-    0 0 10px rgba(255, 215, 0, 0.8);
+    0 0 8px rgba(255, 215, 0, 0.8);
   line-height: 1;
   display: block;
 }
 
 .combo-indicator .combo-bonus {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   color: #8B4513;
   opacity: 0.8;
-  margin-top: 5px;
+  margin-top: 3px;
   font-style: italic;
+  line-height: 1.2;
+}
+
+/* ИСПРАВЛЕНИЕ: Энергетический дисплей справа от колеса (компактный) */
+.energy-display-container {
+  background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
+  border: 2px solid #3498DB;
+  border-radius: 15px;
+  padding: 12px 16px;
+  box-shadow: 
+    0 4px 12px rgba(52, 152, 219, 0.3),
+    inset 0 2px 8px rgba(255, 255, 255, 0.1);
+  text-align: center;
+  min-width: 120px;
+  max-width: 160px;
+  position: relative;
+  backdrop-filter: blur(5px);
+  order: 3; /* Справа от колеса */
+}
+
+/* Игровое колесо по центру */
+#gameCanvas {
+  background: #fff; 
+  border: 3px solid #333; 
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  display: block;
+  flex-shrink: 0;
+  width: 500px !important;
+  height: 500px !important;
+  order: 2; /* По центру */
+}
+
+/* Панели ресурсов - перемещаем выше и ниже колеса */
+.resources-panel {
+  display: flex; 
+  flex-direction: row; 
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 15px;
+  align-items: center;
+  width: 100%;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 10px 15px;
+  border-radius: 10px;
+  font-weight: 500;
+  min-height: auto;
+  overflow: visible;
+}
+
+#resources-left {
+  order: 0; /* Выше колеса */
+}
+
+#resources-right {
+  order: 4; /* Ниже колеса */
+}
+
+.resources-panel span {
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 5px 10px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.resources-panel span:hover {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
 }
 
 /* Анимация свечения для комбо */
 @keyframes comboGlow {
   0% {
     box-shadow: 
-      0 8px 20px rgba(255, 165, 0, 0.4),
-      inset 0 2px 10px rgba(255, 255, 255, 0.3),
-      0 0 15px rgba(255, 215, 0, 0.3);
+      0 6px 15px rgba(255, 165, 0, 0.4),
+      inset 0 2px 8px rgba(255, 255, 255, 0.3),
+      0 0 12px rgba(255, 215, 0, 0.3);
   }
   100% {
     box-shadow: 
-      0 8px 25px rgba(255, 165, 0, 0.6),
-      inset 0 2px 10px rgba(255, 255, 255, 0.5),
-      0 0 25px rgba(255, 215, 0, 0.6);
+      0 8px 20px rgba(255, 165, 0, 0.6),
+      inset 0 2px 8px rgba(255, 255, 255, 0.5),
+      0 0 20px rgba(255, 215, 0, 0.6);
   }
 }
 
@@ -165,69 +237,173 @@ body::before {
 @keyframes comboHighGlow {
   0% {
     box-shadow: 
-      0 8px 20px rgba(255, 107, 107, 0.5),
-      inset 0 2px 10px rgba(255, 255, 255, 0.4),
-      0 0 20px rgba(255, 71, 87, 0.4);
+      0 6px 15px rgba(255, 107, 107, 0.5),
+      inset 0 2px 8px rgba(255, 255, 255, 0.4),
+      0 0 15px rgba(255, 71, 87, 0.4);
   }
   100% {
     box-shadow: 
-      0 12px 30px rgba(255, 107, 107, 0.7),
-      inset 0 2px 10px rgba(255, 255, 255, 0.6),
-      0 0 30px rgba(255, 71, 87, 0.7);
+      0 8px 20px rgba(255, 107, 107, 0.7),
+      inset 0 2px 8px rgba(255, 255, 255, 0.6),
+      0 0 25px rgba(255, 71, 87, 0.7);
   }
 }
 
 @keyframes comboPerfectGlow {
   0% {
     box-shadow: 
-      0 8px 20px rgba(168, 230, 207, 0.5),
-      inset 0 2px 10px rgba(255, 255, 255, 0.4),
-      0 0 20px rgba(78, 205, 196, 0.4);
+      0 6px 15px rgba(168, 230, 207, 0.5),
+      inset 0 2px 8px rgba(255, 255, 255, 0.4),
+      0 0 15px rgba(78, 205, 196, 0.4);
   }
   100% {
     box-shadow: 
-      0 12px 30px rgba(168, 230, 207, 0.7),
-      inset 0 2px 10px rgba(255, 255, 255, 0.6),
-      0 0 30px rgba(78, 205, 196, 0.7);
+      0 8px 20px rgba(168, 230, 207, 0.7),
+      inset 0 2px 8px rgba(255, 255, 255, 0.6),
+      0 0 25px rgba(78, 205, 196, 0.7);
   }
 }
 
-/* Панели ресурсов */
-.resources-panel {
-  display: flex; 
-  flex-direction: column; 
-  align-items: flex-start;
-  width: 140px;
-  min-width: 140px;
-  max-width: 140px;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 1rem;
-  border-radius: 10px;
+/* Компактный энергетический дисплей */
+.energy-bar-container {
+  margin-bottom: 8px;
+}
+
+.energy-bar-background {
+  background: #1A252F;
+  border: 2px solid #34495E;
+  border-radius: 8px;
+  height: 16px;
+  overflow: hidden;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.energy-bar {
+  height: 100%;
+  transition: all 0.3s ease;
+  position: relative;
+  background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
+  box-shadow: 
+    0 0 8px rgba(46, 204, 113, 0.5),
+    inset 0 2px 4px rgba(255, 255, 255, 0.2);
+}
+
+.energy-bar.energy-normal {
+  background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
+  box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+}
+
+.energy-bar.energy-warning {
+  background: linear-gradient(90deg, #F39C12 0%, #E67E22 100%);
+  box-shadow: 0 0 8px rgba(243, 156, 18, 0.5);
+}
+
+.energy-bar.energy-critical {
+  background: linear-gradient(90deg, #E74C3C 0%, #C0392B 100%);
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+  animation: energyPulse 1s ease-in-out infinite alternate;
+}
+
+.energy-text {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #ECF0F1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  margin-bottom: 4px;
+}
+
+.energy-status {
+  font-size: 0.75rem;
+  margin-bottom: 8px;
   font-weight: 500;
-  flex-shrink: 0;
-  min-height: 480px;
-  overflow-y: auto;
 }
 
-.resources-panel span {
-  cursor: pointer;
-  transition: color 0.2s ease;
+.energy-status.ready {
+  color: #2ECC71;
+  text-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
 }
 
-.resources-panel span:hover {
-  color: #4CAF50;
+.energy-status.recharging {
+  color: #F39C12;
+  text-shadow: 0 0 4px rgba(243, 156, 18, 0.5);
 }
 
-/* Игровое колесо */
-#gameCanvas {
-  background: #fff; 
-  border: 3px solid #333; 
-  border-radius: 50%;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-  display: block;
-  flex-shrink: 0;
-  width: 500px !important;
-  height: 500px !important;
+/* Предупреждения энергии */
+.energy-warning {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+  color: white;
+  padding: 3px 10px;
+  border-radius: 15px;
+  font-size: 0.7rem;
+  font-weight: bold;
+  border: 2px solid #C0392B;
+  box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
+  z-index: 10;
+}
+
+.energy-warning.hidden {
+  display: none;
+}
+
+/* Анимации */
+@keyframes energyPulse {
+  0% {
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
+  }
+}
+
+.energy-warning.pulsing {
+  animation: warningPulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes warningPulse {
+  0% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
+  }
+  100% {
+    transform: translateX(-50%) scale(1.05);
+    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.7);
+  }
+}
+
+.energy-warning.warning-flash {
+  animation: warningFlash 0.5s ease-in-out 3;
+}
+
+@keyframes warningFlash {
+  0%, 100% {
+    opacity: 1;
+    background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+  }
+  50% {
+    opacity: 0.7;
+    background: linear-gradient(135deg, #F39C12 0%, #E67E22 100%);
+  }
+}
+
+.energy-warning.critical-pulse {
+  animation: criticalPulse 0.3s ease-in-out infinite alternate;
+}
+
+@keyframes criticalPulse {
+  0% {
+    transform: translateX(-50%) scale(1);
+    background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
+  }
+  100% {
+    transform: translateX(-50%) scale(1.1);
+    background: linear-gradient(135deg, #FF6B6B 0%, #E74C3C 100%);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.8);
+  }
 }
 
 /* Индикаторы эффектов */
@@ -836,6 +1012,27 @@ body::before {
 .zone-color.energy { background: #00FF00; }
 .zone-color.bonus { background: #FF4500; }
 
+/* Анимации для комбо */
+.combo-increase {
+  animation: comboIncrease 0.6s ease-out;
+}
+
+.combo-decrease {
+  animation: comboDecrease 0.6s ease-out;
+}
+
+@keyframes comboIncrease {
+  0% { transform: scale(1); color: inherit; }
+  50% { transform: scale(1.2); color: #4CAF50; text-shadow: 0 0 10px #4CAF50; }
+  100% { transform: scale(1); color: inherit; }
+}
+
+@keyframes comboDecrease {
+  0% { transform: scale(1); color: inherit; }
+  50% { transform: scale(0.8); color: #f44336; text-shadow: 0 0 10px #f44336; }
+  100% { transform: scale(1); color: inherit; }
+}
+
 /* Адаптивность */
 @media (max-width: 768px) {
   #ui-top {
@@ -851,6 +1048,7 @@ body::before {
   #game-area {
     width: 95%;
     max-width: 600px;
+    padding: 0.5rem;
   }
   
   .game-wheel-container {
@@ -859,17 +1057,17 @@ body::before {
   }
   
   #gameCanvas {
-  background: #fff; 
-  border: 3px solid #333; 
-  border-radius: 50%;
-  box-shadow: 
-    0 0 20px rgba(0, 0, 0, 0.3),
-    inset 0 0 10px rgba(255, 255, 255, 0.1);
-  display: block;
-  flex-shrink: 0;
-  width: 500px !important;
-  height: 500px !important;
-  position: relative;
+    width: 350px !important;
+    height: 350px !important;
+    order: 1; /* Колесо в центре при мобильной версии */
+  }
+  
+  .combo-indicator,
+  .energy-display-container {
+    order: unset;
+    min-width: 200px;
+    max-width: 300px;
+    margin: 0 auto;
   }
   
   .resources-panel {
@@ -881,20 +1079,43 @@ body::before {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 1rem;
+    gap: 10px;
+    padding: 8px 12px;
   }
   
   .combo-indicator {
     min-width: 150px;
-    padding: 10px 20px;
+    padding: 10px 16px;
   }
   
   .combo-indicator .combo-title {
-    font-size: 1rem;
+    font-size: 0.8rem;
   }
   
   .combo-indicator .combo-value {
-    font-size: 2rem;
+    font-size: 1.8rem;
+  }
+  
+  .combo-indicator .combo-bonus {
+    font-size: 0.7rem;
+  }
+  
+  .energy-display-container {
+    min-width: 150px;
+    padding: 10px 14px;
+  }
+  
+  .energy-text {
+    font-size: 0.8rem;
+  }
+  
+  .energy-status {
+    font-size: 0.7rem;
+  }
+  
+  .energy-warning {
+    font-size: 0.65rem;
+    padding: 2px 8px;
   }
   
   .item-footer {
@@ -936,4 +1157,3 @@ body::before {
     font-size: 1em;
   }
 }
-
