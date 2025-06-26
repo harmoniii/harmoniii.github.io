@@ -1,4 +1,4 @@
-// ui/UIManager.js - Обновленный UI менеджер с интеграцией энергии
+// ui/UIManager.js - ИСПРАВЛЕННЫЙ UI менеджер с правильной инициализацией комбо и энергии
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { PanelManager } from './PanelManager.js';
@@ -7,7 +7,8 @@ import { ModalManager } from './ModalManager.js';
 import { ResourceDisplay } from './ResourceDisplay.js';
 import { EffectIndicators } from './EffectIndicators.js';
 import { SaveLoadManager } from './SaveLoadManager.js';
-import { EnergyDisplay } from './EnergyDisplay.js'; // НОВЫЙ импорт
+import { EnergyDisplay } from './EnergyDisplay.js';
+import { ComboDisplay } from './ComboDisplay.js'; // ИСПРАВЛЕНИЕ: Добавляем ComboDisplay
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 export default class UIManager extends CleanupMixin {
@@ -24,9 +25,8 @@ export default class UIManager extends CleanupMixin {
     this.resourceDisplay = new ResourceDisplay(gameState);
     this.effectIndicators = new EffectIndicators(gameState);
     this.saveLoadManager = new SaveLoadManager(gameState);
-    
-    // НОВЫЙ: Добавляем энергетический дисплей
     this.energyDisplay = new EnergyDisplay(gameState);
+    this.comboDisplay = new ComboDisplay(gameState); // ИСПРАВЛЕНИЕ: Добавляем ComboDisplay
     
     // Регистрируем компоненты для очистки
     this.cleanupManager.registerComponent(this.panelManager);
@@ -35,14 +35,15 @@ export default class UIManager extends CleanupMixin {
     this.cleanupManager.registerComponent(this.resourceDisplay);
     this.cleanupManager.registerComponent(this.effectIndicators);
     this.cleanupManager.registerComponent(this.saveLoadManager);
-    this.cleanupManager.registerComponent(this.energyDisplay); // НОВЫЙ
+    this.cleanupManager.registerComponent(this.energyDisplay);
+    this.cleanupManager.registerComponent(this.comboDisplay); // ИСПРАВЛЕНИЕ: Регистрируем ComboDisplay
     
     this.initializeElements();
     this.bindControls();
     this.bindEvents();
     this.updateDisplay();
     
-    console.log('🖥️ UIManager initialized with energy display');
+    console.log('🖥️ UIManager initialized with combo and energy displays');
   }
 
   initializeElements() {
@@ -142,25 +143,38 @@ export default class UIManager extends CleanupMixin {
       this.updateDisplay();
     });
     
+    // ИСПРАВЛЕНИЕ: События комбо теперь обрабатываются ComboDisplay
     eventBus.subscribe(GameEvents.COMBO_CHANGED, () => {
-      this.updateDisplay();
+      this.comboDisplay.forceUpdate();
     });
     
     eventBus.subscribe(GameEvents.SKILL_POINTS_CHANGED, () => {
       this.updateDisplay();
     });
     
-    // НОВЫЙ: События энергии
+    // ИСПРАВЛЕНИЕ: События энергии с ограничением уведомлений
     eventBus.subscribe(GameEvents.ENERGY_CHANGED, () => {
       this.energyDisplay.updateFromGameState();
     });
     
+    // ИСПРАВЛЕНИЕ: Ограничиваем уведомления об энергии
+    let lastEnergyNotification = 0;
+    const energyNotificationCooldown = 3000; // 3 секунды
+    
     eventBus.subscribe(GameEvents.ENERGY_INSUFFICIENT, (data) => {
-      this.notificationManager.showWarning(`⚡ Need ${data.required?.toFixed(1) || 'more'} energy!`);
+      const now = Date.now();
+      if (now - lastEnergyNotification > energyNotificationCooldown) {
+        this.notificationManager.showWarning(`⚡ Need ${data.required?.toFixed(1) || 'more'} energy!`);
+        lastEnergyNotification = now;
+      }
     });
     
     eventBus.subscribe(GameEvents.ENERGY_CRITICAL, () => {
-      this.notificationManager.showError('⚡ Critical Energy Level!');
+      const now = Date.now();
+      if (now - lastEnergyNotification > energyNotificationCooldown / 2) {
+        this.notificationManager.showError('⚡ Critical Energy!');
+        lastEnergyNotification = now;
+      }
     });
     
     // События эффектов
@@ -188,16 +202,27 @@ export default class UIManager extends CleanupMixin {
       this.effectIndicators.update();
     });
     
-    // События навыков
+    // ИСПРАВЛЕНИЕ: События навыков с ограничением частоты
+    let lastSkillNotification = 0;
+    const skillNotificationCooldown = 1000; // 1 секунда
+    
     eventBus.subscribe(GameEvents.CRITICAL_HIT, (data) => {
-      const damage = data.damage || 'Unknown';
-      this.notificationManager.showSkill('💥 Critical Strike!', `Double damage: ${damage} gold`);
+      const now = Date.now();
+      if (now - lastSkillNotification > skillNotificationCooldown) {
+        const damage = data.damage || 'Unknown';
+        this.notificationManager.showSkill('💥 Critical Strike!', `Double damage: ${damage} gold`);
+        lastSkillNotification = now;
+      }
     });
     
     eventBus.subscribe(GameEvents.BONUS_RESOURCE_FOUND, (data) => {
-      const amount = data.amount || 'Unknown';
-      const resource = data.resource || 'Unknown';
-      this.notificationManager.showSkill('🔍 Resource Found!', `+${amount} ${resource}`);
+      const now = Date.now();
+      if (now - lastSkillNotification > skillNotificationCooldown) {
+        const amount = data.amount || 'Unknown';
+        const resource = data.resource || 'Unknown';
+        this.notificationManager.showSkill('🔍 Resource Found!', `+${amount} ${resource}`);
+        lastSkillNotification = now;
+      }
     });
     
     eventBus.subscribe(GameEvents.SHIELD_BLOCK, (data) => {
@@ -240,18 +265,29 @@ export default class UIManager extends CleanupMixin {
       }
     });
     
-    // Специальные события
+    // ИСПРАВЛЕНИЕ: Специальные события с ограничением частоты
+    let lastSpecialNotification = 0;
+    const specialNotificationCooldown = 500; // 0.5 секунды
+    
     eventBus.subscribe(GameEvents.STAR_POWER_USED, (data) => {
-      const resource = data.resource || 'Unknown';
-      const amount = data.amount || 0;
-      const remaining = data.remaining || 0;
-      this.notificationManager.show(`⭐ Star Power: +${amount} ${resource} (${remaining} left)`);
+      const now = Date.now();
+      if (now - lastSpecialNotification > specialNotificationCooldown) {
+        const resource = data.resource || 'Unknown';
+        const amount = data.amount || 0;
+        const remaining = data.remaining || 0;
+        this.notificationManager.show(`⭐ Star Power: +${amount} ${resource} (${remaining} left)`);
+        lastSpecialNotification = now;
+      }
     });
     
     eventBus.subscribe(GameEvents.SLOT_MACHINE_WIN, (data) => {
-      const resource = data.resource || 'Unknown';
-      const amount = data.amount || 0;
-      this.notificationManager.show(`🎰 Slot Win: +${amount} ${resource}`);
+      const now = Date.now();
+      if (now - lastSpecialNotification > specialNotificationCooldown) {
+        const resource = data.resource || 'Unknown';
+        const amount = data.amount || 0;
+        this.notificationManager.show(`🎰 Slot Win: +${amount} ${resource}`);
+        lastSpecialNotification = now;
+      }
     });
     
     eventBus.subscribe(GameEvents.TAX_COLLECTED, (data) => {
@@ -267,13 +303,18 @@ export default class UIManager extends CleanupMixin {
     });
     
     eventBus.subscribe(GameEvents.GHOST_CLICK, () => {
-      this.notificationManager.show('👻 Ghost Click: Ignored!');
+      const now = Date.now();
+      if (now - lastSpecialNotification > specialNotificationCooldown) {
+        this.notificationManager.show('👻 Ghost Click: Ignored!');
+        lastSpecialNotification = now;
+      }
     });
     
-    // НОВЫЙ: События энергетических зон
+    // ИСПРАВЛЕНИЕ: События энергетических зон БЕЗ дополнительных уведомлений
+    // (уведомления обрабатываются в FeatureManager с ограничениями)
     eventBus.subscribe(GameEvents.ENERGY_ZONE_HIT, (data) => {
-      const amount = data.amount || 0;
-      this.notificationManager.show(`⚡ Energy Zone: +${amount} Energy`);
+      // Не показываем дополнительные уведомления здесь
+      // FeatureManager уже показывает ограниченные уведомления
     });
   }
 
@@ -315,17 +356,15 @@ export default class UIManager extends CleanupMixin {
     this.panel.innerHTML = '';
   }
 
+  // ИСПРАВЛЕНИЕ: Обновление дисплея без управления комбо
   updateDisplay() {
     if (!this.isActive()) return;
     
-    // ИСПРАВЛЕНИЕ: Обновляем ресурсы БЕЗ энергии в левой панели
+    // Обновляем ресурсы (без комбо и энергии)
     this.resourceDisplay.update(this.resourcesLeft, this.resourcesRight);
     this.effectIndicators.update();
     
-    // НОВЫЙ: Принудительно обновляем энергетический дисплей
-    if (this.energyDisplay) {
-      this.energyDisplay.forceUpdate();
-    }
+    // ComboDisplay и EnergyDisplay обновляются автоматически через события
   }
 
   // Показать всплывающую подсказку
@@ -372,19 +411,26 @@ export default class UIManager extends CleanupMixin {
       activeModals: this.modalManager.getActiveModals().length,
       hasActiveEffects: this.effectIndicators.hasActiveEffects(),
       displayStats: this.resourceDisplay.getDisplayStats(),
-      energyDisplay: this.energyDisplay ? this.energyDisplay.getDisplayInfo() : null // НОВЫЙ
+      energyDisplay: this.energyDisplay ? this.energyDisplay.getDisplayInfo() : null,
+      comboDisplay: this.comboDisplay ? this.comboDisplay.getDisplayInfo() : null // ИСПРАВЛЕНИЕ: Добавляем ComboDisplay
     };
   }
 
-  // Форсировать обновление всего UI
+  // ИСПРАВЛЕНИЕ: Форсировать обновление всего UI
   forceUpdate() {
     console.log('🔄 Forcing UI update...');
+    
+    // Обновляем основной дисплей
     this.updateDisplay();
     this.effectIndicators.update();
     
-    // НОВЫЙ: Принудительно обновляем энергетический дисплей
+    // Принудительно обновляем отдельные компоненты
     if (this.energyDisplay) {
       this.energyDisplay.forceUpdate();
+    }
+    
+    if (this.comboDisplay) {
+      this.comboDisplay.forceUpdate();
     }
     
     // Обновляем текущую панель если открыта
@@ -393,6 +439,8 @@ export default class UIManager extends CleanupMixin {
       this.hidePanel();
       this.showPanel(currentPanel);
     }
+    
+    console.log('✅ UI force update completed');
   }
 
   // Деструктор
