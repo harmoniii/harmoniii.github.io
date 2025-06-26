@@ -1,4 +1,4 @@
-// ui/UIManager.js - Обновленный UI менеджер с простым сбросом
+// ui/UIManager.js - Обновленный UI менеджер с интеграцией энергии
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { PanelManager } from './PanelManager.js';
@@ -7,6 +7,7 @@ import { ModalManager } from './ModalManager.js';
 import { ResourceDisplay } from './ResourceDisplay.js';
 import { EffectIndicators } from './EffectIndicators.js';
 import { SaveLoadManager } from './SaveLoadManager.js';
+import { EnergyDisplay } from './EnergyDisplay.js'; // НОВЫЙ импорт
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 export default class UIManager extends CleanupMixin {
@@ -24,6 +25,9 @@ export default class UIManager extends CleanupMixin {
     this.effectIndicators = new EffectIndicators(gameState);
     this.saveLoadManager = new SaveLoadManager(gameState);
     
+    // НОВЫЙ: Добавляем энергетический дисплей
+    this.energyDisplay = new EnergyDisplay(gameState);
+    
     // Регистрируем компоненты для очистки
     this.cleanupManager.registerComponent(this.panelManager);
     this.cleanupManager.registerComponent(this.notificationManager);
@@ -31,13 +35,14 @@ export default class UIManager extends CleanupMixin {
     this.cleanupManager.registerComponent(this.resourceDisplay);
     this.cleanupManager.registerComponent(this.effectIndicators);
     this.cleanupManager.registerComponent(this.saveLoadManager);
+    this.cleanupManager.registerComponent(this.energyDisplay); // НОВЫЙ
     
     this.initializeElements();
     this.bindControls();
     this.bindEvents();
     this.updateDisplay();
     
-    console.log('🖥️ UIManager initialized');
+    console.log('🖥️ UIManager initialized with energy display');
   }
 
   initializeElements() {
@@ -101,7 +106,7 @@ export default class UIManager extends CleanupMixin {
       this.togglePanel('info');
     });
     
-    // УПРОЩЕННЫЕ обработчики Save/Load/Reset
+    // Обработчики Save/Load/Reset
     this.addEventListener(this.btnSave, 'click', () => {
       console.log('💾 Save button clicked');
       this.saveLoadManager.performSave();
@@ -143,6 +148,19 @@ export default class UIManager extends CleanupMixin {
     
     eventBus.subscribe(GameEvents.SKILL_POINTS_CHANGED, () => {
       this.updateDisplay();
+    });
+    
+    // НОВЫЙ: События энергии
+    eventBus.subscribe(GameEvents.ENERGY_CHANGED, () => {
+      this.energyDisplay.updateFromGameState();
+    });
+    
+    eventBus.subscribe(GameEvents.ENERGY_INSUFFICIENT, (data) => {
+      this.notificationManager.showWarning(`⚡ Need ${data.required?.toFixed(1) || 'more'} energy!`);
+    });
+    
+    eventBus.subscribe(GameEvents.ENERGY_CRITICAL, () => {
+      this.notificationManager.showError('⚡ Critical Energy Level!');
     });
     
     // События эффектов
@@ -251,6 +269,12 @@ export default class UIManager extends CleanupMixin {
     eventBus.subscribe(GameEvents.GHOST_CLICK, () => {
       this.notificationManager.show('👻 Ghost Click: Ignored!');
     });
+    
+    // НОВЫЙ: События энергетических зон
+    eventBus.subscribe(GameEvents.ENERGY_ZONE_HIT, (data) => {
+      const amount = data.amount || 0;
+      this.notificationManager.show(`⚡ Energy Zone: +${amount} Energy`);
+    });
   }
 
   togglePanel(panelType) {
@@ -294,8 +318,14 @@ export default class UIManager extends CleanupMixin {
   updateDisplay() {
     if (!this.isActive()) return;
     
+    // ИСПРАВЛЕНИЕ: Обновляем ресурсы БЕЗ энергии в левой панели
     this.resourceDisplay.update(this.resourcesLeft, this.resourcesRight);
     this.effectIndicators.update();
+    
+    // НОВЫЙ: Принудительно обновляем энергетический дисплей
+    if (this.energyDisplay) {
+      this.energyDisplay.forceUpdate();
+    }
   }
 
   // Показать всплывающую подсказку
@@ -341,7 +371,8 @@ export default class UIManager extends CleanupMixin {
       activeNotifications: this.notificationManager.getActiveCount(),
       activeModals: this.modalManager.getActiveModals().length,
       hasActiveEffects: this.effectIndicators.hasActiveEffects(),
-      displayStats: this.resourceDisplay.getDisplayStats()
+      displayStats: this.resourceDisplay.getDisplayStats(),
+      energyDisplay: this.energyDisplay ? this.energyDisplay.getDisplayInfo() : null // НОВЫЙ
     };
   }
 
@@ -350,6 +381,11 @@ export default class UIManager extends CleanupMixin {
     console.log('🔄 Forcing UI update...');
     this.updateDisplay();
     this.effectIndicators.update();
+    
+    // НОВЫЙ: Принудительно обновляем энергетический дисплей
+    if (this.energyDisplay) {
+      this.energyDisplay.forceUpdate();
+    }
     
     // Обновляем текущую панель если открыта
     if (this.currentPanel) {

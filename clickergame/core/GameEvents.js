@@ -1,4 +1,4 @@
-// core/GameEvents.js - Типизированная система событий
+// core/GameEvents.js - Расширенная система событий с энергетическими событиями
 export class GameEvents {
     // Игровые события
     static CLICK = 'game:click';
@@ -9,6 +9,14 @@ export class GameEvents {
     static RESOURCE_CHANGED = 'resource:changed';
     static RESOURCE_GAINED = 'resource:gained';
     static RESOURCE_SPENT = 'resource:spent';
+    
+    // НОВЫЕ: События энергии
+    static ENERGY_CHANGED = 'energy:changed';
+    static ENERGY_INSUFFICIENT = 'energy:insufficient';
+    static ENERGY_CRITICAL = 'energy:critical';
+    static ENERGY_ZONE_HIT = 'energy:zone_hit';
+    static ENERGY_RESTORED = 'energy:restored';
+    static ENERGY_CONSUMED = 'energy:consumed';
     
     // События эффектов
     static BUFF_APPLIED = 'effect:buff_applied';
@@ -44,10 +52,19 @@ export class GameEvents {
     static HEAVY_CLICK_PROGRESS = 'special:heavy_click_progress';
     static GHOST_CLICK = 'special:ghost_click';
     
+    // НОВЫЕ: События зон
+    static ZONE_HIT = 'zone:hit';
+    static ZONE_MISS = 'zone:miss';
+    static ZONE_TYPES_CHANGED = 'zone:types_changed';
+    
     // Системные события
     static GAME_RESET = 'system:reset';
     static SAVE_COMPLETED = 'system:save_completed';
     static LOAD_COMPLETED = 'system:load_completed';
+    
+    // НОВЫЕ: События достижений
+    static ACHIEVEMENT_UNLOCKED = 'achievement:unlocked';
+    static ACHIEVEMENT_PROGRESS = 'achievement:progress';
   }
   
   export class EventBus {
@@ -172,6 +189,142 @@ export class GameEvents {
       };
       
       return this.subscribe(event, onceHandler);
+    }
+    
+    // НОВЫЙ: Система приоритетов для событий
+    subscribePriority(event, handler, priority = 0) {
+      if (!this._handlers.has(event)) {
+        this._handlers.set(event, new Map());
+      }
+      
+      const handlers = this._handlers.get(event);
+      
+      if (!handlers.has(priority)) {
+        handlers.set(priority, new Set());
+      }
+      
+      handlers.get(priority).add(handler);
+      
+      if (this._debugMode) {
+        console.log(`📡 Subscribed to ${event} with priority ${priority}`);
+      }
+      
+      return handler;
+    }
+    
+    // НОВЫЙ: Эмиссия с учетом приоритетов
+    emitPriority(event, payload = {}) {
+      if (this._debugMode) {
+        console.log(`📡 Emitting ${event} with priorities`, payload);
+      }
+      
+      if (this._handlers.has(event)) {
+        const priorityMap = this._handlers.get(event);
+        const normalizedPayload = this._normalizePayload(payload);
+        
+        // Сортируем приоритеты по убыванию
+        const sortedPriorities = Array.from(priorityMap.keys()).sort((a, b) => b - a);
+        
+        for (const priority of sortedPriorities) {
+          const handlers = priorityMap.get(priority);
+          handlers.forEach(handler => {
+            try {
+              handler(normalizedPayload);
+            } catch (error) {
+              console.error(`❌ Error in priority event handler for ${event}:`, error);
+            }
+          });
+        }
+      }
+    }
+    
+    // НОВЫЙ: Проверка наличия подписчиков
+    hasSubscribers(event) {
+      return this._handlers.has(event) && this._handlers.get(event).size > 0;
+    }
+    
+    // НОВЫЙ: Получить все события определенной категории
+    getEventsByCategory(category) {
+      return this.getAllEvents().filter(event => event.startsWith(category + ':'));
+    }
+    
+    // НОВЫЙ: Массовая подписка на события
+    subscribeMultiple(events, handler) {
+      const unsubscribeFunctions = [];
+      
+      events.forEach(event => {
+        this.subscribe(event, handler);
+        unsubscribeFunctions.push(() => this.unsubscribe(event, handler));
+      });
+      
+      return () => {
+        unsubscribeFunctions.forEach(fn => fn());
+      };
+    }
+    
+    // НОВЫЙ: Создание namespace для событий
+    createNamespace(namespace) {
+      return {
+        emit: (event, payload) => this.emit(`${namespace}:${event}`, payload),
+        subscribe: (event, handler) => this.subscribe(`${namespace}:${event}`, handler),
+        unsubscribe: (event, handler) => this.unsubscribe(`${namespace}:${event}`, handler),
+        once: (event, handler) => this.once(`${namespace}:${event}`, handler)
+      };
+    }
+    
+    // НОВЫЙ: Middleware система для событий
+    addMiddleware(middleware) {
+      if (!this._middleware) {
+        this._middleware = [];
+      }
+      this._middleware.push(middleware);
+    }
+    
+    _applyMiddleware(event, payload) {
+      if (!this._middleware || this._middleware.length === 0) {
+        return payload;
+      }
+      
+      return this._middleware.reduce((currentPayload, middleware) => {
+        return middleware(event, currentPayload) || currentPayload;
+      }, payload);
+    }
+    
+    // НОВЫЙ: Логирование событий
+    enableEventLogging(filter = null) {
+      this.addMiddleware((event, payload) => {
+        if (!filter || filter(event)) {
+          console.log(`📡 Event Log: ${event}`, payload);
+        }
+        return payload;
+      });
+    }
+    
+    // НОВЫЙ: Статистика производительности
+    getPerformanceStats() {
+      const stats = {
+        totalEvents: this.getAllEvents().length,
+        totalHandlers: 0,
+        categorizedEvents: {},
+        handlerDistribution: {}
+      };
+      
+      this._handlers.forEach((handlers, event) => {
+        const handlerCount = handlers instanceof Set ? handlers.size : 
+                           handlers instanceof Map ? Array.from(handlers.values()).reduce((sum, set) => sum + set.size, 0) : 0;
+        
+        stats.totalHandlers += handlerCount;
+        
+        const category = event.split(':')[0];
+        if (!stats.categorizedEvents[category]) {
+          stats.categorizedEvents[category] = 0;
+        }
+        stats.categorizedEvents[category]++;
+        
+        stats.handlerDistribution[event] = handlerCount;
+      });
+      
+      return stats;
     }
   }
   
