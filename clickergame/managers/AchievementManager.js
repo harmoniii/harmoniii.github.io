@@ -1,8 +1,8 @@
-// managers/AchievementManager.js - Система достижений
+// managers/AchievementManager.js - ИСПРАВЛЕННАЯ система достижений с корректными milestones
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 
-// Определения достижений
+// ИСПРАВЛЕННЫЕ определения достижений с правильными milestones
 export const ACHIEVEMENT_DEFS = [
   // Достижения за клики
   {
@@ -42,36 +42,45 @@ export const ACHIEVEMENT_DEFS = [
     icon: '🖱️'
   },
 
-  // Достижения за комбо
+  // ИСПРАВЛЕННЫЕ достижения за комбо - проверяют максимальное достигнутое комбо
   {
     id: 'combo_10',
     name: '🔥 Combo Starter',
-    description: 'Reach combo of 10',
+    description: 'Reach a combo of 10',
     category: 'combo',
     target: 10,
     reward: { skillPoints: 1 },
     icon: '🔥'
   },
   {
-    id: 'combo_50',
+    id: 'combo_25',
     name: '🔥 Combo Expert',
-    description: 'Reach combo of 50',
+    description: 'Reach a combo of 25',
+    category: 'combo',
+    target: 25,
+    reward: { skillPoints: 3 },
+    icon: '🔥'
+  },
+  {
+    id: 'combo_50',
+    name: '🔥 Combo Master',
+    description: 'Reach a combo of 50',
     category: 'combo',
     target: 50,
-    reward: { skillPoints: 5 },
+    reward: { skillPoints: 8 },
     icon: '🔥'
   },
   {
     id: 'combo_100',
-    name: '🔥 Combo Master',
-    description: 'Reach combo of 100',
+    name: '🔥 Combo Legend',
+    description: 'Reach a combo of 100',
     category: 'combo',
     target: 100,
-    reward: { skillPoints: 15 },
+    reward: { skillPoints: 20 },
     icon: '🔥'
   },
 
-  // Достижения за общие ресурсы
+  // ИСПРАВЛЕННЫЕ достижения за общие ресурсы - проверяют накопленные ресурсы
   {
     id: 'total_resources_100',
     name: '💰 Resource Gatherer',
@@ -82,30 +91,30 @@ export const ACHIEVEMENT_DEFS = [
     icon: '💰'
   },
   {
-    id: 'total_resources_500',
+    id: 'total_resources_1000',
     name: '💰 Resource Collector',
-    description: 'Collect 500 total resources',
+    description: 'Collect 1000 total resources',
     category: 'total_resources',
-    target: 500,
+    target: 1000,
     reward: { skillPoints: 5 },
     icon: '💰'
   },
   {
-    id: 'total_resources_1000',
-    name: '💰 Resource Hoarder',
-    description: 'Collect 1000 total resources',
-    category: 'total_resources',
-    target: 1000,
-    reward: { skillPoints: 10 },
-    icon: '💰'
-  },
-  {
     id: 'total_resources_5000',
-    name: '💰 Resource Tycoon',
+    name: '💰 Resource Hoarder',
     description: 'Collect 5000 total resources',
     category: 'total_resources',
     target: 5000,
-    reward: { skillPoints: 25 },
+    reward: { skillPoints: 15 },
+    icon: '💰'
+  },
+  {
+    id: 'total_resources_10000',
+    name: '💰 Resource Tycoon',
+    description: 'Collect 10000 total resources',
+    category: 'total_resources',
+    target: 10000,
+    reward: { skillPoints: 35 },
     icon: '💰'
   },
 
@@ -126,6 +135,15 @@ export const ACHIEVEMENT_DEFS = [
     category: 'gold',
     target: 1000,
     reward: { skillPoints: 3 },
+    icon: '🪙'
+  },
+  {
+    id: 'gold_10000',
+    name: '🪙 Gold Master',
+    description: 'Collect 10000 gold',
+    category: 'gold',
+    target: 10000,
+    reward: { skillPoints: 10 },
     icon: '🪙'
   },
   {
@@ -163,6 +181,26 @@ export const ACHIEVEMENT_DEFS = [
     target: 1000,
     reward: { skillPoints: 3 },
     icon: '🪨'
+  },
+
+  // НОВЫЕ достижения за энергию
+  {
+    id: 'energy_zones_10',
+    name: '⚡ Energy Seeker',
+    description: 'Hit 10 energy zones',
+    category: 'energy_zones',
+    target: 10,
+    reward: { skillPoints: 2 },
+    icon: '⚡'
+  },
+  {
+    id: 'energy_zones_50',
+    name: '⚡ Energy Master',
+    description: 'Hit 50 energy zones',
+    category: 'energy_zones',
+    target: 50,
+    reward: { skillPoints: 5 },
+    icon: '⚡'
   }
 ];
 
@@ -175,13 +213,22 @@ export class AchievementManager extends CleanupMixin {
       totalClicks: 0,
       maxCombo: 0,
       resourcesCollected: {},
-      totalResourcesCollected: 0
+      totalResourcesCollected: 0,
+      energyZonesHit: 0 // НОВЫЙ: счетчик энергетических зон
+    };
+    
+    // ИСПРАВЛЕНИЕ: Добавляем проверку достижений при каждом событии
+    this.lastCheckedValues = {
+      clicks: 0,
+      combo: 0,
+      totalResources: 0,
+      energyZones: 0
     };
     
     this.initializeAchievements();
     this.bindEvents();
     
-    console.log('🏆 AchievementManager initialized');
+    console.log('🏆 AchievementManager initialized with milestone tracking');
   }
 
   // Инициализация достижений
@@ -196,42 +243,117 @@ export class AchievementManager extends CleanupMixin {
     // Восстанавливаем статистику из сохранения
     if (this.gameState.achievements.statistics) {
       this.statistics = { ...this.gameState.achievements.statistics };
+      // Добавляем новые поля если их нет
+      if (this.statistics.energyZonesHit === undefined) {
+        this.statistics.energyZonesHit = 0;
+      }
     }
     
     // Преобразуем массив в Set если нужно
     if (Array.isArray(this.gameState.achievements.completed)) {
       this.gameState.achievements.completed = new Set(this.gameState.achievements.completed);
     }
+    
+    // Устанавливаем начальные проверочные значения
+    this.lastCheckedValues = {
+      clicks: this.statistics.totalClicks,
+      combo: this.statistics.maxCombo,
+      totalResources: this.statistics.totalResourcesCollected,
+      energyZones: this.statistics.energyZonesHit
+    };
   }
 
   // Привязка событий
   bindEvents() {
-    // Отслеживаем клики
+    // ИСПРАВЛЕНИЕ: Отслеживаем каждый клик и сразу проверяем достижения
     eventBus.subscribe(GameEvents.CLICK, () => {
       this.statistics.totalClicks++;
-      this.checkAchievements('clicks');
+      this.checkClickAchievements();
+      this.saveStatistics();
     });
 
-    // Отслеживаем изменения комбо
+    // ИСПРАВЛЕНИЕ: Отслеживаем изменения комбо и проверяем рекорды
     eventBus.subscribe(GameEvents.COMBO_CHANGED, (data) => {
       const comboCount = data.count || 0;
       if (comboCount > this.statistics.maxCombo) {
         this.statistics.maxCombo = comboCount;
-        this.checkAchievements('combo');
+        this.checkComboAchievements();
+        this.saveStatistics();
       }
     });
 
-    // Отслеживаем изменения ресурсов
+    // ИСПРАВЛЕНИЕ: Отслеживаем получение ресурсов
     eventBus.subscribe(GameEvents.RESOURCE_GAINED, (data) => {
       if (data.resource && data.amount) {
         this.addResourceStatistic(data.resource, data.amount);
+        this.checkResourceAchievements();
+        this.saveStatistics();
       }
     });
 
-    // Также отслеживаем общие изменения ресурсов
+    // НОВЫЙ: Отслеживаем попадания в энергетические зоны
+    eventBus.subscribe(GameEvents.ENERGY_ZONE_HIT, (data) => {
+      if (data.zoneType === 'energy') {
+        this.statistics.energyZonesHit++;
+        this.checkEnergyZoneAchievements();
+        this.saveStatistics();
+      }
+    });
+
+    // Также отслеживаем общие изменения ресурсов как fallback
     eventBus.subscribe(GameEvents.RESOURCE_CHANGED, () => {
       this.updateResourceStatistics();
     });
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый метод для проверки достижений за клики
+  checkClickAchievements() {
+    const currentClicks = this.statistics.totalClicks;
+    
+    if (currentClicks !== this.lastCheckedValues.clicks) {
+      console.log(`🏆 Checking click achievements: ${currentClicks} clicks`);
+      this.checkAchievements('clicks');
+      this.lastCheckedValues.clicks = currentClicks;
+    }
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый метод для проверки достижений за комбо
+  checkComboAchievements() {
+    const currentMaxCombo = this.statistics.maxCombo;
+    
+    if (currentMaxCombo !== this.lastCheckedValues.combo) {
+      console.log(`🏆 Checking combo achievements: max combo ${currentMaxCombo}`);
+      this.checkAchievements('combo');
+      this.lastCheckedValues.combo = currentMaxCombo;
+    }
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый метод для проверки достижений за ресурсы
+  checkResourceAchievements() {
+    const currentTotalResources = this.statistics.totalResourcesCollected;
+    
+    if (currentTotalResources !== this.lastCheckedValues.totalResources) {
+      console.log(`🏆 Checking resource achievements: ${currentTotalResources} total resources`);
+      this.checkAchievements('total_resources');
+      
+      // Проверяем достижения за конкретные ресурсы
+      Object.keys(this.statistics.resourcesCollected).forEach(resource => {
+        this.checkAchievements(resource);
+      });
+      
+      this.lastCheckedValues.totalResources = currentTotalResources;
+    }
+  }
+
+  // НОВЫЙ: Метод для проверки достижений за энергетические зоны
+  checkEnergyZoneAchievements() {
+    const currentEnergyZones = this.statistics.energyZonesHit;
+    
+    if (currentEnergyZones !== this.lastCheckedValues.energyZones) {
+      console.log(`🏆 Checking energy zone achievements: ${currentEnergyZones} energy zones hit`);
+      this.checkAchievements('energy_zones');
+      this.lastCheckedValues.energyZones = currentEnergyZones;
+    }
   }
 
   // Добавить статистику ресурса
@@ -243,9 +365,11 @@ export class AchievementManager extends CleanupMixin {
     this.statistics.resourcesCollected[resourceName] += amount;
     this.statistics.totalResourcesCollected += amount;
     
-    // Проверяем достижения для конкретного ресурса
-    this.checkAchievements(resourceName);
-    this.checkAchievements('total_resources');
+    // ИСПРАВЛЕНИЕ: Эмитируем событие получения ресурса для статистики
+    eventBus.emit(GameEvents.RESOURCE_GAINED, {
+      resource: resourceName,
+      amount: amount
+    });
   }
 
   // Обновить статистику ресурсов (fallback)
@@ -258,35 +382,45 @@ export class AchievementManager extends CleanupMixin {
         if (!this.statistics.resourcesCollected[resource]) {
           this.statistics.resourcesCollected[resource] = 0;
         }
+        
         // Обновляем только если текущее значение больше сохраненного
-        if (amount > this.statistics.resourcesCollected[resource]) {
+        const currentCollected = this.statistics.resourcesCollected[resource];
+        if (amount > currentCollected) {
+          const newlyCollected = amount - currentCollected;
           this.statistics.resourcesCollected[resource] = amount;
+          this.statistics.totalResourcesCollected += newlyCollected;
         }
         totalResources += this.statistics.resourcesCollected[resource];
       }
     });
-    
-    if (totalResources > this.statistics.totalResourcesCollected) {
-      this.statistics.totalResourcesCollected = totalResources;
-      this.checkAchievements('total_resources');
-    }
   }
 
-  // Проверить достижения для категории
+  // ИСПРАВЛЕНИЕ: Улучшенная проверка достижений для категории
   checkAchievements(category) {
     const relevantAchievements = ACHIEVEMENT_DEFS.filter(achievement => 
       achievement.category === category && 
       !this.gameState.achievements.completed.has(achievement.id)
     );
 
+    if (relevantAchievements.length === 0) {
+      return;
+    }
+
+    console.log(`🔍 Checking ${relevantAchievements.length} achievements for category: ${category}`);
+
     relevantAchievements.forEach(achievement => {
-      if (this.isAchievementCompleted(achievement)) {
+      const currentValue = this.getCurrentValue(achievement.category);
+      const isCompleted = currentValue >= achievement.target;
+      
+      console.log(`📊 Achievement ${achievement.id}: ${currentValue}/${achievement.target} ${isCompleted ? '✅' : '❌'}`);
+      
+      if (isCompleted) {
         this.completeAchievement(achievement);
       }
     });
 
     // Сохраняем статистику
-    this.gameState.achievements.statistics = { ...this.statistics };
+    this.saveStatistics();
   }
 
   // Проверить, выполнено ли достижение
@@ -295,7 +429,7 @@ export class AchievementManager extends CleanupMixin {
     return currentValue >= achievement.target;
   }
 
-  // Получить текущее значение для категории
+  // ИСПРАВЛЕНИЕ: Улучшенное получение текущего значения для категории
   getCurrentValue(category) {
     switch (category) {
       case 'clicks':
@@ -304,15 +438,17 @@ export class AchievementManager extends CleanupMixin {
         return this.statistics.maxCombo;
       case 'total_resources':
         return this.statistics.totalResourcesCollected;
+      case 'energy_zones':
+        return this.statistics.energyZonesHit;
       default:
         // Для конкретных ресурсов
         return this.statistics.resourcesCollected[category] || 0;
     }
   }
 
-  // Завершить достижение
+  // ИСПРАВЛЕНИЕ: Улучшенное завершение достижения
   completeAchievement(achievement) {
-    console.log(`🏆 Achievement completed: ${achievement.name}`);
+    console.log(`🏆 Achievement completed: ${achievement.name} (${achievement.id})`);
     
     // Добавляем в список завершенных
     this.gameState.achievements.completed.add(achievement.id);
@@ -324,9 +460,14 @@ export class AchievementManager extends CleanupMixin {
     this.showAchievementNotification(achievement);
     
     // Эмитируем событие
+    eventBus.emit(GameEvents.ACHIEVEMENT_UNLOCKED, {
+      achievement: achievement,
+      reward: achievement.reward
+    });
+    
     eventBus.emit(GameEvents.SKILL_NOTIFICATION, {
       title: `🏆 Achievement Unlocked!`,
-      description: `${achievement.name}: ${achievement.description}`
+      description: `${achievement.name}: ${achievement.description}\nReward: ${this.formatReward(achievement.reward)}`
     });
   }
 
@@ -335,6 +476,7 @@ export class AchievementManager extends CleanupMixin {
     if (reward.skillPoints && this.gameState.skillManager) {
       this.gameState.skillManager.addSkillPoints(reward.skillPoints);
       eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
+      console.log(`💎 Awarded ${reward.skillPoints} skill points from achievement`);
     }
     
     if (reward.resources) {
@@ -368,6 +510,35 @@ export class AchievementManager extends CleanupMixin {
     }
     
     return parts.join(', ') || 'Experience';
+  }
+
+  // ИСПРАВЛЕНИЕ: Принудительная проверка всех достижений при загрузке
+  forceCheckAllAchievements() {
+    console.log('🔍 Force checking all achievements...');
+    
+    // Получаем все уникальные категории
+    const categories = [...new Set(ACHIEVEMENT_DEFS.map(a => a.category))];
+    console.log(`📋 Checking categories: ${categories.join(', ')}`);
+    
+    categories.forEach(category => {
+      console.log(`🔍 Checking category: ${category}`);
+      this.checkAchievements(category);
+    });
+    
+    // Обновляем проверочные значения
+    this.lastCheckedValues = {
+      clicks: this.statistics.totalClicks,
+      combo: this.statistics.maxCombo,
+      totalResources: this.statistics.totalResourcesCollected,
+      energyZones: this.statistics.energyZonesHit
+    };
+    
+    console.log('✅ Force check completed');
+  }
+
+  // Сохранить статистику
+  saveStatistics() {
+    this.gameState.achievements.statistics = { ...this.statistics };
   }
 
   // Получить все достижения с прогрессом
@@ -412,7 +583,7 @@ export class AchievementManager extends CleanupMixin {
       .sort((a, b) => b.progressPercent - a.progressPercent);
   }
 
-  // Получить статистику достижений
+  // ИСПРАВЛЕНИЕ: Улучшенная статистика достижений
   getAchievementStats() {
     const allAchievements = this.getAllAchievements();
     const completed = allAchievements.filter(a => a.completed);
@@ -422,18 +593,20 @@ export class AchievementManager extends CleanupMixin {
       completed: completed.length,
       completionPercent: (completed.length / allAchievements.length) * 100,
       totalSkillPointsEarned: completed.reduce((sum, a) => sum + (a.reward.skillPoints || 0), 0),
-      statistics: { ...this.statistics }
+      statistics: { ...this.statistics },
+      lastCheckedValues: { ...this.lastCheckedValues },
+      recentProgress: this.getRecentProgress()
     };
   }
 
-  // Принудительно проверить все достижения (для отладки)
-  forceCheckAllAchievements() {
-    console.log('🔍 Force checking all achievements...');
-    
-    const categories = [...new Set(ACHIEVEMENT_DEFS.map(a => a.category))];
-    categories.forEach(category => {
-      this.checkAchievements(category);
-    });
+  // НОВЫЙ: Получить недавний прогресс
+  getRecentProgress() {
+    return {
+      clicksSinceLastCheck: this.statistics.totalClicks - this.lastCheckedValues.clicks,
+      comboImprovement: this.statistics.maxCombo > this.lastCheckedValues.combo,
+      resourcesGained: this.statistics.totalResourcesCollected - this.lastCheckedValues.totalResources,
+      energyZonesGained: this.statistics.energyZonesHit - this.lastCheckedValues.energyZones
+    };
   }
 
   // Сбросить достижения (для отладки)
@@ -446,11 +619,18 @@ export class AchievementManager extends CleanupMixin {
         totalClicks: 0,
         maxCombo: 0,
         resourcesCollected: {},
-        totalResourcesCollected: 0
+        totalResourcesCollected: 0,
+        energyZonesHit: 0
       }
     };
     
     this.statistics = { ...this.gameState.achievements.statistics };
+    this.lastCheckedValues = {
+      clicks: 0,
+      combo: 0,
+      totalResources: 0,
+      energyZones: 0
+    };
   }
 
   // Получить данные для сохранения
@@ -470,6 +650,24 @@ export class AchievementManager extends CleanupMixin {
       };
       
       this.statistics = { ...this.gameState.achievements.statistics };
+      
+      // Добавляем новые поля если их нет
+      if (this.statistics.energyZonesHit === undefined) {
+        this.statistics.energyZonesHit = 0;
+      }
+      
+      // Обновляем проверочные значения
+      this.lastCheckedValues = {
+        clicks: this.statistics.totalClicks,
+        combo: this.statistics.maxCombo,
+        totalResources: this.statistics.totalResourcesCollected,
+        energyZones: this.statistics.energyZonesHit
+      };
+      
+      // Проверяем достижения после загрузки
+      this.createTimeout(() => {
+        this.forceCheckAllAchievements();
+      }, 1000);
     }
   }
 
@@ -478,7 +676,7 @@ export class AchievementManager extends CleanupMixin {
     console.log('🧹 AchievementManager cleanup started');
     
     // Сохраняем финальную статистику
-    this.gameState.achievements.statistics = { ...this.statistics };
+    this.saveStatistics();
     
     super.destroy();
     
