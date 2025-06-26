@@ -1,7 +1,8 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с плавным рендерингом и FPS контролем
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильным отображением типов зон
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
+import { ZONE_TYPES } from '../config/ZoneTypes.js';
 
 export class GameLoop extends CleanupMixin {
   constructor(gameState, managers) {
@@ -16,7 +17,7 @@ export class GameLoop extends CleanupMixin {
     this.isRunning = false;
     this.animationId = null;
     
-    // ИСПРАВЛЕНИЕ: Добавляем FPS контроль
+    // FPS контроль
     this.targetFPS = 60;
     this.frameTime = 1000 / this.targetFPS;
     this.lastFrameTime = 0;
@@ -28,7 +29,7 @@ export class GameLoop extends CleanupMixin {
     // Переменная для направления вращения
     this.rotationDirection = 1; // 1 = обычное, -1 = обратное
     
-    // ИСПРАВЛЕНИЕ: Добавляем флаг для оптимизации рендеринга
+    // Оптимизация рендеринга
     this.needsRedraw = true;
     this.lastAngle = 0;
     
@@ -55,7 +56,7 @@ export class GameLoop extends CleanupMixin {
     this.setupCanvasEvents();
   }
 
-  // ИСПРАВЛЕНИЕ: Добавляем обработку видимости вкладки для оптимизации
+  // Обработка видимости вкладки для оптимизации
   setupVisibilityHandling() {
     this.addEventListener(document, 'visibilitychange', () => {
       if (document.hidden) {
@@ -122,7 +123,7 @@ export class GameLoop extends CleanupMixin {
       }
     });
 
-    // ИСПРАВЛЕНИЕ: Перерисовываем при изменении эффектов
+    // Перерисовываем при изменении эффектов
     eventBus.subscribe(GameEvents.BUFF_APPLIED, () => {
       this.needsRedraw = true;
     });
@@ -167,7 +168,7 @@ export class GameLoop extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Основной игровой цикл с FPS контролем
+  // Основной игровой цикл с FPS контролем
   gameLoop(currentTime) {
     if (!this.isRunning) return;
     
@@ -192,7 +193,7 @@ export class GameLoop extends CleanupMixin {
       // Обновляем угол поворота
       const angleChanged = this.updateRotation();
       
-      // ИСПРАВЛЕНИЕ: Рендерим только при необходимости
+      // Рендерим только при необходимости
       if (this.needsRedraw || angleChanged) {
         this.render();
         this.needsRedraw = false;
@@ -209,7 +210,7 @@ export class GameLoop extends CleanupMixin {
     this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
   }
 
-  // ИСПРАВЛЕНИЕ: Добавляем счетчик FPS
+  // Добавляем счетчик FPS
   updateFPSCounter(currentTime) {
     this.frameCount++;
     
@@ -230,7 +231,7 @@ export class GameLoop extends CleanupMixin {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  // ИСПРАВЛЕНИЕ: Обновление угла поворота с плавной анимацией
+  // Обновление угла поворота с плавной анимацией
   updateRotation() {
     let rotationSpeed = UI_CONFIG.ROTATION_SPEED;
     
@@ -243,7 +244,7 @@ export class GameLoop extends CleanupMixin {
       rotationSpeed *= GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER;
     }
     
-    // ИСПРАВЛЕНИЕ: Используем deltaTime для плавной анимации
+    // Используем deltaTime для плавной анимации
     const rotationDelta = rotationSpeed * this.rotationDirection * (this.deltaTime / 16.67); // 16.67ms = 60fps
     const newAngle = this.angle + rotationDelta;
     
@@ -265,7 +266,7 @@ export class GameLoop extends CleanupMixin {
 
   // Рендеринг игровых элементов
   render() {
-    if (!this.managers.feature || !this.managers.feature.zones) return;
+    if (!this.managers.feature) return;
     
     // Очищаем canvas
     this.clearCanvas();
@@ -276,10 +277,13 @@ export class GameLoop extends CleanupMixin {
     this.drawReverseIndicator();
   }
 
-  // Рисование зон
+  // ИСПРАВЛЕННОЕ рисование зон с правильными цветами
   drawZones() {
-    const zones = this.managers.feature.zones;
-    if (!zones) return;
+    const featureManager = this.managers.feature;
+    if (!featureManager || !featureManager.zones || !featureManager.zoneTypes) return;
+    
+    const zones = featureManager.zones;
+    const zoneTypes = featureManager.zoneTypes;
     
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
@@ -297,8 +301,9 @@ export class GameLoop extends CleanupMixin {
       this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
       this.ctx.closePath();
       
-      // Цвет зоны
-      this.ctx.fillStyle = this.getZoneColor(index);
+      // ИСПРАВЛЕНИЕ: Получаем правильный цвет зоны на основе типа
+      const zoneType = zoneTypes[index] || ZONE_TYPES.GOLD;
+      this.ctx.fillStyle = this.getZoneColorByType(zoneType, index);
       this.ctx.fill();
       
       // Обводка зоны
@@ -308,24 +313,57 @@ export class GameLoop extends CleanupMixin {
     });
   }
 
-  // Получить цвет зоны
-  getZoneColor(zoneIndex) {
-    let color = '#888';
+  // ИСПРАВЛЕННОЕ получение цвета зоны по типу
+  getZoneColorByType(zoneType, zoneIndex) {
+    // Проверяем, является ли эта зона целевой
+    const isTarget = this.gameState.targetZone === zoneIndex;
     
-    if (this.gameState.targetZone === zoneIndex) {
-      color = '#aaa';
+    // Базовые цвета по типу зоны
+    let baseColor;
+    switch (zoneType.id) {
+      case 'gold':
+        baseColor = '#FFD700'; // Золотой
+        break;
+      case 'energy':
+        baseColor = '#00FF00'; // Зеленый
+        break;
+      case 'bonus':
+        baseColor = '#FF4500'; // Оранжево-красный
+        break;
+      default:
+        baseColor = '#888888'; // Серый по умолчанию
     }
     
-    return color;
+    // Если это целевая зона, делаем цвет ярче
+    if (isTarget) {
+      // Осветляем цвет для целевой зоны
+      return this.lightenColor(baseColor, 20);
+    }
+    
+    return baseColor;
+  }
+
+  // Функция для осветления цвета
+  lightenColor(color, percent) {
+    // Простая функция осветления для hex цветов
+    const num = parseInt(color.replace("#", ""), 16);
+    const amt = Math.round(2.55 * percent);
+    const R = (num >> 16) + amt;
+    const G = (num >> 8 & 0x00FF) + amt;
+    const B = (num & 0x0000FF) + amt;
+    return "#" + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+      (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+      (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
   }
 
   // Рисование индикатора целевой зоны
   drawTargetIndicator() {
     if (typeof this.gameState.targetZone !== 'number') return;
     
-    const zones = this.managers.feature.zones;
-    if (!zones) return;
+    const featureManager = this.managers.feature;
+    if (!featureManager || !featureManager.zones) return;
     
+    const zones = featureManager.zones;
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
@@ -350,9 +388,10 @@ export class GameLoop extends CleanupMixin {
   drawPreviewZone() {
     if (!this.managers.skill || !this.managers.skill.getSkillLevel('zonePreview')) return;
     
-    const zones = this.managers.feature.zones;
-    if (!zones) return;
+    const featureManager = this.managers.feature;
+    if (!featureManager || !featureManager.zones) return;
     
+    const zones = featureManager.zones;
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
@@ -418,7 +457,7 @@ export class GameLoop extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Принудительная перерисовка
+  // Принудительная перерисовка
   forceRedraw() {
     this.needsRedraw = true;
   }
@@ -448,7 +487,7 @@ export class GameLoop extends CleanupMixin {
     return this.isRunning;
   }
 
-  // ИСПРАВЛЕНИЕ: Получить реальный FPS
+  // Получить реальный FPS
   getFPS() {
     return this.actualFPS;
   }

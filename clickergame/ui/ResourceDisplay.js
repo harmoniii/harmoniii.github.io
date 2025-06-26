@@ -1,4 +1,4 @@
-// ui/ResourceDisplay.js - ИСПРАВЛЕННАЯ версия с отдельным индикатором комбо
+// ui/ResourceDisplay.js - ИСПРАВЛЕННАЯ версия БЕЗ энергии в ресурсах
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { getResourceEmoji, RESOURCE_GROUPS } from '../config/ResourceConfig.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -15,7 +15,7 @@ export class ResourceDisplay extends CleanupMixin {
     this.initializeComboIndicator();
   }
 
-  // НОВОЕ: Инициализация индикатора комбо
+  // Инициализация индикатора комбо
   initializeComboIndicator() {
     this.comboIndicator = document.getElementById('combo-indicator');
     this.comboValue = document.getElementById('combo-value');
@@ -26,7 +26,7 @@ export class ResourceDisplay extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Обновить отображение ресурсов И комбо
+  // ИСПРАВЛЕНИЕ: Обновить отображение ресурсов И комбо (БЕЗ энергии)
   update(leftContainer, rightContainer) {
     if (!this.isActive() || !leftContainer || !rightContainer) return;
     
@@ -35,11 +35,11 @@ export class ResourceDisplay extends CleanupMixin {
     this.displayOtherResources(rightContainer);
     this.displayGameStats(rightContainer);
     
-    // НОВОЕ: Обновляем индикатор комбо
+    // Обновляем индикатор комбо
     this.updateComboIndicator();
   }
 
-  // НОВОЕ: Обновление индикатора комбо
+  // Обновление индикатора комбо
   updateComboIndicator() {
     if (!this.comboIndicator || !this.comboValue || !this.comboBonus) return;
     
@@ -50,7 +50,7 @@ export class ResourceDisplay extends CleanupMixin {
     // Обновляем значение комбо
     this.comboValue.textContent = comboCount.toString();
     
-    // НОВОЕ: Обновляем состояние индикатора на основе уровня комбо
+    // Обновляем состояние индикатора на основе уровня комбо
     this.comboIndicator.className = 'combo-indicator';
     
     if (comboCount >= 50) {
@@ -69,20 +69,20 @@ export class ResourceDisplay extends CleanupMixin {
       this.comboBonus.textContent = 'Keep hitting the target!';
     }
     
-    // НОВОЕ: Показываем оставшееся время если комбо активно
+    // Показываем оставшееся время если комбо активно
     if (comboCount > 0 && comboDeadline > now) {
       const timeLeft = Math.ceil((comboDeadline - now) / 1000);
       this.comboBonus.textContent += ` (${timeLeft}s)`;
     }
     
-    // НОВОЕ: Анимация при изменении комбо
+    // Анимация при изменении комбо
     if (this.lastComboCount !== comboCount) {
       this.animateComboChange(comboCount > (this.lastComboCount || 0));
       this.lastComboCount = comboCount;
     }
   }
 
-  // НОВОЕ: Анимация изменения комбо
+  // Анимация изменения комбо
   animateComboChange(isIncrease) {
     if (!this.comboValue) return;
     
@@ -135,9 +135,9 @@ export class ResourceDisplay extends CleanupMixin {
     rightContainer.innerHTML = '';
   }
 
-  // Отобразить основные ресурсы
+  // ИСПРАВЛЕНИЕ: Отобразить основные ресурсы БЕЗ энергии
   displayMainResources(container) {
-    const mainResources = RESOURCE_GROUPS.BASIC;
+    const mainResources = RESOURCE_GROUPS.BASIC; // gold, wood, stone, food, water, iron
     
     mainResources.forEach(resourceName => {
       const value = this.gameState.resources[resourceName] || 0;
@@ -147,9 +147,10 @@ export class ResourceDisplay extends CleanupMixin {
     });
   }
 
-  // Отобразить остальные ресурсы
+  // ИСПРАВЛЕНИЕ: Отобразить остальные ресурсы БЕЗ энергии
   displayOtherResources(container) {
-    const otherResources = [...RESOURCE_GROUPS.ADVANCED, ...RESOURCE_GROUPS.SPECIAL];
+    // Исключаем энергию из отображения, показываем только people, science, faith, chaos
+    const otherResources = ['people', 'science', 'faith', 'chaos'];
     
     otherResources.forEach(resourceName => {
       const value = this.gameState.resources[resourceName] || 0;
@@ -159,7 +160,7 @@ export class ResourceDisplay extends CleanupMixin {
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Отобразить игровую статистику БЕЗ комбо (теперь отдельно)
+  // Отобразить игровую статистику БЕЗ комбо (теперь отдельно)
   displayGameStats(container) {
     // Skill Points
     const skillPoints = Math.floor(this.gameState.skillPoints || 0);
@@ -248,7 +249,6 @@ export class ResourceDisplay extends CleanupMixin {
       water: 'Essential for life and production',
       iron: 'Strong metal for advanced buildings',
       people: 'Population that works in buildings',
-      energy: 'Powers advanced technology',
       science: 'Research and development resource',
       faith: 'Spiritual resource that increases buff chance',
       chaos: 'Destructive force that increases debuff chance'
@@ -334,7 +334,7 @@ export class ResourceDisplay extends CleanupMixin {
     });
   }
 
-  // НОВОЕ: Подсветить изменение комбо
+  // Подсветить изменение комбо
   highlightComboChange(isIncrease) {
     this.animateComboChange(isIncrease);
   }
