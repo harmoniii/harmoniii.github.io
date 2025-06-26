@@ -1,4 +1,4 @@
-// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с правильной логикой зон и целевой зоной
+// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с уменьшенными уведомлениями об энергии
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { Zone } from '../utils/Zone.js';
@@ -18,11 +18,15 @@ export class FeatureManager extends CleanupMixin {
     
     this.comboCheckInterval = null;
     
+    // ИСПРАВЛЕНИЕ: Добавляем ограничение на частоту уведомлений об энергии
+    this.lastEnergyNotification = 0;
+    this.energyNotificationCooldown = 2000; // 2 секунды между уведомлениями об энергии
+    
     this.initializeZones();
     this.bindEvents();
     this.startComboTimer();
     
-    console.log('🎯 FeatureManager initialized with energy zones');
+    console.log('🎯 FeatureManager initialized with energy zones and reduced notifications');
   }
 
   // Инициализация зон
@@ -225,7 +229,7 @@ export class FeatureManager extends CleanupMixin {
       this.handleGoldGain(zone, effectiveCombo, zoneType);
     }
 
-    // Обрабатываем восстановление энергии
+    // ИСПРАВЛЕНИЕ: Обрабатываем восстановление энергии с ограниченными уведомлениями
     if (zoneType.effects.energyRestore > 0) {
       this.handleEnergyRestore(zoneType.effects.energyRestore, zoneType.id);
     }
@@ -249,18 +253,32 @@ export class FeatureManager extends CleanupMixin {
     });
   }
 
+  // ИСПРАВЛЕНИЕ: Уменьшаем количество уведомлений об энергии
   handleEnergyRestore(amount, zoneType) {
     if (this.gameState.energyManager) {
+      const now = Date.now();
+      
       // Используем правильные методы восстановления энергии
       if (zoneType === 'energy') {
         this.gameState.energyManager.restoreEnergy(amount, 'energy_zone');
-        // ИСПРАВЛЕНИЕ: Уменьшаем количество уведомлений - только одно
-        eventBus.emit(GameEvents.NOTIFICATION, `⚡ Energy Zone: +${amount} Energy`);
+        
+        // ИСПРАВЛЕНИЕ: Ограничиваем частоту уведомлений об энергии
+        if (now - this.lastEnergyNotification > this.energyNotificationCooldown) {
+          eventBus.emit(GameEvents.NOTIFICATION, `⚡ +${amount} Energy`);
+          this.lastEnergyNotification = now;
+        }
+        
       } else if (zoneType === 'bonus') {
         this.gameState.energyManager.restoreEnergy(amount, 'bonus_zone');
-        eventBus.emit(GameEvents.NOTIFICATION, `🟡 Bonus Zone: +${amount} Energy`);
+        
+        // Для бонусных зон показываем уведомление реже
+        if (now - this.lastEnergyNotification > this.energyNotificationCooldown * 1.5) {
+          eventBus.emit(GameEvents.NOTIFICATION, `🟡 Bonus: +${amount} Energy`);
+          this.lastEnergyNotification = now;
+        }
       }
       
+      // ИСПРАВЛЕНИЕ: Эмитируем событие без дополнительных уведомлений
       eventBus.emit(GameEvents.ENERGY_ZONE_HIT, {
         amount: amount,
         zoneType: zoneType
