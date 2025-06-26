@@ -1,4 +1,4 @@
-// effects/BuffManager.js - Fixed version with correct cleanup methods
+// effects/BuffManager.js - ИСПРАВЛЕННАЯ версия с правильной очисткой эффектов
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { 
@@ -18,10 +18,15 @@ export class BuffManager extends CleanupMixin {
     super();
     
     this.gameState = gameState;
-    this.activeEffects = new Map(); // id -> {timeoutId, config, startTime}
+    this.activeEffects = new Map(); // id -> {timeoutId, config, startTime, duration}
     this.effectIntervals = new Map(); // id -> intervalId
     
+    // ИСПРАВЛЕНИЕ: Добавляем систему принудительной очистки
+    this.cleanupCheckInterval = null;
+    this.forceCleanupAfter = 60000; // 1 минута максимум для любого эффекта
+    
     this.initializeEffectStates();
+    this.startCleanupChecker();
     
     console.log('🎭 BuffManager initialized');
   }
@@ -50,6 +55,13 @@ export class BuffManager extends CleanupMixin {
       reverseDirection: 1,
       frozenCombo: false
     };
+  }
+
+  // ИСПРАВЛЕНИЕ: Запуск системы принудительной очистки
+  startCleanupChecker() {
+    this.cleanupCheckInterval = this.createInterval(() => {
+      this.forceCleanExpiredEffects();
+    }, 5000, 'effect-cleanup-checker'); // Проверяем каждые 5 секунд
   }
 
   // Применить случайный бафф
@@ -144,7 +156,7 @@ export class BuffManager extends CleanupMixin {
     }
   }
 
-  // Установить истечение баффа
+  // ИСПРАВЛЕНИЕ: Установить истечение баффа с правильной очисткой
   setBuffExpiration(buffDef) {
     // Buff Mastery skill - увеличение длительности баффов
     const buffDurationBonus = this.getSkillBonus('duration', 'buffs');
@@ -152,6 +164,7 @@ export class BuffManager extends CleanupMixin {
     const finalDuration = Math.floor(buffDef.duration * durationMultiplier * 1000);
 
     const timeoutId = this.createTimeout(() => {
+      console.log(`🕒 Buff ${buffDef.id} expired naturally`);
       this.removeBuff(buffDef.id);
       eventBus.emit(GameEvents.BUFF_EXPIRED, {
         id: buffDef.id,
@@ -159,11 +172,17 @@ export class BuffManager extends CleanupMixin {
       });
     }, finalDuration, `buff-${buffDef.id}`);
 
+    // ИСПРАВЛЕНИЕ: Сохраняем полную информацию об эффекте
     this.activeEffects.set(buffDef.id, {
       timeoutId,
       config: EFFECT_CONFIG[buffDef.id],
-      startTime: Date.now()
+      startTime: Date.now(),
+      duration: finalDuration,
+      type: 'buff',
+      definition: buffDef
     });
+
+    console.log(`⏰ Buff ${buffDef.id} will expire in ${finalDuration}ms`);
   }
 
   // Удалить бафф
@@ -290,13 +309,14 @@ export class BuffManager extends CleanupMixin {
     }
   }
 
-  // Установить истечение дебаффа
+  // ИСПРАВЛЕНИЕ: Установить истечение дебаффа с правильной очисткой
   setDebuffExpiration(debuffDef) {
     // Resilience skill - уменьшение длительности дебаффов
     const debuffReduction = this.getSkillBonus('reduction', 'debuffs');
     const finalDuration = Math.max(0.5, debuffDef.duration * (1 - debuffReduction));
 
     const timeoutId = this.createTimeout(() => {
+      console.log(`🕒 Debuff ${debuffDef.id} expired naturally`);
       this.removeDebuff(debuffDef.id);
       eventBus.emit(GameEvents.DEBUFF_EXPIRED, {
         id: debuffDef.id,
@@ -304,11 +324,17 @@ export class BuffManager extends CleanupMixin {
       });
     }, finalDuration * 1000, `debuff-${debuffDef.id}`);
 
+    // ИСПРАВЛЕНИЕ: Сохраняем полную информацию об эффекте
     this.activeEffects.set(debuffDef.id, {
       timeoutId,
       config: EFFECT_CONFIG[debuffDef.id],
-      startTime: Date.now()
+      startTime: Date.now(),
+      duration: finalDuration * 1000,
+      type: 'debuff',
+      definition: debuffDef
     });
+
+    console.log(`⏰ Debuff ${debuffDef.id} will expire in ${finalDuration * 1000}ms`);
   }
 
   // Удалить дебафф
@@ -509,14 +535,16 @@ export class BuffManager extends CleanupMixin {
 
   // ===== УТИЛИТЫ =====
 
-  // Очистить эффект - FIXED: Use correct CleanupManager method names
+  // ИСПРАВЛЕНИЕ: Правильная очистка эффекта
   clearEffect(effectId) {
+    console.log(`🧹 Clearing effect: ${effectId}`);
+    
     // Очищаем таймер истечения
     if (this.activeEffects.has(effectId)) {
       const effect = this.activeEffects.get(effectId);
       if (effect.timeoutId) {
-        // Use the inherited method from CleanupManager
         this.cleanupManager.clearTimeout(effect.timeoutId);
+        console.log(`Cleared timeout for effect: ${effectId}`);
       }
       this.activeEffects.delete(effectId);
     }
@@ -525,14 +553,77 @@ export class BuffManager extends CleanupMixin {
     this.clearEffectInterval(effectId);
   }
 
-  // Очистить интервал эффекта - FIXED: Use correct CleanupManager method names
+  // ИСПРАВЛЕНИЕ: Правильная очистка интервала эффекта
   clearEffectInterval(effectId) {
     if (this.effectIntervals.has(effectId)) {
       const intervalId = this.effectIntervals.get(effectId);
-      // Use the inherited method from CleanupManager
       this.cleanupManager.clearInterval(intervalId);
-      this.effectIntervals.delete(intervalId);
+      this.effectIntervals.delete(effectId);
+      console.log(`Cleared interval for effect: ${effectId}`);
     }
+  }
+
+  // ИСПРАВЛЕНИЕ: Принудительная очистка истекших эффектов
+  forceCleanExpiredEffects() {
+    const now = Date.now();
+    const expiredEffects = [];
+
+    // Проверяем все активные эффекты
+    this.activeEffects.forEach((effect, effectId) => {
+      if (effect.startTime && effect.duration) {
+        const elapsed = now - effect.startTime;
+        
+        // Проверяем истечение по времени
+        if (elapsed > effect.duration) {
+          expiredEffects.push(effectId);
+        }
+        
+        // Принудительная очистка для слишком старых эффектов
+        if (elapsed > this.forceCleanupAfter) {
+          console.warn(`🧹 Force cleaning old effect: ${effectId} (${elapsed}ms old)`);
+          expiredEffects.push(effectId);
+        }
+      }
+    });
+
+    // Удаляем истекшие эффекты
+    expiredEffects.forEach(effectId => {
+      console.log(`🕒 Force removing expired effect: ${effectId}`);
+      
+      if (this.gameState.buffs.includes(effectId)) {
+        this.removeBuff(effectId);
+        eventBus.emit(GameEvents.BUFF_EXPIRED, { id: effectId, name: effectId });
+      }
+      
+      if (this.gameState.debuffs.includes(effectId)) {
+        this.removeDebuff(effectId);
+        eventBus.emit(GameEvents.DEBUFF_EXPIRED, { id: effectId, name: effectId });
+      }
+    });
+
+    // ИСПРАВЛЕНИЕ: Дополнительная проверка на висящие эффекты в DOM
+    this.cleanupOrphanedEffects();
+  }
+
+  // ИСПРАВЛЕНИЕ: Очистка осиротевших эффектов в UI
+  cleanupOrphanedEffects() {
+    // Получаем текущие активные эффекты
+    const currentBuffs = this.gameState.buffs || [];
+    const currentDebuffs = this.gameState.debuffs || [];
+    const allCurrentEffects = [...currentBuffs, ...currentDebuffs];
+    
+    // Удаляем эффекты из activeEffects если их нет в gameState
+    const orphanedEffects = [];
+    this.activeEffects.forEach((effect, effectId) => {
+      if (!allCurrentEffects.includes(effectId)) {
+        orphanedEffects.push(effectId);
+      }
+    });
+    
+    orphanedEffects.forEach(effectId => {
+      console.log(`🧹 Cleaning orphaned effect: ${effectId}`);
+      this.clearEffect(effectId);
+    });
   }
 
   // Получить бонус от навыков
@@ -592,14 +683,11 @@ export class BuffManager extends CleanupMixin {
 
   // Рассчитать оставшееся время эффекта
   calculateTimeLeft(effect) {
-    if (!effect.startTime) return null;
+    if (!effect.startTime || !effect.duration) return null;
     
     const elapsed = Date.now() - effect.startTime;
-    const duration = effect.config?.duration || 0;
+    const timeLeft = Math.max(0, effect.duration - elapsed);
     
-    if (duration <= 0) return null;
-    
-    const timeLeft = Math.max(0, (duration * 1000) - elapsed);
     return Math.ceil(timeLeft / 1000); // в секундах
   }
 
@@ -626,18 +714,31 @@ export class BuffManager extends CleanupMixin {
            this.gameState.debuffs.includes(effectId);
   }
 
-  // Форсированно удалить все эффекты
+  // ИСПРАВЛЕНИЕ: Улучшенная очистка всех эффектов
   clearAllEffects() {
     console.log('🧹 Clearing all effects...');
     
     // Создаем копии массивов для безопасного удаления
-    const buffsToRemove = [...this.gameState.buffs];
-    const debuffsToRemove = [...this.gameState.debuffs];
+    const buffsToRemove = [...(this.gameState.buffs || [])];
+    const debuffsToRemove = [...(this.gameState.debuffs || [])];
     
-    buffsToRemove.forEach(buffId => this.removeBuff(buffId));
-    debuffsToRemove.forEach(debuffId => this.removeDebuff(debuffId));
+    buffsToRemove.forEach(buffId => {
+      try {
+        this.removeBuff(buffId);
+      } catch (error) {
+        console.warn(`Error removing buff ${buffId}:`, error);
+      }
+    });
     
-    // Очищаем все активные эффекты
+    debuffsToRemove.forEach(debuffId => {
+      try {
+        this.removeDebuff(debuffId);
+      } catch (error) {
+        console.warn(`Error removing debuff ${debuffId}:`, error);
+      }
+    });
+    
+    // Принудительно очищаем все активные эффекты
     this.activeEffects.clear();
     this.effectIntervals.clear();
     
@@ -650,12 +751,40 @@ export class BuffManager extends CleanupMixin {
       this.gameState.CONFIG.rotationSpeed = 0.005;
     }
     
+    // Очищаем массивы эффектов
+    this.gameState.buffs = [];
+    this.gameState.debuffs = [];
+    
     console.log('✅ All effects cleared');
+  }
+
+  // ИСПРАВЛЕНИЕ: Получить отладочную информацию
+  getDebugInfo() {
+    return {
+      activeEffects: Array.from(this.activeEffects.entries()).map(([id, effect]) => ({
+        id,
+        type: effect.type,
+        startTime: effect.startTime,
+        duration: effect.duration,
+        timeLeft: this.calculateTimeLeft(effect),
+        age: Date.now() - effect.startTime
+      })),
+      activeIntervals: Array.from(this.effectIntervals.keys()),
+      gameStateBuffs: this.gameState.buffs || [],
+      gameStateDebuffs: this.gameState.debuffs || [],
+      effectStates: this.gameState.effectStates
+    };
   }
 
   // Деструктор
   destroy() {
     console.log('🧹 BuffManager cleanup started');
+    
+    // Останавливаем проверку очистки
+    if (this.cleanupCheckInterval) {
+      this.cleanupManager.clearInterval(this.cleanupCheckInterval);
+      this.cleanupCheckInterval = null;
+    }
     
     // Очищаем все эффекты
     this.clearAllEffects();

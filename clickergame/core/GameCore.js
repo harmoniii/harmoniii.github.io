@@ -1,4 +1,4 @@
-// core/GameCore.js - Fixed version with correct cleanup method calls
+// core/GameCore.js - ИСПРАВЛЕННАЯ версия с правильными ссылками на менеджеры
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -31,12 +31,15 @@ export class GameCore extends CleanupMixin {
   // Инициализация игры
   async initialize() {
     try {
-      console.log('🎮 Initializing Advanced Clicker v1.0.3...');
+      console.log('🎮 Initializing Advanced Clicker v1.0.8...');
       
       await this.initializeGameState();
       await this.initializeManagers();
       await this.initializeUI();
       await this.startGameLoop();
+      
+      // ИСПРАВЛЕНИЕ: Устанавливаем правильные ссылки между менеджерами
+      this.setupManagerReferences();
       
       // Подписываемся на системные события
       this.bindSystemEvents();
@@ -70,7 +73,7 @@ export class GameCore extends CleanupMixin {
       console.log('ℹ️ No save data found, using default state');
     }
     
-    // FIXED: Register GameState properly with name
+    // Регистрируем GameState для очистки
     this.cleanupManager.registerComponent(this.gameState, 'GameState');
   }
 
@@ -79,22 +82,16 @@ export class GameCore extends CleanupMixin {
     console.log('🔧 Initializing managers...');
     
     try {
-      // Создаем менеджеры в правильном порядке
+      // ИСПРАВЛЕНИЕ: Создаем менеджеры в правильном порядке с правильными зависимостями
       this.managers.buff = new BuffManager(this.gameState);
       this.managers.feature = new FeatureManager(this.gameState, this.managers.buff);
       this.managers.building = new BuildingManager(this.gameState);
       this.managers.skill = new SkillManager(this.gameState);
       this.managers.market = new MarketManager(this.gameState);
       
-      // Устанавливаем ссылки в состоянии игры (без циклических зависимостей)
-      this.gameState.buffManager = this.managers.buff;
-      this.gameState.buildingManager = this.managers.building;
-      this.gameState.skillManager = this.managers.skill;
-      this.gameState.marketManager = this.managers.market;
-      
       // Регистрируем менеджеры для очистки
       Object.entries(this.managers).forEach(([name, manager]) => {
-        this.cleanupManager.registerComponent(manager, name);
+        this.cleanupManager.registerComponent(manager, `${name}Manager`);
       });
       
       console.log('✅ Managers initialized');
@@ -105,13 +102,42 @@ export class GameCore extends CleanupMixin {
     }
   }
 
+  // ИСПРАВЛЕНИЕ: Установка правильных ссылок между менеджерами
+  setupManagerReferences() {
+    console.log('🔗 Setting up manager references...');
+    
+    try {
+      // Устанавливаем ссылки в gameState для доступа из других компонентов
+      this.gameState.buffManager = this.managers.buff;
+      this.gameState.buildingManager = this.managers.building;
+      this.gameState.skillManager = this.managers.skill;
+      this.gameState.marketManager = this.managers.market;
+      this.gameState.featureManager = this.managers.feature;
+      
+      // ИСПРАВЛЕНИЕ: Дополнительные ссылки для совместимости
+      this.gameState.managers = this.managers;
+      this.gameState.featureMgr = this.managers.feature; // Для автокликера
+      
+      // Устанавливаем обратные ссылки для автокликера
+      if (this.managers.skill && this.managers.feature) {
+        console.log('🤖 Setting up auto clicker references...');
+        // Автокликер теперь может получить доступ к FeatureManager через gameState
+      }
+      
+      console.log('✅ Manager references set up successfully');
+      
+    } catch (error) {
+      console.error('💀 Failed to set up manager references:', error);
+    }
+  }
+
   // Инициализация UI
   async initializeUI() {
     console.log('🖥️ Initializing UI...');
     
     try {
       this.managers.ui = new UIManager(this.gameState);
-      this.cleanupManager.registerComponent(this.managers.ui);
+      this.cleanupManager.registerComponent(this.managers.ui, 'UIManager');
       
       console.log('✅ UI initialized');
       
@@ -127,7 +153,7 @@ export class GameCore extends CleanupMixin {
     
     try {
       this.gameLoop = new GameLoop(this.gameState, this.managers);
-      this.cleanupManager.registerComponent(this.gameLoop);
+      this.cleanupManager.registerComponent(this.gameLoop, 'GameLoop');
       
       this.gameLoop.start();
       console.log('✅ Game loop started');
@@ -162,6 +188,8 @@ export class GameCore extends CleanupMixin {
     
     eventBus.subscribe(GameEvents.LOAD_COMPLETED, () => {
       console.log('📁 Load completed');
+      // ИСПРАВЛЕНИЕ: Перезапускаем менеджеры после загрузки
+      this.restartManagersAfterLoad();
     });
     
     // Обработка закрытия страницы
@@ -170,7 +198,7 @@ export class GameCore extends CleanupMixin {
     });
     
     this.addEventListener(window, 'unload', () => {
-      this.destroy(); // Use correct method name
+      this.destroy();
     });
     
     // Обработка потери фокуса для автосохранения
@@ -181,45 +209,89 @@ export class GameCore extends CleanupMixin {
     });
   }
 
-autoSave() {
-  // КРИТИЧЕСКИЕ ПРОВЕРКИ перед сохранением
-  if (!this.gameState) {
-    console.warn('⚠️ AutoSave: gameState is null, skipping save');
-    return false;
-  }
-
-  if (this.isDestroyed === true) {
-    console.warn('⚠️ AutoSave: GameCore is destroyed, skipping save');
-    return false;
-  }
-
-  if (this.gameState.isDestroyed === true) {
-    console.warn('⚠️ AutoSave: GameState is destroyed, skipping save');
-    return false;
-  }
-
-  if (!this.storageManager) {
-    console.warn('⚠️ AutoSave: storageManager is null, skipping save');
-    return false;
-  }
-
-  try {
-    // Используем безопасное сохранение
-    const success = this.storageManager.safeSave(this.gameState);
-    
-    if (success) {
-      console.log('💾 Auto-save completed successfully');
-    } else {
-      console.warn('⚠️ Auto-save failed but no error thrown');
+  // ИСПРАВЛЕНИЕ: Безопасное автосохранение
+  autoSave() {
+    // КРИТИЧЕСКИЕ ПРОВЕРКИ перед сохранением
+    if (!this.gameState) {
+      console.warn('⚠️ AutoSave: gameState is null, skipping save');
+      return false;
     }
-    
-    return success;
-    
-  } catch (error) {
-    console.error('❌ Auto-save failed with error:', error);
-    return false;
+
+    if (this.isDestroyed === true) {
+      console.warn('⚠️ AutoSave: GameCore is destroyed, skipping save');
+      return false;
+    }
+
+    if (this.gameState.isDestroyed === true) {
+      console.warn('⚠️ AutoSave: GameState is destroyed, skipping save');
+      return false;
+    }
+
+    if (!this.storageManager) {
+      console.warn('⚠️ AutoSave: storageManager is null, skipping save');
+      return false;
+    }
+
+    try {
+      // Используем безопасное сохранение
+      const success = this.storageManager.safeSave(this.gameState);
+      
+      if (success) {
+        console.log('💾 Auto-save completed successfully');
+      } else {
+        console.warn('⚠️ Auto-save failed but no error thrown');
+      }
+      
+      return success;
+      
+    } catch (error) {
+      console.error('❌ Auto-save failed with error:', error);
+      return false;
+    }
   }
-}
+
+  // ИСПРАВЛЕНИЕ: Перезапуск менеджеров после загрузки
+  restartManagersAfterLoad() {
+    console.log('🔄 Restarting managers after load...');
+    
+    try {
+      // Перезапускаем производство зданий
+      if (this.managers.building) {
+        this.managers.building.stopAllProduction();
+        this.managers.building.startProduction();
+        console.log('✅ Building production restarted');
+      }
+
+      // Перезапускаем генерацию навыков и автокликер
+      if (this.managers.skill) {
+        this.managers.skill.stopAllGeneration();
+        this.managers.skill.startGeneration();
+        console.log('✅ Skill generation restarted');
+        
+        // Специально перезапускаем автокликер
+        const autoClickerLevel = this.managers.skill.getSkillLevel('autoClicker');
+        if (autoClickerLevel > 0) {
+          this.managers.skill.reloadAutoClicker();
+          console.log('🤖 Auto clicker reloaded');
+        }
+      }
+
+      // Обновляем UI
+      if (this.managers.ui) {
+        this.managers.ui.forceUpdate();
+        console.log('✅ UI updated');
+      }
+
+      // Принудительно обновляем игровой цикл
+      if (this.gameLoop) {
+        this.gameLoop.forceRedraw();
+        console.log('✅ Game loop refreshed');
+      }
+
+    } catch (error) {
+      console.warn('⚠️ Some managers failed to restart after load:', error);
+    }
+  }
 
   // Проверка достижений
   checkAchievements() {
@@ -282,7 +354,7 @@ autoSave() {
     }
   }
 
-  // Обработка сброса игры - FIXED: Use correct cleanup method
+  // Обработка сброса игры
   handleGameReset() {
     console.log('🔥 Handling game reset...');
     
@@ -295,7 +367,7 @@ autoSave() {
       // Останавливаем все процессы менеджеров
       this.stopAllGameProcesses();
       
-      // Выполняем полную очистку - Use destroy() instead of cleanup()
+      // Выполняем полную очистку
       this.destroy();
       
       console.log('✅ Game reset handled');
@@ -404,12 +476,89 @@ autoSave() {
     };
   }
 
-  // Проверка активности игры - FIXED: Remove recursive call
+  // Проверка активности игры
   isGameActive() {
     return this.isActive() && this.gameState && this.gameLoop && this.gameLoop.isRunning();
   }
 
-  // Деструктор - FIXED: Use proper cleanup method name
+  // ИСПРАВЛЕНИЕ: Добавляем отладочные функции
+  enableDebugMode() {
+    console.log('🐛 Enabling debug mode...');
+    
+    // Создаем глобальный объект для отладки
+    window.gameDebug = {
+      getGameState: () => this.gameState,
+      getManagers: () => this.managers,
+      getGameCore: () => this,
+      
+      // Комбо отладка
+      forceComboReset: () => {
+        if (this.managers.feature && typeof this.managers.feature.forceResetCombo === 'function') {
+          this.managers.feature.forceResetCombo();
+        } else {
+          this.gameState.combo.count = 0;
+          this.gameState.combo.deadline = 0;
+        }
+      },
+      
+      setCombo: (count) => {
+        this.gameState.combo.count = Math.max(0, count);
+        eventBus.emit(GameEvents.COMBO_CHANGED, this.gameState.combo);
+      },
+      
+      // Эффекты отладка
+      clearAllEffects: () => {
+        this.managers.buff?.clearAllEffects();
+      },
+      
+      forceEffectCleanup: () => {
+        this.managers.buff?.forceCleanExpiredEffects();
+        this.managers.ui?.effectIndicators?.forceCleanup();
+      },
+      
+      // Автокликер отладка
+      getAutoClickerStats: () => {
+        return this.managers.skill?.getAutoClickerStats();
+      },
+      
+      reloadAutoClicker: () => {
+        this.managers.skill?.reloadAutoClicker();
+      },
+      
+      // Общая отладка
+      triggerAutoSave: () => this.autoSave(),
+      
+      getStats: () => ({
+        gameState: this.getGameStats(),
+        cleanup: this.cleanupManager.getStats(),
+        ui: this.managers.ui?.getUIStats(),
+        buffs: this.managers.buff?.getDebugInfo(),
+        effects: this.managers.ui?.effectIndicators?.getDebugInfo(),
+        gameLoop: this.gameLoop?.getRenderStats()
+      }),
+      
+      // FPS отладка
+      getFPS: () => this.gameLoop?.getFPS(),
+      
+      forceRedraw: () => this.gameLoop?.forceRedraw(),
+      
+      // Перезапуск менеджеров
+      restartManagers: () => this.restartManagersAfterLoad()
+    };
+    
+    console.log('🐛 Debug mode enabled! Use window.gameDebug for debugging');
+    
+    // Включаем отладку в менеджерах
+    if (this.managers.buff && typeof this.managers.buff.setDebugMode === 'function') {
+      this.managers.buff.setDebugMode(true);
+    }
+    
+    if (this.cleanupManager && typeof this.cleanupManager.setDebugMode === 'function') {
+      this.cleanupManager.setDebugMode(true);
+    }
+  }
+
+  // Деструктор
   destroy() {
     console.log('🧹 Destroying GameCore...');
     

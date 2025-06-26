@@ -1,4 +1,4 @@
-// managers/FeatureManager.js - Основные механики кликера (обновленная версия)
+// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с автосбросом комбо
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { Zone } from '../utils/Zone.js';
@@ -14,8 +14,14 @@ export class FeatureManager extends CleanupMixin {
     this.buffManager = buffManager;
     this.zones = [];
     
+    // ИСПРАВЛЕНИЕ: Добавляем интервал для проверки комбо
+    this.comboCheckInterval = null;
+    
     this.initializeZones();
     this.bindEvents();
+    
+    // ИСПРАВЛЕНИЕ: Запускаем таймер проверки комбо
+    this.startComboTimer();
     
     console.log('🎯 FeatureManager initialized');
   }
@@ -39,6 +45,57 @@ export class FeatureManager extends CleanupMixin {
     );
     
     console.log(`🎯 Created ${ZONE_COUNT} zones`);
+  }
+
+  // ИСПРАВЛЕНИЕ: Запуск таймера проверки комбо
+  startComboTimer() {
+    if (this.comboCheckInterval) {
+      this.cleanupManager.clearInterval(this.comboCheckInterval);
+    }
+    
+    this.comboCheckInterval = this.createInterval(() => {
+      this.checkComboTimeout();
+    }, 1000, 'combo-timeout-check'); // Проверяем каждую секунду
+    
+    console.log('⏰ Combo timeout checker started');
+  }
+
+  // ИСПРАВЛЕНИЕ: Проверка таймаута комбо
+  checkComboTimeout() {
+    if (!this.gameState.combo || this.gameState.combo.count === 0) {
+      return; // Нет активного комбо
+    }
+    
+    const now = Date.now();
+    const deadline = this.gameState.combo.deadline || 0;
+    
+    // Проверяем, истек ли таймер комбо
+    if (now > deadline && this.gameState.combo.count > 0) {
+      console.log(`⏰ Combo timeout detected! Count was ${this.gameState.combo.count}, resetting to 0`);
+      
+      // Сохраняем старое значение для логирования
+      const oldCombo = this.gameState.combo.count;
+      
+      // Сбрасываем комбо
+      this.gameState.combo.count = 0;
+      this.gameState.combo.deadline = 0;
+      this.gameState.combo.lastZone = null;
+      this.gameState.combo.lastAngle = null;
+      
+      // Эмитируем событие изменения комбо
+      eventBus.emit(GameEvents.COMBO_CHANGED, {
+        count: 0,
+        effective: 0,
+        zone: null,
+        target: this.gameState.targetZone,
+        deadline: 0,
+        reason: 'timeout',
+        previousCount: oldCombo
+      });
+      
+      // Показываем уведомление пользователю
+      eventBus.emit(GameEvents.NOTIFICATION, `⏰ Combo expired! (was ${oldCombo})`);
+    }
   }
 
   // Привязка событий
@@ -158,89 +215,95 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-// Обработка комбо
-handleCombo(zone, normalizedAngle, now) {
-  // ИСПРАВЛЕНИЕ: Сохраняем угол для отладки
-  this.gameState.combo.lastAngle = normalizedAngle;
-  
-  // Time Stretch skill - увеличение времени комбо
-  const extraTime = this.getSkillBonus('duration', 'combo_timeout');
-  const comboTimeout = GAME_CONSTANTS.COMBO_TIMEOUT + extraTime;
-  
-  // Проверяем заморозку комбо (Freeze debuff)
-  const isComboFrozen = this.gameState.debuffs && 
-                       this.gameState.debuffs.includes('freeze');
-  
-  // ИСПРАВЛЕНИЕ: Безопасная работа с таймингом
-  const safeNow = Math.max(now, 0);
-  const currentDeadline = this.gameState.combo.deadline || 0;
-  
-  // ИСПРАВЛЕНИЕ: Логика комбо с корректными проверками
-  if (!isComboFrozen) {
-    // Проверяем попадание в целевую зону
-    if (zone.index === this.gameState.targetZone) {
-      // ПОПАДАНИЕ В ЦЕЛЬ
-      
-      // Проверяем, не истекло ли время комбо
-      if (safeNow <= currentDeadline || this.gameState.combo.count === 0) {
-        // Время не истекло или это первый клик - увеличиваем комбо
-        this.gameState.combo.count++;
+  // ИСПРАВЛЕНИЕ: Обработка комбо с правильным автосбросом
+  handleCombo(zone, normalizedAngle, now) {
+    // Сохраняем угол для отладки
+    this.gameState.combo.lastAngle = normalizedAngle;
+    
+    // Time Stretch skill - увеличение времени комбо
+    const extraTime = this.getSkillBonus('duration', 'combo_timeout');
+    const comboTimeout = GAME_CONSTANTS.COMBO_TIMEOUT + extraTime;
+    
+    // Проверяем заморозку комбо (Freeze debuff)
+    const isComboFrozen = this.gameState.debuffs && 
+                         this.gameState.debuffs.includes('freeze');
+    
+    const safeNow = Math.max(now, 0);
+    const currentDeadline = this.gameState.combo.deadline || 0;
+    
+    if (!isComboFrozen) {
+      // Проверяем попадание в целевую зону
+      if (zone.index === this.gameState.targetZone) {
+        // ПОПАДАНИЕ В ЦЕЛЬ
+        
+        // ИСПРАВЛЕНИЕ: Улучшенная логика проверки таймаута
+        const comboExpired = this.gameState.combo.count > 0 && safeNow > currentDeadline;
+        
+        if (comboExpired) {
+          // Комбо истекло - начинаем новое
+          console.log(`⏰ Combo expired on hit (was ${this.gameState.combo.count}), starting new combo`);
+          this.gameState.combo.count = 1;
+        } else {
+          // Комбо продолжается или это первый клик
+          this.gameState.combo.count++;
+        }
+        
         console.log(`✅ Combo HIT! Zone ${zone.index}, Combo: ${this.gameState.combo.count}`);
+        
       } else {
-        // Время истекло - сбрасываем комбо и начинаем новое
-        this.gameState.combo.count = 1;
-        console.log(`⏰ Combo timeout, restarting. Zone ${zone.index}, Combo: 1`);
+        // ПРОМАХ
+        console.log(`❌ Combo MISS! Clicked zone ${zone.index}, target was ${this.gameState.targetZone}`);
+        
+        // Проверяем защиту от промаха
+        if (this.canUseMissProtection()) {
+          this.useMissProtection();
+          eventBus.emit(GameEvents.MISS_PROTECTION_USED);
+          console.log(`🛡️ Miss protection used, combo preserved: ${this.gameState.combo.count}`);
+          // Комбо остается прежним, но обновляем deadline
+        } else {
+          // Сбрасываем комбо
+          this.gameState.combo.count = 1;
+          console.log(`💥 Combo reset to 1 due to miss`);
+        }
       }
-    } else {
-      // ПРОМАХ
-      console.log(`❌ Combo MISS! Clicked zone ${zone.index}, target was ${this.gameState.targetZone}`);
       
-      // Проверяем защиту от промаха
-      if (this.canUseMissProtection()) {
-        this.useMissProtection();
-        eventBus.emit(GameEvents.MISS_PROTECTION_USED);
-        console.log(`🛡️ Miss protection used, combo preserved: ${this.gameState.combo.count}`);
-        // Комбо остается прежним
-      } else {
-        // Сбрасываем комбо
-        this.gameState.combo.count = 1;
-        console.log(`💥 Combo reset to 1 due to miss`);
-      }
+      // ИСПРАВЛЕНИЕ: Всегда обновляем deadline после любого клика
+      this.gameState.combo.deadline = safeNow + comboTimeout;
+      
+    } else {
+      // Комбо заморожено - логируем но не изменяем
+      console.log(`❄️ Combo frozen at ${this.gameState.combo.count}`);
+      // При заморозке deadline не обновляется
     }
     
-    // ИСПРАВЛЕНИЕ: Всегда обновляем deadline после клика
-    this.gameState.combo.deadline = safeNow + comboTimeout;
-  } else {
-    // Комбо заморожено - логируем но не изменяем
-    console.log(`❄️ Combo frozen at ${this.gameState.combo.count}`);
+    // Обновляем последнюю зону
+    this.gameState.combo.lastZone = zone.index;
+    
+    // Ограничиваем комбо максимальным значением
+    this.gameState.combo.count = Math.min(
+      Math.max(0, this.gameState.combo.count),
+      GAME_CONSTANTS.MAX_COMBO_COUNT
+    );
+    
+    // Combo Master skill - увеличение эффективности комбо
+    const comboMultiplier = 1 + this.getSkillBonus('multiplier', 'combo');
+    const effectiveCombo = Math.floor(this.gameState.combo.count * comboMultiplier);
+    
+    // Всегда эмитируем событие изменения комбо
+    eventBus.emit(GameEvents.COMBO_CHANGED, {
+      count: this.gameState.combo.count,
+      effective: effectiveCombo,
+      zone: zone.index,
+      target: this.gameState.targetZone,
+      deadline: this.gameState.combo.deadline,
+      timeLeft: Math.max(0, this.gameState.combo.deadline - safeNow),
+      reason: 'click'
+    });
+    
+    console.log(`📊 Final combo state: ${this.gameState.combo.count} (effective: ${effectiveCombo})`);
+    
+    return effectiveCombo;
   }
-  
-  // Обновляем последнюю зону
-  this.gameState.combo.lastZone = zone.index;
-  
-  // ИСПРАВЛЕНИЕ: Ограничиваем комбо максимальным значением
-  this.gameState.combo.count = Math.min(
-    Math.max(0, this.gameState.combo.count), // Не меньше 0
-    GAME_CONSTANTS.MAX_COMBO_COUNT
-  );
-  
-  // Combo Master skill - увеличение эффективности комбо
-  const comboMultiplier = 1 + this.getSkillBonus('multiplier', 'combo');
-  const effectiveCombo = Math.floor(this.gameState.combo.count * comboMultiplier);
-  
-  // ИСПРАВЛЕНИЕ: Всегда эмитируем событие изменения комбо
-  eventBus.emit(GameEvents.COMBO_CHANGED, {
-    count: this.gameState.combo.count,
-    effective: effectiveCombo,
-    zone: zone.index,
-    target: this.gameState.targetZone,
-    deadline: this.gameState.combo.deadline
-  });
-  
-  console.log(`📊 Final combo state: ${this.gameState.combo.count} (effective: ${effectiveCombo})`);
-  
-  return effectiveCombo;
-}
 
   // Обработка получения золота и эффектов
   handleGoldAndEffects(zone, effectiveCombo) {
@@ -482,6 +545,35 @@ handleCombo(zone, normalizedAngle, now) {
     }
   }
 
+  // ИСПРАВЛЕНИЕ: Принудительный сброс комбо (для отладки)
+  forceResetCombo() {
+    console.log('🔄 Force resetting combo...');
+    this.gameState.combo.count = 0;
+    this.gameState.combo.deadline = 0;
+    this.gameState.combo.lastZone = null;
+    this.gameState.combo.lastAngle = null;
+    
+    eventBus.emit(GameEvents.COMBO_CHANGED, {
+      count: 0,
+      effective: 0,
+      zone: null,
+      target: this.gameState.targetZone,
+      deadline: 0,
+      reason: 'force_reset'
+    });
+  }
+
+  // ИСПРАВЛЕНИЕ: Получить время до истечения комбо
+  getComboTimeLeft() {
+    if (!this.gameState.combo || this.gameState.combo.count === 0) {
+      return 0;
+    }
+    
+    const now = Date.now();
+    const deadline = this.gameState.combo.deadline || 0;
+    return Math.max(0, deadline - now);
+  }
+
   // Перемешать зоны (для специальных эффектов)
   shuffleZones() {
     if (!this.isActive()) return;
@@ -519,6 +611,7 @@ handleCombo(zone, normalizedAngle, now) {
     return {
       currentCombo: this.gameState.combo.count,
       comboDeadline: this.gameState.combo.deadline,
+      comboTimeLeft: this.getComboTimeLeft(),
       lastClickedZone: this.gameState.combo.lastZone,
       blockedUntil: this.gameState.blockedUntil,
       activeEffects: {
@@ -542,6 +635,12 @@ handleCombo(zone, normalizedAngle, now) {
   // Деструктор
   destroy() {
     console.log('🧹 FeatureManager cleanup started');
+    
+    // ИСПРАВЛЕНИЕ: Останавливаем таймер проверки комбо
+    if (this.comboCheckInterval) {
+      this.cleanupManager.clearInterval(this.comboCheckInterval);
+      this.comboCheckInterval = null;
+    }
     
     // Вызываем родительский деструктор
     super.destroy();
