@@ -18,7 +18,7 @@ export const MARKET_ITEMS = [
     id: 'wood',
     name: 'Wood',
     icon: '🌲',
-    description: 'Essential building material',
+    description: 'Fragments of the ancient forests, survivors of the great cataclysm, whispering stories of resilience with every fiber.',
     price: { gold: GAME_CONSTANTS.BASIC_RESOURCE_PRICE },
     reward: { wood: 1 },
     category: 'resources'
@@ -27,7 +27,7 @@ export const MARKET_ITEMS = [
     id: 'stone',
     name: 'Stone',
     icon: '🪨',
-    description: 'Durable construction material',
+    description: 'Fragments of fallen civilizations, now reforged into the foundation of a new beginning, bearing silent witness to humanity\'s unbreakable spirit.',
     price: { gold: GAME_CONSTANTS.BASIC_RESOURCE_PRICE },
     reward: { stone: 1 },
     category: 'resources'
@@ -36,7 +36,7 @@ export const MARKET_ITEMS = [
     id: 'food',
     name: 'Food',
     icon: '🍎',
-    description: 'Sustenance for your people',
+    description: 'A precious lifeline in a world where every morsel represents survival and defiance against total extinction.',
     price: { gold: GAME_CONSTANTS.BASIC_RESOURCE_PRICE },
     reward: { food: 1 },
     category: 'resources'
@@ -45,7 +45,7 @@ export const MARKET_ITEMS = [
     id: 'water',
     name: 'Water',
     icon: '💧',
-    description: 'Life-giving liquid',
+    description: 'The most sacred resource in a landscape scorched by environmental collapse, where each drop is a miracle of persistence.',
     price: { gold: GAME_CONSTANTS.BASIC_RESOURCE_PRICE },
     reward: { water: 1 },
     category: 'resources'
@@ -54,7 +54,7 @@ export const MARKET_ITEMS = [
     id: 'iron',
     name: 'Iron',
     icon: '⛓️',
-    description: 'Strong metal for tools and weapons',
+    description: 'Forged in the heart of broken mountains, this metal represents the strength and adaptability of survivors, transforming the remnants of the old world into tools of reconstruction.',
     price: { gold: GAME_CONSTANTS.BASIC_RESOURCE_PRICE },
     reward: { iron: 1 },
     category: 'resources'
@@ -63,7 +63,7 @@ export const MARKET_ITEMS = [
     id: 'energy_pack',
     name: 'Energy Pack',
     icon: '⚡',
-    description: 'Instant energy boost',
+    description: 'A concentrated burst of power, salvaged from the technological ruins of the pre-cataclysm world.',
     price: { gold: GAME_CONSTANTS.ENERGY_PACK_PRICE },
     reward: { energy: 3 },
     category: 'advanced'
@@ -72,7 +72,7 @@ export const MARKET_ITEMS = [
     id: 'science_book',
     name: 'Science Book',
     icon: '📚',
-    description: 'Knowledge compilation',
+    description: 'Fragments of lost knowledge, carefully preserved and compiled by surviving scholars who refuse to let human understanding fade.',
     price: { gold: GAME_CONSTANTS.SCIENCE_BOOK_PRICE, iron: 5 },
     reward: { science: 2 },
     category: 'advanced'
@@ -81,7 +81,7 @@ export const MARKET_ITEMS = [
     id: 'faith_relic',
     name: 'Faith Relic',
     icon: '✨',
-    description: 'Sacred artifact that increases faith',
+    description: 'A sacred artifact that embodies the spiritual resistance against the encroaching chaos, representing humanity\'s unbreakable will to find meaning beyond destruction.',
     price: { gold: GAME_CONSTANTS.FAITH_RELIC_PRICE, stone: 20 },
     reward: { faith: 5 },
     category: 'special'
@@ -90,7 +90,7 @@ export const MARKET_ITEMS = [
     id: 'chaos_neutralizer',
     name: 'Chaos Neutralizer',
     icon: '🕊️',
-    description: 'Reduces chaos in your realm',
+    description: 'A rare and powerful tool developed by the most brilliant minds, designed to push back against the destructive energies that threaten to consume the last vestiges of civilization.',
     price: { gold: GAME_CONSTANTS.CHAOS_NEUTRALIZER_PRICE, science: 3 },
     reward: { chaos: -10 }, // Отрицательное значение - уменьшает хаос
     category: 'special'
@@ -99,7 +99,7 @@ export const MARKET_ITEMS = [
     id: 'skill_crystal',
     name: 'Skill Crystal',
     icon: '💎',
-    description: 'Crystallized knowledge that grants skill points',
+    description: 'Crystallized knowledge from the remnants of human understanding, a tangible representation of the collective wisdom that survived the great collapse.',
     price: { gold: GAME_CONSTANTS.SKILL_CRYSTAL_PRICE, science: 5, faith: 3 },
     reward: { skillPoints: 3 },
     category: 'premium'
@@ -108,7 +108,7 @@ export const MARKET_ITEMS = [
     id: 'resource_bundle',
     name: 'Resource Bundle',
     icon: '📦',
-    description: 'Mixed package of basic resources',
+    description: ' A carefully curated collection of survival essentials, a lifeline for those struggling to rebuild in the aftermath of total destruction.',
     price: { gold: 50000 },
     reward: { wood: 10, stone: 10, food: 10, water: 10, iron: 5 },
     category: 'resources'
@@ -117,7 +117,7 @@ export const MARKET_ITEMS = [
     id: 'golden_charm',
     name: 'Golden Charm',
     icon: '🏅',
-    description: 'Increases gold generation permanently',
+    description: 'An artifact that channels the economic resilience of the old world, promising a steady flow of resources in an era of scarcity.',
     price: { gold: 50000, faith: 10 },
     reward: { goldBonus: 0.1 }, // 10% постоянный бонус к золоту
     category: 'premium'
