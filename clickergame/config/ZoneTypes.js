@@ -1,26 +1,26 @@
-// config/ZoneTypes.js - Конфигурация типов зон для системы энергии
+// config/ZoneTypes.js - ИСПРАВЛЕННАЯ система зон с улучшенными цветами и логикой
 export const ZONE_TYPES = {
   GOLD: {
     id: 'gold',
     name: 'Gold Zone',
-    color: '#FFD700',
-    probability: 0.70,
+    color: '#C41E3A', // Более приятный красный
+    probability: 1.0, // Всегда есть одна золотая зона
     effects: {
       givesGold: true,
       givesCombo: true,
       energyCost: 1
     },
-    description: 'Provides gold and builds combo'
+    description: 'Gives gold and builds combo. Always present on wheel.'
   },
   ENERGY: {
     id: 'energy',
-    name: 'Energy Zone', 
-    color: '#00FF00',
-    probability: 0.25,
+    name: 'Energy Zone',
+    color: '#228B22', // Более приятный зеленый
+    probability: 0.30, // 30% шанс появления
     effects: {
       givesGold: false,
       givesCombo: false,
-      energyRestore: 2,
+      energyRestore: 3, // Увеличено восстановление
       energyCost: 0
     },
     description: 'Restores energy, no gold or combo'
@@ -28,16 +28,17 @@ export const ZONE_TYPES = {
   BONUS: {
     id: 'bonus',
     name: 'Bonus Zone',
-    color: '#FF4500', 
-    probability: 0.05,
+    color: '#FFB347', // Приятный персиковый/золотистый
+    probability: 0.15, // 15% шанс появления
     effects: {
-      givesGold: true,
-      givesCombo: true,
-      energyRestore: 1,
-      energyCost: 1,
-      goldMultiplier: 3
+      givesGold: false,
+      givesCombo: false,
+      energyRestore: 2,
+      energyCost: 0,
+      resourceBonus: true, // Дает случайные ресурсы
+      resourceAmount: 2
     },
-    description: 'Triple gold, combo, and energy restore'
+    description: 'Gives random resources and restores energy'
   }
 };
 
@@ -51,12 +52,18 @@ export class ZoneTypeManager {
   static generateZoneTypes(zoneCount, energyPercentage = 0.25) {
     const zones = [];
     
-    // Рассчитываем количество зон каждого типа
-    const energyZoneCount = Math.floor(zoneCount * energyPercentage);
-    const bonusZoneCount = Math.max(1, Math.floor(zoneCount * ZONE_TYPES.BONUS.probability));
-    const goldZoneCount = zoneCount - energyZoneCount - bonusZoneCount;
+    // ИСПРАВЛЕНИЕ: Всегда добавляем одну красную (золотую) зону
+    zones.push(ZONE_TYPES.GOLD);
     
-    // Добавляем золотые зоны
+    // Оставшиеся зоны распределяем между энергетическими и бонусными
+    const remainingZones = zoneCount - 1;
+    
+    // Рассчитываем количество зон каждого типа на основе вероятностей
+    const energyZoneCount = Math.floor(remainingZones * ZONE_TYPES.ENERGY.probability * energyPercentage);
+    const bonusZoneCount = Math.floor(remainingZones * ZONE_TYPES.BONUS.probability);
+    const goldZoneCount = remainingZones - energyZoneCount - bonusZoneCount;
+    
+    // Добавляем дополнительные золотые зоны
     for (let i = 0; i < goldZoneCount; i++) {
       zones.push(ZONE_TYPES.GOLD);
     }
@@ -69,6 +76,11 @@ export class ZoneTypeManager {
     // Добавляем бонусные зоны
     for (let i = 0; i < bonusZoneCount; i++) {
       zones.push(ZONE_TYPES.BONUS);
+    }
+    
+    // Если зон недостаточно, добавляем золотые
+    while (zones.length < zoneCount) {
+      zones.push(ZONE_TYPES.GOLD);
     }
     
     // Перемешиваем зоны для случайного распределения
@@ -97,6 +109,16 @@ export class ZoneTypeManager {
    */
   static getZoneTypeByIndex(zones, index) {
     return zones[index] || ZONE_TYPES.GOLD;
+  }
+  
+  /**
+   * Находит индекс первой золотой зоны (для целевой зоны)
+   * @param {Array} zones - Массив типов зон
+   * @returns {number} Индекс золотой зоны
+   */
+  static findGoldZoneIndex(zones) {
+    const goldIndex = zones.findIndex(zone => zone.id === 'gold');
+    return goldIndex !== -1 ? goldIndex : 0;
   }
   
   /**
@@ -131,11 +153,11 @@ export class ZoneTypeManager {
     
     // Увеличиваем процент энергетических зон при низкой энергии
     if (currentEnergyPercent <= 10) {
-      energyPercentage = 0.5; // 50% при критической энергии
+      energyPercentage = 0.6; // 60% при критической энергии
     } else if (currentEnergyPercent <= 30) {
-      energyPercentage = 0.35; // 35% при низкой энергии
+      energyPercentage = 0.45; // 45% при низкой энергии
     } else if (currentEnergyPercent <= 50) {
-      energyPercentage = 0.3; // 30% при средней энергии
+      energyPercentage = 0.35; // 35% при средней энергии
     }
     
     return this.generateZoneTypes(zoneCount, energyPercentage);
@@ -187,12 +209,12 @@ export class ZoneTypeManager {
   }
   
   /**
-   * Получает множитель золота для зоны
+   * Получает количество ресурсов от бонусной зоны
    * @param {Object} zoneType - Тип зоны
-   * @returns {number} Множитель золота
+   * @returns {number} Количество ресурсов
    */
-  static getGoldMultiplier(zoneType) {
-    return (zoneType && zoneType.effects && zoneType.effects.goldMultiplier) || 1;
+  static getResourceAmount(zoneType) {
+    return (zoneType && zoneType.effects && zoneType.effects.resourceAmount) || 0;
   }
   
   /**
@@ -207,16 +229,15 @@ export class ZoneTypeManager {
     const e = zoneType.effects;
     
     if (e.givesGold) {
-      const multiplier = e.goldMultiplier || 1;
-      effects.push(`Gold${multiplier > 1 ? ` x${multiplier}` : ''}`);
-    }
-    
-    if (e.givesCombo) {
-      effects.push('Combo');
+      effects.push('Gold & Combo');
     }
     
     if (e.energyRestore > 0) {
       effects.push(`+${e.energyRestore} Energy`);
+    }
+    
+    if (e.resourceBonus) {
+      effects.push(`+${e.resourceAmount} Random Resource`);
     }
     
     if (e.energyCost > 0) {
@@ -282,7 +303,8 @@ export class ZoneTypeManager {
       distribution,
       percentages,
       energyZones: distribution.energy || 0,
-      goldZones: (distribution.gold || 0) + (distribution.bonus || 0),
+      goldZones: distribution.gold || 0,
+      bonusZones: distribution.bonus || 0,
       totalEnergyRestore: (distribution.energy || 0) * ZONE_TYPES.ENERGY.effects.energyRestore +
                          (distribution.bonus || 0) * ZONE_TYPES.BONUS.effects.energyRestore
     };
