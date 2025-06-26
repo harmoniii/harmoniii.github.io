@@ -1,4 +1,4 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с поддержкой Reverse Controls
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с плавным рендерингом и FPS контролем
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -16,11 +16,25 @@ export class GameLoop extends CleanupMixin {
     this.isRunning = false;
     this.animationId = null;
     
-    // НОВОЕ: Переменная для направления вращения
+    // ИСПРАВЛЕНИЕ: Добавляем FPS контроль
+    this.targetFPS = 60;
+    this.frameTime = 1000 / this.targetFPS;
+    this.lastFrameTime = 0;
+    this.deltaTime = 0;
+    this.actualFPS = 0;
+    this.frameCount = 0;
+    this.fpsUpdateTime = 0;
+    
+    // Переменная для направления вращения
     this.rotationDirection = 1; // 1 = обычное, -1 = обратное
+    
+    // ИСПРАВЛЕНИЕ: Добавляем флаг для оптимизации рендеринга
+    this.needsRedraw = true;
+    this.lastAngle = 0;
     
     this.initializeCanvas();
     this.bindEvents();
+    this.setupVisibilityHandling();
   }
 
   // Инициализация canvas
@@ -41,6 +55,19 @@ export class GameLoop extends CleanupMixin {
     this.setupCanvasEvents();
   }
 
+  // ИСПРАВЛЕНИЕ: Добавляем обработку видимости вкладки для оптимизации
+  setupVisibilityHandling() {
+    this.addEventListener(document, 'visibilitychange', () => {
+      if (document.hidden) {
+        this.targetFPS = 30; // Снижаем FPS когда вкладка неактивна
+      } else {
+        this.targetFPS = 60; // Восстанавливаем полный FPS
+        this.needsRedraw = true; // Принудительная перерисовка при возврате
+      }
+      this.frameTime = 1000 / this.targetFPS;
+    });
+  }
+
   // Настройка событий canvas
   setupCanvasEvents() {
     const getClickAngle = (e) => {
@@ -55,6 +82,7 @@ export class GameLoop extends CleanupMixin {
       e.preventDefault();
       const clickAngle = getClickAngle(e);
       eventBus.emit(GameEvents.CLICK, clickAngle);
+      this.needsRedraw = true; // Перерисовываем после клика
     };
     
     // Обработчик касаний
@@ -63,6 +91,7 @@ export class GameLoop extends CleanupMixin {
       if (e.touches && e.touches.length > 0) {
         const clickAngle = getClickAngle(e.touches[0]);
         eventBus.emit(GameEvents.CLICK, clickAngle);
+        this.needsRedraw = true; // Перерисовываем после касания
       }
     };
 
@@ -78,29 +107,41 @@ export class GameLoop extends CleanupMixin {
       this.gameState.currentRotation = this.angle;
     });
     
-    // НОВОЕ: Слушаем изменения дебаффов для Reverse Controls
+    // Слушаем изменения дебаффов для Reverse Controls
     eventBus.subscribe(GameEvents.DEBUFF_APPLIED, (data) => {
       if (data.id === 'reverseControls') {
         this.updateRotationDirection();
+        this.needsRedraw = true;
       }
     });
     
     eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, (data) => {
       if (data.id === 'reverseControls') {
         this.updateRotationDirection();
+        this.needsRedraw = true;
       }
+    });
+
+    // ИСПРАВЛЕНИЕ: Перерисовываем при изменении эффектов
+    eventBus.subscribe(GameEvents.BUFF_APPLIED, () => {
+      this.needsRedraw = true;
+    });
+    
+    eventBus.subscribe(GameEvents.BUFF_EXPIRED, () => {
+      this.needsRedraw = true;
+    });
+    
+    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, () => {
+      this.needsRedraw = true;
     });
   }
 
-  // НОВОЕ: Обновление направления вращения
+  // Обновление направления вращения
   updateRotationDirection() {
-    // Проверяем, активен ли дебафф Reverse Controls
     const hasReverseControls = this.gameState.debuffs && 
                               this.gameState.debuffs.includes('reverseControls');
     
     this.rotationDirection = hasReverseControls ? -1 : 1;
-    
-    //console.log(`🔄 Rotation direction: ${hasReverseControls ? 'REVERSED' : 'NORMAL'}`);
   }
 
   // Запуск игрового цикла
@@ -109,7 +150,8 @@ export class GameLoop extends CleanupMixin {
     
     console.log('🔄 Starting game loop...');
     this.isRunning = true;
-    this.gameLoop();
+    this.lastFrameTime = performance.now();
+    this.gameLoop(this.lastFrameTime);
   }
 
   // Остановка игрового цикла
@@ -125,22 +167,36 @@ export class GameLoop extends CleanupMixin {
     }
   }
 
-  // Основной игровой цикл
-  gameLoop() {
+  // ИСПРАВЛЕНИЕ: Основной игровой цикл с FPS контролем
+  gameLoop(currentTime) {
     if (!this.isRunning) return;
     
     try {
-      // Очищаем canvas
-      this.clearCanvas();
+      // FPS throttling
+      const elapsed = currentTime - this.lastFrameTime;
       
-      // ИСПРАВЛЕНИЕ: Обновляем направление вращения
+      if (elapsed < this.frameTime) {
+        // Слишком рано для следующего кадра
+        this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
+        return;
+      }
+      
+      // Рассчитываем deltaTime и FPS
+      this.deltaTime = elapsed;
+      this.lastFrameTime = currentTime;
+      this.updateFPSCounter(currentTime);
+      
+      // Обновляем направление вращения
       this.updateRotationDirection();
       
       // Обновляем угол поворота
-      this.updateRotation();
+      const angleChanged = this.updateRotation();
       
-      // Рисуем игровые элементы
-      this.render();
+      // ИСПРАВЛЕНИЕ: Рендерим только при необходимости
+      if (this.needsRedraw || angleChanged) {
+        this.render();
+        this.needsRedraw = false;
+      }
       
       // Обновляем состояние в gameState
       this.gameState.currentRotation = this.angle;
@@ -150,7 +206,23 @@ export class GameLoop extends CleanupMixin {
     }
     
     // Планируем следующий кадр
-    this.animationId = requestAnimationFrame(() => this.gameLoop());
+    this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
+  }
+
+  // ИСПРАВЛЕНИЕ: Добавляем счетчик FPS
+  updateFPSCounter(currentTime) {
+    this.frameCount++;
+    
+    if (currentTime - this.fpsUpdateTime >= 1000) {
+      this.actualFPS = this.frameCount;
+      this.frameCount = 0;
+      this.fpsUpdateTime = currentTime;
+      
+      // Логируем FPS только при значительных изменениях
+      if (this.actualFPS < 50) {
+        console.warn(`⚠️ Low FPS detected: ${this.actualFPS}`);
+      }
+    }
   }
 
   // Очистка canvas
@@ -158,7 +230,7 @@ export class GameLoop extends CleanupMixin {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  // ИСПРАВЛЕНИЕ: Обновление угла поворота с поддержкой Reverse Controls
+  // ИСПРАВЛЕНИЕ: Обновление угла поворота с плавной анимацией
   updateRotation() {
     let rotationSpeed = UI_CONFIG.ROTATION_SPEED;
     
@@ -171,24 +243,37 @@ export class GameLoop extends CleanupMixin {
       rotationSpeed *= GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER;
     }
     
-    // ИСПРАВЛЕНИЕ: Применяем направление вращения
-    this.angle += rotationSpeed * this.rotationDirection;
+    // ИСПРАВЛЕНИЕ: Используем deltaTime для плавной анимации
+    const rotationDelta = rotationSpeed * this.rotationDirection * (this.deltaTime / 16.67); // 16.67ms = 60fps
+    const newAngle = this.angle + rotationDelta;
+    
+    // Проверяем, изменился ли угол значительно
+    const angleChanged = Math.abs(newAngle - this.lastAngle) > 0.001;
+    
+    this.angle = newAngle;
+    this.lastAngle = this.angle;
     
     // Нормализуем угол для предотвращения переполнения
-    this.angle = this.angle % (2 * Math.PI);
-    if (this.angle < 0) {
+    if (this.angle > 2 * Math.PI) {
+      this.angle -= 2 * Math.PI;
+    } else if (this.angle < 0) {
       this.angle += 2 * Math.PI;
     }
+    
+    return angleChanged;
   }
 
   // Рендеринг игровых элементов
   render() {
     if (!this.managers.feature || !this.managers.feature.zones) return;
     
+    // Очищаем canvas
+    this.clearCanvas();
+    
     this.drawZones();
     this.drawTargetIndicator();
     this.drawPreviewZone();
-    this.drawReverseIndicator(); // НОВОЕ: Индикатор обратного вращения
+    this.drawReverseIndicator();
   }
 
   // Рисование зон
@@ -225,10 +310,8 @@ export class GameLoop extends CleanupMixin {
 
   // Получить цвет зоны
   getZoneColor(zoneIndex) {
-    // Базовый серый цвет
     let color = '#888';
     
-    // Если это целевая зона, делаем ее светлее
     if (this.gameState.targetZone === zoneIndex) {
       color = '#aaa';
     }
@@ -253,7 +336,6 @@ export class GameLoop extends CleanupMixin {
     const startAngle = targetIndex * stepAngle + this.angle;
     const endAngle = (targetIndex + 1) * stepAngle + this.angle;
     
-    // Красная обводка для целевой зоны
     this.ctx.beginPath();
     this.ctx.moveTo(centerX, centerY);
     this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
@@ -266,7 +348,6 @@ export class GameLoop extends CleanupMixin {
 
   // Рисование предварительного показа следующей зоны
   drawPreviewZone() {
-    // Проверяем, есть ли навык предварительного показа
     if (!this.managers.skill || !this.managers.skill.getSkillLevel('zonePreview')) return;
     
     const zones = this.managers.feature.zones;
@@ -278,12 +359,10 @@ export class GameLoop extends CleanupMixin {
     const totalAngle = 2 * Math.PI;
     const stepAngle = totalAngle / zones.length;
     
-    // Показываем следующую зону после текущей целевой
     const nextZone = (this.gameState.targetZone + 1) % zones.length;
     const startAngle = nextZone * stepAngle + this.angle;
     const endAngle = (nextZone + 1) * stepAngle + this.angle;
     
-    // Желтая пунктирная обводка для предварительного показа
     this.ctx.beginPath();
     this.ctx.moveTo(centerX, centerY);
     this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
@@ -293,12 +372,11 @@ export class GameLoop extends CleanupMixin {
     this.ctx.lineWidth = GAME_CONSTANTS.PREVIEW_ZONE_BORDER_WIDTH;
     this.ctx.setLineDash([10, 5]);
     this.ctx.stroke();
-    this.ctx.setLineDash([]); // Сбрасываем пунктир
+    this.ctx.setLineDash([]);
   }
 
-  // НОВОЕ: Рисование индикатора обратного вращения
+  // Рисование индикатора обратного вращения
   drawReverseIndicator() {
-    // Показываем индикатор только если активен Reverse Controls
     if (!this.gameState.debuffs || !this.gameState.debuffs.includes('reverseControls')) {
       return;
     }
@@ -306,16 +384,10 @@ export class GameLoop extends CleanupMixin {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     
-    // Рисуем стрелку указывающую направление вращения
     this.ctx.save();
-    
-    // Позиция стрелки (в центре колеса)
     this.ctx.translate(centerX, centerY);
-    
-    // Поворачиваем стрелку в зависимости от направления
     this.ctx.rotate(this.angle + (this.rotationDirection > 0 ? 0 : Math.PI));
     
-    // Рисуем стрелку
     this.ctx.beginPath();
     this.ctx.moveTo(0, -50);
     this.ctx.lineTo(-15, -30);
@@ -326,18 +398,15 @@ export class GameLoop extends CleanupMixin {
     this.ctx.lineTo(15, -30);
     this.ctx.closePath();
     
-    // Яркий цвет для обратного направления
     this.ctx.fillStyle = this.rotationDirection < 0 ? '#FF4444' : '#44FF44';
     this.ctx.fill();
     
-    // Обводка
     this.ctx.strokeStyle = '#000';
     this.ctx.lineWidth = 2;
     this.ctx.stroke();
     
     this.ctx.restore();
     
-    // Добавляем текстовый индикатор
     if (this.rotationDirection < 0) {
       this.ctx.save();
       this.ctx.font = 'bold 16px Arial';
@@ -349,12 +418,17 @@ export class GameLoop extends CleanupMixin {
     }
   }
 
+  // ИСПРАВЛЕНИЕ: Принудительная перерисовка
+  forceRedraw() {
+    this.needsRedraw = true;
+  }
+
   // Получить текущий угол поворота
   getCurrentAngle() {
     return this.angle;
   }
 
-  // НОВОЕ: Получить направление вращения
+  // Получить направление вращения
   getRotationDirection() {
     return this.rotationDirection;
   }
@@ -374,29 +448,21 @@ export class GameLoop extends CleanupMixin {
     return this.isRunning;
   }
 
-  // Получить FPS (приблизительно)
+  // ИСПРАВЛЕНИЕ: Получить реальный FPS
   getFPS() {
-    // Простая оценка FPS на основе requestAnimationFrame
-    // В реальном приложении можно добавить более точный подсчет
-    return 60;
-  }
-
-  // Изменить размер canvas (для адаптивности)
-  resize(width, height) {
-    if (this.canvas) {
-      this.canvas.width = width;
-      this.canvas.height = height;
-      console.log(`🖼️ Canvas resized to ${width}x${height}`);
-    }
+    return this.actualFPS;
   }
 
   // Получить статистику рендеринга
   getRenderStats() {
     return {
-      fps: this.getFPS(),
+      fps: this.actualFPS,
+      targetFPS: this.targetFPS,
       angle: this.angle,
       rotationDirection: this.rotationDirection,
       isRunning: this.isRunning,
+      needsRedraw: this.needsRedraw,
+      deltaTime: this.deltaTime,
       canvasSize: {
         width: this.canvas?.width || 0,
         height: this.canvas?.height || 0
@@ -404,9 +470,20 @@ export class GameLoop extends CleanupMixin {
     };
   }
 
-  // НОВОЕ: Форсированное обновление направления (для отладки)
+  // Изменить размер canvas (для адаптивности)
+  resize(width, height) {
+    if (this.canvas) {
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.needsRedraw = true;
+      console.log(`🖼️ Canvas resized to ${width}x${height}`);
+    }
+  }
+
+  // Форсированное обновление направления (для отладки)
   forceUpdateDirection() {
     this.updateRotationDirection();
+    this.needsRedraw = true;
     console.log(`🔄 Force updated rotation direction: ${this.rotationDirection}`);
   }
 

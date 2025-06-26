@@ -1,4 +1,4 @@
-// managers/SkillManager.js - ИСПРАВЛЕННАЯ версия с правильными вызовами clearInterval
+// managers/SkillManager.js - ИСПРАВЛЕННАЯ версия с рабочим автокликером
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -203,6 +203,14 @@ export class SkillManager extends CleanupMixin {
     this.generationIntervals = new Map();
     this.autoClickerInterval = null;
     
+    // ИСПРАВЛЕНИЕ: Добавляем отладочную информацию для автокликера
+    this.autoClickerDebug = {
+      enabled: false,
+      lastClick: 0,
+      totalClicks: 0,
+      errors: 0
+    };
+    
     this.initializeSkills();
     this.startGeneration();
     
@@ -390,9 +398,11 @@ export class SkillManager extends CleanupMixin {
     this.generationIntervals.set(skillId, intervalId);
   }
 
-  // Запустить автокликер
+  // ИСПРАВЛЕНИЕ: Запустить автокликер с правильной логикой
   startAutoClicker(level) {
     this.stopAutoClicker();
+    
+    console.log(`🤖 Starting auto clicker at level ${level}`);
     
     this.gameState.skillStates.autoClickerActive = true;
     
@@ -402,58 +412,137 @@ export class SkillManager extends CleanupMixin {
       Math.floor(baseInterval / level)
     );
     
+    console.log(`🤖 Auto clicker interval: ${intervalMs}ms`);
+    
     this.autoClickerInterval = this.createInterval(() => {
       this.performAutoClick();
     }, intervalMs, 'auto-clicker');
+    
+    // ИСПРАВЛЕНИЕ: Включаем отладку автокликера
+    this.autoClickerDebug.enabled = true;
+    this.autoClickerDebug.totalClicks = 0;
+    this.autoClickerDebug.errors = 0;
   }
 
-  // Выполнить автоматический клик
+  // ИСПРАВЛЕНИЕ: Выполнить автоматический клик с правильной логикой
   performAutoClick() {
-    if (!this.isActive()) return;
-    
-    const target = this.gameState.targetZone;
-    const featureManager = this.gameState.featureMgr;
-    
-    // Проверяем доступность компонентов
-    if (typeof target !== 'number' || !featureManager || !featureManager.zones) {
+    if (!this.isActive()) {
+      this.autoClickerDebug.errors++;
       return;
     }
     
-    const zone = featureManager.zones.find(z => z && z.index === target);
-    if (!zone) return;
-    
-    // Получаем текущий угол поворота колеса
-    const currentRotation = this.gameState.currentRotation || 0;
-    
-    // Вычисляем углы зоны
-    const startAngle = zone.getStartAngle();
-    const endAngle = zone.getEndAngle();
-    const zoneSize = endAngle - startAngle;
-    
-    // Кликаем в центр зоны с небольшим случайным отклонением
-    const randomOffset = (Math.random() - 0.5) * zoneSize * 0.3;
-    const targetAngle = startAngle + (zoneSize / 2) + randomOffset;
-    
-    // Корректируем угол с учетом поворота колеса
-    const correctedAngle = targetAngle - currentRotation;
-    
-    // Нормализуем угол
-    const normalizedAngle = ((correctedAngle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
-    
-    // Эмитируем клик
-    eventBus.emit(GameEvents.CLICK, normalizedAngle);
+    try {
+      // ИСПРАВЛЕНИЕ: Получаем доступ к FeatureManager через gameState
+      const featureManager = this.gameState.managers?.feature || 
+                           this.gameState.featureManager || 
+                           this.gameState.featureMgr;
+      
+      if (!featureManager) {
+        console.warn('🤖 Auto clicker: FeatureManager not found');
+        this.autoClickerDebug.errors++;
+        return;
+      }
+      
+      const targetZone = this.gameState.targetZone;
+      if (typeof targetZone !== 'number' || targetZone < 0) {
+        console.warn('🤖 Auto clicker: Invalid target zone:', targetZone);
+        this.autoClickerDebug.errors++;
+        return;
+      }
+      
+      const zones = featureManager.zones;
+      if (!zones || !Array.isArray(zones) || zones.length === 0) {
+        console.warn('🤖 Auto clicker: No zones available');
+        this.autoClickerDebug.errors++;
+        return;
+      }
+      
+      // Находим целевую зону
+      const zone = zones.find(z => z && z.index === targetZone);
+      if (!zone) {
+        console.warn(`🤖 Auto clicker: Target zone ${targetZone} not found`);
+        this.autoClickerDebug.errors++;
+        return;
+      }
+      
+      // ИСПРАВЛЕНИЕ: Получаем правильный угол для клика
+      let clickAngle;
+      
+      if (typeof zone.getCenterAngle === 'function') {
+        // Используем центральный угол зоны
+        clickAngle = zone.getCenterAngle();
+        
+        // Добавляем небольшую случайность для реалистичности
+        const zoneSize = zone.getSize ? zone.getSize() : (2 * Math.PI / zones.length);
+        const randomOffset = (Math.random() - 0.5) * zoneSize * 0.2;
+        clickAngle += randomOffset;
+        
+      } else {
+        // Fallback: рассчитываем угол вручную
+        const zoneCount = zones.length;
+        const stepAngle = (2 * Math.PI) / zoneCount;
+        const centerAngle = stepAngle * targetZone + (stepAngle / 2);
+        
+        // Добавляем случайность
+        const randomOffset = (Math.random() - 0.5) * stepAngle * 0.2;
+        clickAngle = centerAngle + randomOffset;
+      }
+      
+      // ИСПРАВЛЕНИЕ: Нормализуем угол
+      clickAngle = this.normalizeAngle(clickAngle);
+      
+      // Эмитируем клик
+      eventBus.emit(GameEvents.CLICK, clickAngle);
+      
+      // Обновляем статистику
+      this.autoClickerDebug.lastClick = Date.now();
+      this.autoClickerDebug.totalClicks++;
+      
+      if (this.autoClickerDebug.enabled && this.autoClickerDebug.totalClicks % 10 === 0) {
+        console.log(`🤖 Auto clicker: ${this.autoClickerDebug.totalClicks} clicks, ${this.autoClickerDebug.errors} errors`);
+      }
+      
+    } catch (error) {
+      console.error('🤖 Auto clicker error:', error);
+      this.autoClickerDebug.errors++;
+      
+      // Если слишком много ошибок, останавливаем автокликер
+      if (this.autoClickerDebug.errors > 10) {
+        console.error('🤖 Too many auto clicker errors, stopping...');
+        this.stopAutoClicker();
+      }
+    }
   }
 
-  // ИСПРАВЛЕНИЕ: Остановить автокликер - используем правильный метод
+  // ИСПРАВЛЕНИЕ: Добавляем нормализацию угла
+  normalizeAngle(angle) {
+    if (typeof angle !== 'number' || isNaN(angle)) {
+      return 0;
+    }
+    
+    const twoPi = 2 * Math.PI;
+    let normalized = angle % twoPi;
+    
+    if (normalized < 0) {
+      normalized += twoPi;
+    }
+    
+    return normalized;
+  }
+
+  // Остановить автокликер
   stopAutoClicker() {
     if (this.autoClickerInterval) {
       this.cleanupManager.clearInterval(this.autoClickerInterval);
       this.autoClickerInterval = null;
     }
     this.gameState.skillStates.autoClickerActive = false;
+    this.autoClickerDebug.enabled = false;
+    
+    console.log('🤖 Auto clicker stopped');
   }
 
-  // ИСПРАВЛЕНИЕ: Остановить генерацию навыка - используем правильный метод
+  // Остановить генерацию навыка
   stopGeneration(skillId) {
     if (this.generationIntervals.has(skillId)) {
       const intervalId = this.generationIntervals.get(skillId);
@@ -537,6 +626,8 @@ export class SkillManager extends CleanupMixin {
         return `${totalValue} charges`;
       case 'protection':
         return `${(totalValue * 100).toFixed(1)}% protection`;
+      case 'automation':
+        return `Level ${level} automation`;
       default:
         return `Level ${level} effect`;
     }
@@ -578,6 +669,18 @@ export class SkillManager extends CleanupMixin {
     
     this.validateSkillPoints();
     eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
+  }
+
+  // ИСПРАВЛЕНИЕ: Получить статистику автокликера
+  getAutoClickerStats() {
+    return {
+      active: this.gameState.skillStates.autoClickerActive,
+      level: this.getSkillLevel('autoClicker'),
+      interval: this.autoClickerInterval ? 
+        Math.max(GAME_CONSTANTS.AUTO_CLICKER_MIN_INTERVAL, 
+                 Math.floor(GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL / this.getSkillLevel('autoClicker'))) : 0,
+      debug: { ...this.autoClickerDebug }
+    };
   }
 
   // Получить статистику навыков
@@ -636,6 +739,23 @@ export class SkillManager extends CleanupMixin {
     return effects;
   }
 
+  // ИСПРАВЛЕНИЕ: Остановить все процессы генерации навыков
+  stopAllGeneration() {
+    console.log('🛑 Stopping all skill generation...');
+    
+    // Останавливаем все интервалы генерации
+    this.generationIntervals.forEach((intervalId, skillId) => {
+      this.cleanupManager.clearInterval(intervalId);
+      console.log(`Stopped generation for ${skillId}`);
+    });
+    this.generationIntervals.clear();
+    
+    // Останавливаем автокликер
+    this.stopAutoClicker();
+    
+    console.log('✅ All skill generation stopped');
+  }
+
   // Сбросить навык (для отладки или рефакторинга)
   resetSkill(skillId) {
     const skill = this.gameState.skills[skillId];
@@ -665,18 +785,26 @@ export class SkillManager extends CleanupMixin {
     return true;
   }
 
-  // ИСПРАВЛЕНИЕ: Деструктор с правильными методами очистки
+  // ИСПРАВЛЕНИЕ: Принудительная перезагрузка автокликера
+  reloadAutoClicker() {
+    const level = this.getSkillLevel('autoClicker');
+    if (level > 0) {
+      console.log('🔄 Reloading auto clicker...');
+      this.stopAutoClicker();
+      
+      // Небольшая задержка перед перезапуском
+      this.createTimeout(() => {
+        this.startAutoClicker(level);
+      }, 100);
+    }
+  }
+
+  // Деструктор
   destroy() {
     console.log('🧹 SkillManager cleanup started');
 
     // Останавливаем все генерации
-    this.generationIntervals.forEach((intervalId, skillId) => {
-      this.cleanupManager.clearInterval(intervalId);
-    });
-    this.generationIntervals.clear();
-
-    // Останавливаем автокликер
-    this.stopAutoClicker();
+    this.stopAllGeneration();
 
     // Вызываем родительский деструктор
     super.destroy();
