@@ -9,9 +9,45 @@ export const SKILL_CATEGORIES = {
   combo: 'Combo Skills', 
   resources: 'Resource Skills',
   effects: 'Effect Skills',
-  special: 'Special Skills'
+  special: 'Special Skills',
+  energy: 'Energy Skills'
 };
 
+export const ENERGY_SKILL_DEFS = [
+  {
+    id: 'energyEfficiency',
+    name: 'Energy Efficiency',
+    icon: '💡',
+    description: 'Advanced techniques for reducing energy consumption during precise interactions with the reconstruction mechanisms.',
+    category: 'energy',
+    maxLevel: 3,
+    baseCost: 5,
+    costMultiplier: 2.0,
+    effect: { type: 'reduction', target: 'energy_cost', value: 0.25 }
+  },
+  {
+    id: 'energyMastery',
+    name: 'Energy Mastery',
+    icon: '⚡',
+    description: 'Deep understanding of energy flow patterns, allowing for accelerated recovery and optimization.',
+    category: 'energy',
+    maxLevel: 5,
+    baseCost: 8,
+    costMultiplier: 1.8,
+    effect: { type: 'multiplier', target: 'energy_regen', value: 1.0 }
+  },
+  {
+    id: 'powerStorage',
+    name: 'Power Storage',
+    icon: '🔋',
+    description: 'Enhanced capacity for storing and managing energy reserves through technological improvements.',
+    category: 'energy',
+    maxLevel: 4,
+    baseCost: 10,
+    costMultiplier: 2.2,
+    effect: { type: 'bonus', target: 'max_energy', value: 50 }
+  }
+];
 // Определения навыков
 export const SKILL_DEFS = [
   // Clicking Skills
