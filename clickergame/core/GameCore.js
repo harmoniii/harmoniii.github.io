@@ -525,7 +525,7 @@ export class GameCore extends CleanupMixin {
     return this.isActive() && this.gameState && this.gameLoop && this.gameLoop.isRunning();
   }
 
-  // Добавляем отладочные функции
+  // ИСПРАВЛЕННЫЙ enableDebugMode с новыми методами для зон
   enableDebugMode() {
     console.log('🐛 Enabling debug mode...');
     
@@ -568,7 +568,7 @@ export class GameCore extends CleanupMixin {
         }
       },
       
-      // НОВЫЕ: Функции отладки зон
+      // ИСПРАВЛЕННЫЕ: Функции отладки зон с новыми методами
       zones: {
         // Получить текущее состояние зон
         getState: () => {
@@ -587,6 +587,13 @@ export class GameCore extends CleanupMixin {
           if (!this.managers.feature) return 'FeatureManager not available';
           this.managers.feature.forceZoneSync();
           return 'Zones synchronized';
+        },
+        
+        // НОВОЕ: Полный сброс зон
+        reset: () => {
+          if (!this.managers.feature) return 'FeatureManager not available';
+          this.managers.feature.forceZoneReset();
+          return 'Zones completely reset';
         },
         
         // Установить целевую зону
@@ -615,21 +622,40 @@ export class GameCore extends CleanupMixin {
           };
         },
         
-        // Исправить рассинхронизацию
+        // НОВОЕ: Исправить все проблемы с зонами
+        fixAll: () => {
+          console.log('🔧 Fixing all zone issues...');
+          
+          try {
+            // 1. Принудительно сбрасываем целевую зону на 0
+            this.gameState.targetZone = 0;
+            this.gameState.previousTargetZone = 0;
+            
+            // 2. Полностью переинициализируем зоны
+            if (this.managers.feature) {
+              this.managers.feature.forceZoneReset();
+            }
+            
+            // 3. Принудительно перерисовываем
+            if (this.gameLoop) {
+              this.gameLoop.forceRedraw();
+            }
+            
+            // 4. Обновляем UI
+            if (this.managers.ui) {
+              this.managers.ui.forceUpdate();
+            }
+            
+            return 'All zone issues fixed';
+          } catch (error) {
+            console.error('Error fixing zones:', error);
+            return `Error: ${error.message}`;
+          }
+        },
+        
+        // Исправить рассинхронизацию (старый метод для совместимости)
         fix: () => {
-          console.log('🔧 Fixing zone synchronization...');
-          
-          // Принудительно синхронизируем зоны
-          if (this.managers.feature) {
-            this.managers.feature.forceZoneSync();
-          }
-          
-          // Принудительно перерисовываем
-          if (this.gameLoop) {
-            this.gameLoop.forceRedraw();
-          }
-          
-          return 'Zone synchronization fixed';
+          return window.gameDebug.zones.fixAll();
         }
       },
       
@@ -694,6 +720,16 @@ export class GameCore extends CleanupMixin {
       this.cleanupManager.setDebugMode(true);
     }
 
+    // НОВОЕ: Автоматическая проверка и исправление зон при включении debug режима
+    if (this.managers.feature) {
+      const comparison = window.gameDebug.zones.compare();
+      if (comparison && !comparison.synchronized) {
+        console.warn('⚠️ Zone desynchronization detected on debug init:', comparison);
+        console.log('🔧 Auto-fixing...');
+        window.gameDebug.zones.fixAll();
+      }
+    }
+
     // Функция для автоматической проверки синхронизации зон (только в debug режиме)
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       setInterval(() => {
@@ -701,7 +737,7 @@ export class GameCore extends CleanupMixin {
         if (comparison && !comparison.synchronized) {
           console.warn('⚠️ Zone desynchronization detected:', comparison);
           console.log('🔧 Auto-fixing...');
-          window.gameDebug.zones.fix();
+          window.gameDebug.zones.fixAll();
         }
       }, 5000);
     }
