@@ -100,37 +100,50 @@ export class GameLoop extends CleanupMixin {
   }
 
   // Привязка событий
-  bindEvents() {
-    eventBus.subscribe(GameEvents.CLICK, () => {
-      this.gameState.currentRotation = this.angle;
-    });
-    
-    eventBus.subscribe(GameEvents.DEBUFF_APPLIED, (data) => {
-      if (data.id === 'reverseControls') {
-        this.updateRotationDirection();
-        this.needsRedraw = true;
-      }
-    });
-    
-    eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, (data) => {
-      if (data.id === 'reverseControls') {
-        this.updateRotationDirection();
-        this.needsRedraw = true;
-      }
-    });
+bindEvents() {
+  eventBus.subscribe(GameEvents.CLICK, () => {
+    this.gameState.currentRotation = this.angle;
+  });
+  
+  eventBus.subscribe(GameEvents.DEBUFF_APPLIED, (data) => {
+    if (data.id === 'reverseControls') {
+      this.updateRotationDirection();
+      this.needsRedraw = true;
+    }
+  });
+  
+  eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, (data) => {
+    if (data.id === 'reverseControls') {
+      this.updateRotationDirection();
+      this.needsRedraw = true;
+    }
+  });
 
-    eventBus.subscribe(GameEvents.BUFF_APPLIED, () => {
-      this.needsRedraw = true;
-    });
+  eventBus.subscribe(GameEvents.BUFF_APPLIED, () => {
+    this.needsRedraw = true;
+  });
+  
+  eventBus.subscribe(GameEvents.BUFF_EXPIRED, () => {
+    this.needsRedraw = true;
+  });
+  
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительная перерисовка при изменении зон
+  eventBus.subscribe(GameEvents.ZONES_SHUFFLED, (newTargetZone) => {
+    console.log(`🎯 Zones shuffled, new target: ${newTargetZone}`);
+    this.gameState.targetZone = newTargetZone;
+    this.needsRedraw = true;
     
-    eventBus.subscribe(GameEvents.BUFF_EXPIRED, () => {
+    // Принудительно перерисовываем через небольшой таймаут
+    setTimeout(() => {
       this.needsRedraw = true;
-    });
-    
-    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, () => {
-      this.needsRedraw = true;
-    });
-  }
+    }, 10);
+  });
+  
+  // ДОПОЛНИТЕЛЬНО: Принудительная перерисовка при изменении комбо
+  eventBus.subscribe(GameEvents.COMBO_CHANGED, () => {
+    this.needsRedraw = true;
+  });
+}
 
   // Обновление направления вращения
   updateRotationDirection() {
@@ -218,89 +231,142 @@ export class GameLoop extends CleanupMixin {
   }
 
   // Обновление угла поворота с плавной анимацией
-  updateRotation() {
-    let rotationSpeed = UI_CONFIG.ROTATION_SPEED;
-    
-    if (this.gameState.debuffs && this.gameState.debuffs.includes('rapid')) {
-      rotationSpeed *= GAME_CONSTANTS.RAPID_SPEED_MULTIPLIER;
-    }
-    
-    if (this.gameState.buffs && this.gameState.buffs.includes('speedBoost')) {
-      rotationSpeed *= GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER;
-    }
-    
-    const rotationDelta = rotationSpeed * this.rotationDirection * (this.deltaTime / 16.67);
-    const newAngle = this.angle + rotationDelta;
-    
-    const angleChanged = Math.abs(newAngle - this.lastAngle) > 0.001;
-    
-    this.angle = newAngle;
-    this.lastAngle = this.angle;
-    
-    if (this.angle > 2 * Math.PI) {
-      this.angle -= 2 * Math.PI;
-    } else if (this.angle < 0) {
-      this.angle += 2 * Math.PI;
-    }
-    
-    return angleChanged;
+updateRotation() {
+  let rotationSpeed = UI_CONFIG.ROTATION_SPEED;
+  
+  if (this.gameState.debuffs && this.gameState.debuffs.includes('rapid')) {
+    rotationSpeed *= GAME_CONSTANTS.RAPID_SPEED_MULTIPLIER;
   }
+  
+  if (this.gameState.buffs && this.gameState.buffs.includes('speedBoost')) {
+    rotationSpeed *= GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER;
+  }
+  
+  const rotationDelta = rotationSpeed * this.rotationDirection * (this.deltaTime / 16.67);
+  const newAngle = this.angle + rotationDelta;
+  
+  const angleChanged = Math.abs(newAngle - this.lastAngle) > 0.001;
+  
+  this.angle = newAngle;
+  this.lastAngle = this.angle;
+  
+  if (this.angle > 2 * Math.PI) {
+    this.angle -= 2 * Math.PI;
+  } else if (this.angle < 0) {
+    this.angle += 2 * Math.PI;
+  }
+  
+  return angleChanged;
+}
 
   // ИСПРАВЛЕНИЕ: Правильное рисование секторов
-  render() {
-    if (!this.managers.feature) return;
-    
-    this.clearCanvas();
-    
-    this.drawZones();
-    this.drawReverseIndicator();
-  }
+render() {
+  if (!this.managers.feature) return;
+  
+  this.clearCanvas();
+  
+  this.drawZones();
+  this.drawReverseIndicator();
+}
 
   // ИСПРАВЛЕНИЕ: Новая система отображения зон с правильными цветами
-  drawZones() {
-    const featureManager = this.managers.feature;
-    if (!featureManager || !featureManager.zones || !featureManager.zoneTypes) {
-      // Fallback: рисуем простые зоны
-      this.drawFallbackZones();
-      return;
+drawZones() {
+  const featureManager = this.managers.feature;
+  if (!featureManager) {
+    this.drawFallbackZones();
+    return;
+  }
+  
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно обновляем зоны перед отрисовкой
+  const targetZone = this.gameState.targetZone || 0;
+  
+  // Убеждаемся, что у нас есть правильные типы зон
+  if (!featureManager.zoneTypes || featureManager.zoneTypes.length === 0) {
+    console.warn('No zone types available, regenerating...');
+    featureManager.generateZoneTypes();
+  }
+  
+  // ИСПРАВЛЕНИЕ: Принудительно устанавливаем красную зону на правильное место
+  if (featureManager.zoneTypes && featureManager.zoneTypes.length > targetZone) {
+    // Сначала делаем все зоны серыми
+    for (let i = 0; i < featureManager.zoneTypes.length; i++) {
+      if (i !== targetZone) {
+        featureManager.zoneTypes[i] = {
+          id: 'inactive',
+          name: 'Inactive Zone',
+          color: '#E5E5E5',
+          effects: { givesGold: false, givesCombo: false, energyCost: 0 }
+        };
+      }
     }
     
-    const zones = featureManager.zones;
-    const zoneTypes = featureManager.zoneTypes;
-    const targetZone = this.gameState.targetZone || 0;
-    
-    const centerX = this.canvas.width / 2;
-    const centerY = this.canvas.height / 2;
-    const radius = this.canvas.width / 2 - 10; // Отступ от края
-    const totalAngle = 2 * Math.PI;
-    const stepAngle = totalAngle / zones.length;
-    
-    zones.forEach((zone, index) => {
-      const startAngle = index * stepAngle + this.angle;
-      const endAngle = (index + 1) * stepAngle + this.angle;
-      
-      // Основная заливка зоны
-      this.ctx.beginPath();
-      this.ctx.moveTo(centerX, centerY);
-      this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-      this.ctx.closePath();
-      
-      // ИСПРАВЛЕНИЕ: Правильные цвета зон
-      const zoneType = zoneTypes[index] || ZONE_TYPES.GOLD;
-      this.ctx.fillStyle = this.getZoneColor(zoneType, index === targetZone);
-      this.ctx.fill();
-      
-      // Обводка зоны
-      this.ctx.strokeStyle = index === targetZone ? '#FF0000' : '#333333';
-      this.ctx.lineWidth = index === targetZone ? 3 : 1;
-      this.ctx.stroke();
-      
-      // Подпись типа зоны
-      if (zoneType.id !== 'gold' || index === targetZone) {
-        this.drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneType, index === targetZone);
-      }
-    });
+    // Затем устанавливаем целевую зону как красную
+    featureManager.zoneTypes[targetZone] = {
+      id: 'gold',
+      name: 'Target Zone',
+      color: '#C41E3A',
+      effects: { givesGold: true, givesCombo: true, energyCost: 1 }
+    };
   }
+  
+  const centerX = this.canvas.width / 2;
+  const centerY = this.canvas.height / 2;
+  const radius = this.canvas.width / 2 - 10;
+  const zoneCount = 8; // Фиксированное количество зон
+  const stepAngle = (2 * Math.PI) / zoneCount;
+  
+  // Рисуем каждую зону
+  for (let i = 0; i < zoneCount; i++) {
+    const startAngle = i * stepAngle + this.angle;
+    const endAngle = (i + 1) * stepAngle + this.angle;
+    
+    // Основная заливка зоны
+    this.ctx.beginPath();
+    this.ctx.moveTo(centerX, centerY);
+    this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    this.ctx.closePath();
+    
+    // ИСПРАВЛЕНИЕ: Правильное определение цвета зоны
+    let zoneColor;
+    let isTarget = (i === targetZone);
+    
+    if (isTarget) {
+      zoneColor = '#C41E3A'; // Красный для целевой зоны
+    } else {
+      // Проверяем тип зоны из featureManager
+      const zoneType = featureManager.zoneTypes && featureManager.zoneTypes[i];
+      if (zoneType) {
+        switch (zoneType.id) {
+          case 'energy':
+            zoneColor = '#228B22'; // Зеленый
+            break;
+          case 'bonus':
+            zoneColor = '#FFB347'; // Золотистый
+            break;
+          default:
+            zoneColor = '#E5E5E5'; // Серый
+        }
+      } else {
+        zoneColor = '#E5E5E5'; // Серый по умолчанию
+      }
+    }
+    
+    this.ctx.fillStyle = zoneColor;
+    this.ctx.fill();
+    
+    // Обводка зоны
+    this.ctx.strokeStyle = isTarget ? '#FF0000' : '#333333';
+    this.ctx.lineWidth = isTarget ? 4 : 1; // Увеличиваем толщину для целевой зоны
+    this.ctx.stroke();
+    
+    // Подпись зоны
+    this.drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, i, isTarget, zoneColor);
+  }
+  
+  // ОТЛАДКА: Выводим информацию о зонах
+  console.log(`🎯 Target zone: ${targetZone}, Zone types:`, 
+    featureManager.zoneTypes ? featureManager.zoneTypes.map((zt, i) => `${i}:${zt.id}`).join(', ') : 'none');
+}
 
   // ИСПРАВЛЕНИЕ: Правильные цвета зон
   getZoneColor(zoneType, isTarget) {
@@ -321,36 +387,59 @@ export class GameLoop extends CleanupMixin {
   }
 
   // Подпись зоны
-  drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneType, isTarget) {
-    const midAngle = (startAngle + endAngle) / 2;
-    const labelRadius = radius * 0.7;
-    const labelX = centerX + Math.cos(midAngle) * labelRadius;
-    const labelY = centerY + Math.sin(midAngle) * labelRadius;
-    
-    this.ctx.save();
-    this.ctx.font = 'bold 16px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
+ drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneIndex, isTarget, zoneColor) {
+  const midAngle = (startAngle + endAngle) / 2;
+  const labelRadius = radius * 0.7;
+  const labelX = centerX + Math.cos(midAngle) * labelRadius;
+  const labelY = centerY + Math.sin(midAngle) * labelRadius;
+  
+  this.ctx.save();
+  this.ctx.font = 'bold 18px Arial';
+  this.ctx.textAlign = 'center';
+  this.ctx.textBaseline = 'middle';
+  this.ctx.fillStyle = '#FFFFFF';
+  this.ctx.strokeStyle = '#000000';
+  this.ctx.lineWidth = 3;
+  
+  let label = '';
+  if (isTarget) {
+    label = '🎯'; // Целевая зона
+  } else {
+    // Определяем тип зоны для иконки
+    const featureManager = this.managers.feature;
+    if (featureManager && featureManager.zoneTypes && featureManager.zoneTypes[zoneIndex]) {
+      const zoneType = featureManager.zoneTypes[zoneIndex];
+      switch (zoneType.id) {
+        case 'energy':
+          label = '⚡';
+          break;
+        case 'bonus':
+          label = '💰';
+          break;
+        default:
+          label = ''; // Не показываем иконку для серых зон
+      }
+    }
+  }
+  
+  if (label) {
+    this.ctx.strokeText(label, labelX, labelY);
+    this.ctx.fillText(label, labelX, labelY);
+  }
+  
+  // Дополнительно показываем номер зоны для отладки (только для целевой)
+  if (isTarget) {
+    this.ctx.font = 'bold 12px Arial';
     this.ctx.fillStyle = '#FFFFFF';
     this.ctx.strokeStyle = '#000000';
     this.ctx.lineWidth = 2;
-    
-    let label = '';
-    if (isTarget) {
-      label = '🎯';
-    } else if (zoneType.id === 'energy') {
-      label = '⚡';
-    } else if (zoneType.id === 'bonus') {
-      label = '💰';
-    }
-    
-    if (label) {
-      this.ctx.strokeText(label, labelX, labelY);
-      this.ctx.fillText(label, labelX, labelY);
-    }
-    
-    this.ctx.restore();
+    const debugLabel = `${zoneIndex}`;
+    this.ctx.strokeText(debugLabel, labelX, labelY + 25);
+    this.ctx.fillText(debugLabel, labelX, labelY + 25);
   }
+  
+  this.ctx.restore();
+}
 
   // Fallback для отображения зон если менеджер недоступен
   drawFallbackZones() {
