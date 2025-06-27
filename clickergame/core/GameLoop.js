@@ -1,7 +1,8 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с интеграцией ZoneManager
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильными fallback зонами
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
+import { ZONE_COUNT } from '../config/ResourceConfig.js';
 
 export class GameLoop extends CleanupMixin {
   constructor(gameState, managers) {
@@ -276,65 +277,102 @@ export class GameLoop extends CleanupMixin {
     return angleChanged;
   }
 
-  // ИСПРАВЛЕНИЕ: Рендеринг с использованием ZoneManager
+  // ИСПРАВЛЕНИЕ: Рендеринг с безопасным получением зон
   render() {
     this.clearCanvas();
     this.drawZones();
     this.drawReverseIndicator();
   }
 
-  // ИСПРАВЛЕНИЕ: Рисование зон с использованием ZoneManager
+  // ИСПРАВЛЕНИЕ: Безопасное рисование зон с правильным fallback
   drawZones() {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     const radius = this.canvas.width / 2 - 10;
     
-    // ИСПРАВЛЕНИЕ: Получаем зоны из FeatureManager/ZoneManager
+    // ИСПРАВЛЕНИЕ: Безопасное получение зон с проверками
     let zonesData = [];
     
-    if (this.managers.feature && typeof this.managers.feature.getZonesForRendering === 'function') {
-      zonesData = this.managers.feature.getZonesForRendering();
-    } else {
-      // Fallback: создаем базовые зоны если ZoneManager недоступен
-      console.warn('⚠️ ZoneManager not available, using fallback rendering');
+    try {
+      // Пытаемся получить зоны из FeatureManager/ZoneManager
+      if (this.managers.feature && 
+          typeof this.managers.feature.getZonesForRendering === 'function') {
+        
+        zonesData = this.managers.feature.getZonesForRendering();
+        
+        // ИСПРАВЛЕНИЕ: Проверяем валидность полученных зон
+        if (!Array.isArray(zonesData) || zonesData.length === 0) {
+          console.warn('⚠️ Invalid zones data from FeatureManager, using fallback');
+          zonesData = this.createFallbackZones();
+        }
+      } else {
+        console.warn('⚠️ FeatureManager not available, using fallback rendering');
+        zonesData = this.createFallbackZones();
+      }
+    } catch (error) {
+      console.error('❌ Error getting zones for rendering:', error);
       zonesData = this.createFallbackZones();
     }
     
+    // ИСПРАВЛЕНИЕ: Дополнительная валидация зон перед рендерингом
+    if (!Array.isArray(zonesData) || zonesData.length === 0) {
+      console.error('❌ No valid zones available for rendering');
+      return;
+    }
+    
     // Рисуем каждую зону
-    zonesData.forEach(zoneData => {
-      const { index, type, isTarget, color, startAngle, endAngle } = zoneData;
-      
-      const adjustedStartAngle = startAngle + this.angle;
-      const adjustedEndAngle = endAngle + this.angle;
-      
-      // Основная заливка зоны
-      this.ctx.beginPath();
-      this.ctx.moveTo(centerX, centerY);
-      this.ctx.arc(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle);
-      this.ctx.closePath();
-      
-      // ИСПРАВЛЕНИЕ: Используем цвет из ZoneManager
-      this.ctx.fillStyle = color;
-      this.ctx.fill();
-      
-      // Обводка зоны
-      this.ctx.strokeStyle = isTarget ? '#FF0000' : '#333333';
-      this.ctx.lineWidth = isTarget ? 4 : 1;
-      this.ctx.stroke();
-      
-      // Подпись зоны
-      this.drawZoneLabel(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle, index, type, isTarget);
+    zonesData.forEach((zoneData, index) => {
+      try {
+        const { isTarget, color, startAngle, endAngle } = zoneData;
+        
+        // ИСПРАВЛЕНИЕ: Валидируем данные зоны
+        if (typeof startAngle !== 'number' || typeof endAngle !== 'number') {
+          console.warn(`⚠️ Invalid zone angles for zone ${index}:`, zoneData);
+          return;
+        }
+        
+        const adjustedStartAngle = startAngle + this.angle;
+        const adjustedEndAngle = endAngle + this.angle;
+        
+        // Основная заливка зоны
+        this.ctx.beginPath();
+        this.ctx.moveTo(centerX, centerY);
+        this.ctx.arc(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle);
+        this.ctx.closePath();
+        
+        // ИСПРАВЛЕНИЕ: Используем цвет из ZoneManager с fallback
+        this.ctx.fillStyle = color || '#E5E5E5';
+        this.ctx.fill();
+        
+        // Обводка зоны
+        this.ctx.strokeStyle = isTarget ? '#FF0000' : '#333333';
+        this.ctx.lineWidth = isTarget ? 4 : 1;
+        this.ctx.stroke();
+        
+        // Подпись зоны
+        this.drawZoneLabel(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle, 
+                          index, zoneData.type, isTarget);
+        
+      } catch (error) {
+        console.warn(`⚠️ Error rendering zone ${index}:`, error);
+      }
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Создание fallback зон если ZoneManager недоступен
+  // ИСПРАВЛЕНИЕ: Правильное создание fallback зон с использованием ZONE_COUNT
   createFallbackZones() {
-    const zoneCount = 8;
+    console.log('🎯 Creating fallback zones...');
+    
+    // ИСПРАВЛЕНИЕ: Используем ZONE_COUNT вместо жестко заданного значения
+    const zoneCount = ZONE_COUNT;
     const stepAngle = (2 * Math.PI) / zoneCount;
     const targetZone = this.gameState.targetZone || 0;
     
-    return Array.from({ length: zoneCount }, (_, i) => {
-      const isTarget = (i === targetZone);
+    // ИСПРАВЛЕНИЕ: Валидируем targetZone
+    const validTargetZone = (targetZone >= 0 && targetZone < zoneCount) ? targetZone : 0;
+    
+    const fallbackZones = Array.from({ length: zoneCount }, (_, i) => {
+      const isTarget = (i === validTargetZone);
       let color = '#E5E5E5'; // Серый по умолчанию
       let type = { id: 'inactive' };
       
@@ -352,63 +390,76 @@ export class GameLoop extends CleanupMixin {
         endAngle: (i + 1) * stepAngle
       };
     });
+    
+    console.log(`✅ Created ${zoneCount} fallback zones with target at ${validTargetZone}`);
+    return fallbackZones;
   }
 
-  // ИСПРАВЛЕНИЕ: Рисование подписей зон с правильными иконками
+  // ИСПРАВЛЕНИЕ: Безопасное рисование подписей зон
   drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneIndex, zoneType, isTarget) {
-    const midAngle = (startAngle + endAngle) / 2;
-    const labelRadius = radius * 0.7;
-    const labelX = centerX + Math.cos(midAngle) * labelRadius;
-    const labelY = centerY + Math.sin(midAngle) * labelRadius;
-    
-    this.ctx.save();
-    this.ctx.font = 'bold 18px Arial';
-    this.ctx.textAlign = 'center';
-    this.ctx.textBaseline = 'middle';
-    this.ctx.fillStyle = '#FFFFFF';
-    this.ctx.strokeStyle = '#000000';
-    this.ctx.lineWidth = 3;
-    
-    // ИСПРАВЛЕНИЕ: Получаем иконку на основе типа зоны из ZoneManager
-    let label = this.getZoneIcon(zoneType, isTarget);
-    
-    if (label) {
-      this.ctx.strokeText(label, labelX, labelY);
-      this.ctx.fillText(label, labelX, labelY);
-    }
-    
-    // Показываем номер зоны только для целевой (для отладки)
-    if (isTarget && window.gameDebug) {
-      this.ctx.font = 'bold 12px Arial';
+    try {
+      const midAngle = (startAngle + endAngle) / 2;
+      const labelRadius = radius * 0.7;
+      const labelX = centerX + Math.cos(midAngle) * labelRadius;
+      const labelY = centerY + Math.sin(midAngle) * labelRadius;
+      
+      this.ctx.save();
+      this.ctx.font = 'bold 18px Arial';
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'middle';
       this.ctx.fillStyle = '#FFFFFF';
       this.ctx.strokeStyle = '#000000';
-      this.ctx.lineWidth = 2;
-      const debugLabel = `${zoneIndex}`;
-      this.ctx.strokeText(debugLabel, labelX, labelY + 25);
-      this.ctx.fillText(debugLabel, labelX, labelY + 25);
+      this.ctx.lineWidth = 3;
+      
+      // ИСПРАВЛЕНИЕ: Безопасное получение иконки зоны
+      let label = this.getZoneIcon(zoneType, isTarget);
+      
+      if (label) {
+        this.ctx.strokeText(label, labelX, labelY);
+        this.ctx.fillText(label, labelX, labelY);
+      }
+      
+      // Показываем номер зоны только для целевой (для отладки)
+      if (isTarget && window.gameDebug) {
+        this.ctx.font = 'bold 12px Arial';
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 2;
+        const debugLabel = `${zoneIndex}`;
+        this.ctx.strokeText(debugLabel, labelX, labelY + 25);
+        this.ctx.fillText(debugLabel, labelX, labelY + 25);
+      }
+      
+      this.ctx.restore();
+      
+    } catch (error) {
+      console.warn(`⚠️ Error drawing zone label for zone ${zoneIndex}:`, error);
     }
-    
-    this.ctx.restore();
   }
 
-  // ИСПРАВЛЕНИЕ: Получение иконки зоны на основе типа
+  // ИСПРАВЛЕНИЕ: Безопасное получение иконки зоны
   getZoneIcon(zoneType, isTarget) {
-    if (isTarget || (zoneType && zoneType.id === 'target')) {
-      return '🎯';
-    }
-    
-    if (!zoneType || !zoneType.id) {
-      return '';
-    }
-    
-    switch (zoneType.id) {
-      case 'energy':
-        return '⚡';
-      case 'bonus':
-        return '💰';
-      case 'inactive':
-      default:
+    try {
+      if (isTarget || (zoneType && zoneType.id === 'target')) {
+        return '🎯';
+      }
+      
+      if (!zoneType || !zoneType.id) {
         return '';
+      }
+      
+      switch (zoneType.id) {
+        case 'energy':
+          return '⚡';
+        case 'bonus':
+          return '💰';
+        case 'inactive':
+        default:
+          return '';
+      }
+    } catch (error) {
+      console.warn('⚠️ Error getting zone icon:', error);
+      return '';
     }
   }
 
@@ -511,7 +562,7 @@ export class GameLoop extends CleanupMixin {
     return this.actualFPS;
   }
 
-  // Получить статистику рендеринга
+  // ИСПРАВЛЕНИЕ: Безопасная статистика рендеринга
   getRenderStats() {
     return {
       fps: this.actualFPS,
@@ -527,7 +578,9 @@ export class GameLoop extends CleanupMixin {
       },
       forceRedrawCounter: this.forceRedrawCounter,
       targetZone: this.gameState.targetZone,
-      zonesAvailable: !!(this.managers.feature && typeof this.managers.feature.getZonesForRendering === 'function')
+      zonesAvailable: !!(this.managers.feature && 
+                        typeof this.managers.feature.getZonesForRendering === 'function'),
+      zoneCount: ZONE_COUNT
     };
   }
 
@@ -550,24 +603,79 @@ export class GameLoop extends CleanupMixin {
 
   // Проверить наличие ZoneManager
   hasZoneManager() {
-    return !!(this.managers.feature && typeof this.managers.feature.getZonesForRendering === 'function');
+    return !!(this.managers.feature && 
+             typeof this.managers.feature.getZonesForRendering === 'function');
   }
 
-  // Получить информацию о зонах для отладки
+  // ИСПРАВЛЕНИЕ: Безопасная информация о зонах для отладки
   getZoneRenderInfo() {
-    if (this.hasZoneManager()) {
-      return {
-        available: true,
-        zones: this.managers.feature.getZonesForRendering(),
-        debugInfo: this.managers.feature.getZonesDebugInfo()
-      };
-    } else {
+    try {
+      if (this.hasZoneManager()) {
+        const zones = this.managers.feature.getZonesForRendering();
+        return {
+          available: true,
+          zones: zones,
+          debugInfo: this.managers.feature.getZonesDebugInfo ? 
+                    this.managers.feature.getZonesDebugInfo() : 'No debug info',
+          zoneCount: zones ? zones.length : 0
+        };
+      } else {
+        return {
+          available: false,
+          fallbackUsed: true,
+          targetZone: this.gameState.targetZone,
+          zoneCount: ZONE_COUNT
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error getting zone render info:', error);
       return {
         available: false,
+        error: error.message,
         fallbackUsed: true,
-        targetZone: this.gameState.targetZone
+        targetZone: this.gameState.targetZone,
+        zoneCount: ZONE_COUNT
       };
     }
+  }
+
+  // ИСПРАВЛЕНИЕ: Безопасная валидация рендеринга
+  validateRendering() {
+    const validation = {
+      canvasReady: !!(this.canvas && this.ctx),
+      zonesAvailable: this.hasZoneManager(),
+      gameStateReady: !!(this.gameState && typeof this.gameState.targetZone === 'number'),
+      managersReady: !!(this.managers && this.managers.feature),
+      errors: []
+    };
+    
+    if (!validation.canvasReady) {
+      validation.errors.push('Canvas or context not initialized');
+    }
+    
+    if (!validation.gameStateReady) {
+      validation.errors.push('Game state not ready');
+    }
+    
+    if (!validation.managersReady) {
+      validation.errors.push('Managers not ready');
+    }
+    
+    return validation;
+  }
+
+  // Получить информацию о производительности
+  getPerformanceInfo() {
+    return {
+      fps: this.actualFPS,
+      targetFPS: this.targetFPS,
+      frameTime: this.frameTime,
+      deltaTime: this.deltaTime,
+      running: this.running,
+      redrawsPerformed: this.forceRedrawCounter,
+      lastFrameTime: this.lastFrameTime,
+      animationId: this.animationId
+    };
   }
 
   // Деструктор
