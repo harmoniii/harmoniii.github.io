@@ -1,4 +1,4 @@
-// core/CleanupManager.js - ИСПРАВЛЕННАЯ версия с registerDOMElement
+// core/CleanupManager.js - ИСПРАВЛЕННАЯ версия с полным функционалом
 export class CleanupManager {
   constructor() {
     this.components = new Set();
@@ -6,7 +6,7 @@ export class CleanupManager {
     this.intervals = new Map();
     this.eventListeners = new Map();
     this.cleanupFunctions = new Set();
-    this.domElements = new Set(); // НОВОЕ: для отслеживания DOM элементов
+    this.domElements = new Set(); // Для отслеживания DOM элементов
     this.isDestroyed = false;
     this.isDestroying = false;
     this.nextId = 1;
@@ -31,7 +31,7 @@ export class CleanupManager {
     return this.components.delete(component);
   }
 
-  // НОВОЕ: Регистрация DOM элементов для автоматической очистки
+  // ИСПРАВЛЕНИЕ: Регистрация DOM элементов для автоматической очистки
   registerDOMElement(element, parentToRemoveFrom = null) {
     if (this.isDestroyed || this.isDestroying || !element) return false;
     
@@ -50,7 +50,7 @@ export class CleanupManager {
     return true;
   }
 
-  // НОВОЕ: Отмена регистрации DOM элемента
+  // Отмена регистрации DOM элемента
   unregisterDOMElement(element) {
     for (const elementInfo of this.domElements) {
       if (elementInfo.element === element) {
@@ -215,7 +215,7 @@ export class CleanupManager {
       });
       this.eventListeners.clear();
       
-      // НОВОЕ: Очищаем DOM элементы
+      // ИСПРАВЛЕНИЕ: Очищаем DOM элементы
       this.domElements.forEach(elementInfo => {
         try {
           if (elementInfo.element && elementInfo.element.parentNode) {
@@ -249,7 +249,7 @@ export class CleanupManager {
     return !this.isDestroyed && !this.isDestroying;
   }
 
-  // НОВОЕ: Получить статистику для отладки
+  // Получить статистику для отладки
   getStats() {
     return {
       components: this.components.size,
@@ -283,7 +283,7 @@ export class CleanupMixin {
     return this.cleanupManager.addEventListener(element, event, handler, options);
   }
 
-  // НОВОЕ: Метод для регистрации DOM элементов
+  // ИСПРАВЛЕНИЕ: Метод для регистрации DOM элементов
   registerDOMElement(element, parentToRemoveFrom = null) {
     return this.cleanupManager.registerDOMElement(element, parentToRemoveFrom);
   }
