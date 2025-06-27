@@ -81,7 +81,7 @@ body::before {
 .game-wheel-container {
   display: flex;
   align-items: flex-start;
-  gap: 1.5rem;
+  gap: 2rem; /* Увеличиваем gap для лучшего расположения */
   width: 100%;
   justify-content: center;
   position: relative;
@@ -99,7 +99,7 @@ body::before {
   min-width: 90px;
   max-width: 120px;
   animation: comboGlow 2s ease-in-out infinite alternate;
-  order: 1;
+  order: 2; /* Между левыми ресурсами и колесом */
   flex-shrink: 0;
 }
 
@@ -139,9 +139,9 @@ body::before {
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
   display: block;
   flex-shrink: 0;
-  width: 400px !important; /* Уменьшаем размер колеса */
+  width: 400px !important;
   height: 400px !important;
-  order: 2;
+  order: 4; /* По центру */
 }
 
 /* ИСПРАВЛЕНИЕ: Компактный энергетический дисплей справа */
@@ -156,7 +156,7 @@ body::before {
   max-width: 120px;
   position: relative;
   backdrop-filter: blur(5px);
-  order: 3;
+  order: 5; /* Между колесом и правыми ресурсами */
   flex-shrink: 0;
 }
 
@@ -176,12 +176,34 @@ body::before {
   overflow: visible;
 }
 
-#resources-left {
-  order: 0; /* Выше колеса */
+.resources-left {
+  display: flex; 
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  width: 140px; /* Фиксированная ширина */
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  order: 1; /* Слева */
+  flex-shrink: 0;
 }
 
-#resources-right {
-  order: 4; /* Ниже колеса */
+.resources-right {
+  display: flex; 
+  flex-direction: column;
+  gap: 0.3rem;
+  align-items: flex-start;
+  width: 140px; /* Фиксированная ширина */
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.8rem;
+  order: 3; /* Справа */
+  flex-shrink: 0;
 }
 
 .resources-panel span, .resources-panel div {
@@ -196,6 +218,26 @@ body::before {
 }
 
 .resources-panel span:hover, .resources-panel div:hover {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+.resources-left span, .resources-left div,
+.resources-right span, .resources-right div {
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  width: 100%;
+  text-align: left;
+}
+
+.resources-left span:hover, .resources-left div:hover,
+.resources-right span:hover, .resources-right div:hover {
   color: #4CAF50;
   background: rgba(76, 175, 80, 0.1);
 }

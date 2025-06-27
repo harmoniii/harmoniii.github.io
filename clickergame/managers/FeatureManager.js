@@ -181,54 +181,62 @@ export class FeatureManager extends CleanupMixin {
   }
 
   // ИСПРАВЛЕНИЕ: Обработка попадания в целевую (красную) зону
-  handleTargetZoneHit(clickedZone, zoneType, normalizedAngle, now) {
-    console.log(`🎯 HIT TARGET ZONE ${clickedZone.index}!`);
-    
-    // Проверяем энергию для целевой зоны
-    if (zoneType.effects.energyCost > 0) {
-      if (!this.checkEnergyForClick(zoneType.effects.energyCost)) {
-        return;
-      }
-    }
-
-    // Проверяем дебаффы
-    if (this.isGhostClickActive() && Math.random() < GAME_CONSTANTS.GHOST_CLICK_CHANCE) {
-      eventBus.emit(GameEvents.GHOST_CLICK);
+handleTargetZoneHit(clickedZone, zoneType, normalizedAngle, now) {
+  console.log(`🎯 HIT TARGET ZONE ${clickedZone.index}! Current target: ${this.gameState.targetZone}`);
+  
+  // КРИТИЧЕСКАЯ ПРОВЕРКА: Убеждаемся что мы действительно попали в правильную зону
+  if (clickedZone.index !== this.gameState.targetZone) {
+    console.warn(`⚠️ Zone mismatch! Clicked: ${clickedZone.index}, Target: ${this.gameState.targetZone}`);
+    // Принудительно обновляем целевую зону
+    this.gameState.targetZone = clickedZone.index;
+    this.updateZoneTypesAfterShuffle(clickedZone.index);
+  }
+  
+  // Проверяем энергию для целевой зоны
+  if (zoneType.effects.energyCost > 0) {
+    if (!this.checkEnergyForClick(zoneType.effects.energyCost)) {
       return;
     }
-
-    if (this.isHeavyClickActive()) {
-      if (!this.handleHeavyClick(clickedZone)) {
-        return;
-      }
-    }
-
-    // Обрабатываем комбо (только для целевой зоны)
-    const effectiveCombo = this.handleCombo(clickedZone, normalizedAngle, now);
-    
-    // Обрабатываем получение золота
-    this.handleGoldGain(clickedZone, effectiveCombo, zoneType);
-    
-    // Тратим энергию
-    if (zoneType.effects.energyCost > 0) {
-      this.handleEnergyConsumption(zoneType.effects.energyCost);
-    }
-    
-    // Перемещаем целевую зону
-    this.handleZoneShuffle(clickedZone);
-    
-    // Обрабатываем появление баффов/дебаффов
-    this.handleEffectChance();
-    
-    // Эмитируем событие попадания
-    eventBus.emit(GameEvents.ZONE_HIT, {
-      zone: clickedZone.index,
-      zoneType: zoneType.id,
-      combo: effectiveCombo,
-      angle: normalizedAngle,
-      isTarget: true
-    });
   }
+
+  // Проверяем дебаффы
+  if (this.isGhostClickActive() && Math.random() < GAME_CONSTANTS.GHOST_CLICK_CHANCE) {
+    eventBus.emit(GameEvents.GHOST_CLICK);
+    return;
+  }
+
+  if (this.isHeavyClickActive()) {
+    if (!this.handleHeavyClick(clickedZone)) {
+      return;
+    }
+  }
+
+  // Обрабатываем комбо (только для целевой зоны)
+  const effectiveCombo = this.handleCombo(clickedZone, normalizedAngle, now);
+  
+  // Обрабатываем получение золота
+  this.handleGoldGain(clickedZone, effectiveCombo, zoneType);
+  
+  // Тратим энергию
+  if (zoneType.effects.energyCost > 0) {
+    this.handleEnergyConsumption(zoneType.effects.energyCost);
+  }
+  
+  // ИСПРАВЛЕНИЕ: Перемещаем целевую зону и принудительно обновляем отображение
+  this.handleZoneShuffle(clickedZone);
+  
+  // Обрабатываем появление баффов/дебаффов
+  this.handleEffectChance();
+  
+  // Эмитируем событие попадания
+  eventBus.emit(GameEvents.ZONE_HIT, {
+    zone: clickedZone.index,
+    zoneType: zoneType.id,
+    combo: effectiveCombo,
+    angle: normalizedAngle,
+    isTarget: true
+  });
+}
 
   // ИСПРАВЛЕНИЕ: Обработка попадания в НЕ целевые зоны
   handleNonTargetZoneHit(clickedZone, zoneType, normalizedAngle, now) {
@@ -441,6 +449,33 @@ export class FeatureManager extends CleanupMixin {
     return effectiveCombo;
   }
 
+forceZoneSync() {
+  console.log('🔄 Force syncing zones...');
+  
+  const currentTarget = this.gameState.targetZone || 0;
+  this.updateZoneTypesAfterShuffle(currentTarget);
+  
+  // Принудительно обновляем отображение
+  if (this.gameState.gameLoop) {
+    this.gameState.gameLoop.forceRedraw();
+  }
+  
+  eventBus.emit(GameEvents.ZONES_SHUFFLED, currentTarget);
+}
+
+getZonesDebugInfo() {
+  return {
+    targetZone: this.gameState.targetZone,
+    previousTargetZone: this.gameState.previousTargetZone,
+    zoneTypes: this.zoneTypes ? this.zoneTypes.map((zt, i) => ({
+      index: i,
+      id: zt.id,
+      isTarget: i === this.gameState.targetZone
+    })) : 'not initialized',
+    totalZones: ZONE_COUNT
+  };
+}
+
   handleGoldGain(zone, effectiveCombo, zoneType) {
     let clickMultiplier = 1;
     
@@ -590,46 +625,130 @@ export class FeatureManager extends CleanupMixin {
   }
 
   // ИСПРАВЛЕНИЕ: Перемещение целевой зоны с правильной логикой
-  handleZoneShuffle(zone) {
-    // Перемещаем целевую зону только если попали в неё
-    if (zone.index === this.gameState.targetZone && 
-        Math.random() * 100 < GAME_CONSTANTS.ZONE_SHUFFLE_CHANCE) {
-      
-      // Сохраняем текущую целевую зону как предыдущую
-      this.gameState.previousTargetZone = this.gameState.targetZone;
-      
-      // Выбираем новую целевую зону
-      let newTarget;
-      let attempts = 0;
-      const maxAttempts = ZONE_COUNT * 2;
-      
-      do {
-        newTarget = Math.floor(Math.random() * ZONE_COUNT);
-        attempts++;
-      } while (newTarget === this.gameState.targetZone && 
-               ZONE_COUNT > 1 && 
-               attempts < maxAttempts);
-      
-      // Reverse Controls debuff
-      if (this.gameState.debuffs && this.gameState.debuffs.includes('reverseControls')) {
-        newTarget = (this.gameState.targetZone - 1 + ZONE_COUNT) % ZONE_COUNT;
-        eventBus.emit(GameEvents.TEMP_MESSAGE, '🙃 Reverse Controls: Zone moves backward');
-      }
-      
-      // Обновляем целевую зону
-      this.gameState.targetZone = newTarget;
-      
-      // КРИТИЧЕСКИ ВАЖНО: Перемещаем красную зону на новое место
-      ZoneTypeManager.setTargetZone(this.zoneTypes, newTarget);
-      
-      eventBus.emit(GameEvents.ZONES_SHUFFLED, this.gameState.targetZone);
-      
-      // Обновляем типы зон при перемешивании (20% шанс)
-      if (Math.random() < 0.2) {
-        this.refreshZoneTypes();
-      }
+handleZoneShuffle(zone) {
+  // Перемещаем целевую зону только если попали в неё
+  if (zone.index === this.gameState.targetZone && 
+      Math.random() * 100 < GAME_CONSTANTS.ZONE_SHUFFLE_CHANCE) {
+    
+    // Сохраняем текущую целевую зону как предыдущую
+    this.gameState.previousTargetZone = this.gameState.targetZone;
+    
+    // Выбираем новую целевую зону
+    let newTarget;
+    let attempts = 0;
+    const maxAttempts = ZONE_COUNT * 2;
+    
+    do {
+      newTarget = Math.floor(Math.random() * ZONE_COUNT);
+      attempts++;
+    } while (newTarget === this.gameState.targetZone && 
+             ZONE_COUNT > 1 && 
+             attempts < maxAttempts);
+    
+    // Reverse Controls debuff
+    if (this.gameState.debuffs && this.gameState.debuffs.includes('reverseControls')) {
+      newTarget = (this.gameState.targetZone - 1 + ZONE_COUNT) % ZONE_COUNT;
+      eventBus.emit(GameEvents.TEMP_MESSAGE, '🙃 Reverse Controls: Zone moves backward');
+    }
+    
+    console.log(`🎯 Zone shuffle: ${this.gameState.targetZone} -> ${newTarget}`);
+    
+    // Обновляем целевую зону
+    this.gameState.targetZone = newTarget;
+    
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительно обновляем типы зон
+    this.updateZoneTypesAfterShuffle(newTarget);
+    
+    // Эмитируем событие с новой целевой зоной
+    eventBus.emit(GameEvents.ZONES_SHUFFLED, newTarget);
+    
+    // ДОПОЛНИТЕЛЬНО: Принудительно перерисовываем игровой цикл
+    if (this.gameState.gameLoop) {
+      this.gameState.gameLoop.forceRedraw();
     }
   }
+}
+
+updateZoneTypesAfterShuffle(newTargetZone) {
+  console.log(`🔄 Updating zone types for new target: ${newTargetZone}`);
+  
+  // Инициализируем массив зон если его нет
+  if (!this.zoneTypes || this.zoneTypes.length !== ZONE_COUNT) {
+    this.zoneTypes = new Array(ZONE_COUNT);
+  }
+  
+  // Сначала делаем все зоны серыми (неактивными)
+  for (let i = 0; i < ZONE_COUNT; i++) {
+    this.zoneTypes[i] = {
+      id: 'inactive',
+      name: 'Inactive Zone',
+      color: '#E5E5E5',
+      effects: { givesGold: false, givesCombo: false, energyCost: 0 }
+    };
+  }
+  
+  // Устанавливаем новую целевую зону как красную
+  this.zoneTypes[newTargetZone] = {
+    id: 'gold',
+    name: 'Target Zone',
+    color: '#C41E3A',
+    effects: { givesGold: true, givesCombo: true, energyCost: 1 }
+  };
+  
+  // Добавляем несколько специальных зон случайным образом
+  this.addRandomSpecialZones(newTargetZone);
+  
+  console.log(`✅ Zone types updated. Target: ${newTargetZone}, Types:`, 
+    this.zoneTypes.map((zt, i) => `${i}:${zt.id}`).join(', '));
+}
+
+addRandomSpecialZones(excludeIndex) {
+  const availableIndices = [];
+  for (let i = 0; i < ZONE_COUNT; i++) {
+    if (i !== excludeIndex) {
+      availableIndices.push(i);
+    }
+  }
+  
+  // Добавляем 1-2 энергетические зоны
+  const energyZoneCount = Math.random() < 0.6 ? 1 : 2;
+  for (let i = 0; i < energyZoneCount && availableIndices.length > 0; i++) {
+    const randomIndex = Math.floor(Math.random() * availableIndices.length);
+    const zoneIndex = availableIndices.splice(randomIndex, 1)[0];
+    
+    this.zoneTypes[zoneIndex] = {
+      id: 'energy',
+      name: 'Energy Zone',
+      color: '#228B22',
+      effects: { 
+        givesGold: false, 
+        givesCombo: false, 
+        energyRestore: 2, 
+        energyCost: 0 
+      }
+    };
+  }
+  
+  // Добавляем 0-1 бонусную зону
+  if (Math.random() < 0.3 && availableIndices.length > 0) {
+    const randomIndex = Math.floor(Math.random() * availableIndices.length);
+    const zoneIndex = availableIndices[randomIndex];
+    
+    this.zoneTypes[zoneIndex] = {
+      id: 'bonus',
+      name: 'Bonus Zone',
+      color: '#FFB347',
+      effects: { 
+        givesGold: false, 
+        givesCombo: false, 
+        energyRestore: 1, 
+        energyCost: 0,
+        resourceBonus: true,
+        resourceAmount: 2
+      }
+    };
+  }
+}
 
   // Обработка шанса появления эффектов
   handleEffectChance() {
