@@ -1,4 +1,4 @@
-// core/GameCore.js - ОБНОВЛЕННАЯ версия с интеграцией энергетической системы
+// core/GameCore.js - ИСПРАВЛЕННАЯ версия с правильными ссылками менеджеров
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -79,19 +79,19 @@ export class GameCore extends CleanupMixin {
     this.cleanupManager.registerComponent(this.gameState, 'GameState');
   }
 
-  // Инициализация менеджеров
+  // ИСПРАВЛЕННАЯ инициализация менеджеров с правильным порядком
   async initializeManagers() {
     console.log('🔧 Initializing managers...');
     
     try {
       // Создаем менеджеры в правильном порядке
       this.managers.buff = new BuffManager(this.gameState);
-      this.managers.energy = new EnergyManager(this.gameState); // НОВЫЙ энергетический менеджер
+      this.managers.energy = new EnergyManager(this.gameState);
       this.managers.achievement = new AchievementManager(this.gameState);
-      this.managers.feature = new FeatureManager(this.gameState, this.managers.buff);
       this.managers.building = new BuildingManager(this.gameState);
       this.managers.skill = new SkillManager(this.gameState);
       this.managers.market = new MarketManager(this.gameState);
+      this.managers.feature = new FeatureManager(this.gameState, this.managers.buff);
       
       // Регистрируем менеджеры для очистки
       Object.entries(this.managers).forEach(([name, manager]) => {
@@ -106,14 +106,14 @@ export class GameCore extends CleanupMixin {
     }
   }
 
-  // Установка правильных ссылок между менеджерами
+  // ИСПРАВЛЕННАЯ установка правильных ссылок между менеджерами
   setupManagerReferences() {
     console.log('🔗 Setting up manager references...');
     
     try {
-      // Устанавливаем ссылки в gameState для доступа из других компонентов
+      // ИСПРАВЛЕНИЕ: Устанавливаем ссылки в gameState для доступа из других компонентов
       this.gameState.buffManager = this.managers.buff;
-      this.gameState.energyManager = this.managers.energy; // НОВЫЙ
+      this.gameState.energyManager = this.managers.energy;
       this.gameState.achievementManager = this.managers.achievement;
       this.gameState.buildingManager = this.managers.building;
       this.gameState.skillManager = this.managers.skill;
@@ -235,12 +235,12 @@ export class GameCore extends CleanupMixin {
       // Создаем расширенные данные сохранения
       const saveData = this.gameState.getSaveData();
       
-      // НОВЫЙ: Добавляем данные энергии
+      // Добавляем данные энергии
       if (this.managers.energy) {
         saveData.energy = this.managers.energy.getSaveData();
       }
       
-      // НОВЫЙ: Добавляем данные достижений
+      // Добавляем данные достижений
       if (this.managers.achievement) {
         saveData.achievements = this.managers.achievement.getSaveData();
       }
@@ -284,13 +284,13 @@ export class GameCore extends CleanupMixin {
         console.log('✅ Skill generation restarted');
       }
 
-      // НОВЫЙ: Перезапускаем энергетическую систему
+      // Перезапускаем энергетическую систему
       if (this.managers.energy) {
         this.managers.energy.forceUpdate();
         console.log('✅ Energy system updated');
       }
 
-      // НОВЫЙ: Проверяем достижения после загрузки
+      // Проверяем достижения после загрузки
       if (this.managers.achievement) {
         this.managers.achievement.forceCheckAllAchievements();
         console.log('✅ Achievements checked');
@@ -493,12 +493,13 @@ export class GameCore extends CleanupMixin {
       activeDebuffs: this.gameState.debuffs.length,
       buildingsBuilt: Object.values(this.gameState.buildings).filter(b => b.level > 0).length,
       skillsLearned: Object.values(this.gameState.skills).filter(s => s.level > 0).length,
-      // НОВЫЕ статистики
+      // Статистики энергии
       energy: this.managers.energy ? {
         current: this.gameState.energy?.current || 0,
         max: this.managers.energy.getEffectiveMaxEnergy(),
         percentage: this.managers.energy.getEnergyPercentage()
       } : null,
+      // Статистики достижений
       achievements: this.managers.achievement ? {
         completed: this.managers.achievement.getCompletedAchievements().length,
         total: this.managers.achievement.getAllAchievements().length,
@@ -522,7 +523,7 @@ export class GameCore extends CleanupMixin {
       getManagers: () => this.managers,
       getGameCore: () => this,
       
-      // НОВЫЙ: Энергетические функции отладки
+      // Энергетические функции отладки
       energy: {
         getCurrent: () => this.managers.energy?.getEnergyInfo(),
         restore: (amount) => this.managers.energy?.restoreEnergy(amount, 'debug'),
@@ -534,7 +535,7 @@ export class GameCore extends CleanupMixin {
         usePowerCore: () => this.managers.energy?.usePowerCore()
       },
       
-      // НОВЫЙ: Функции отладки достижений
+      // Функции отладки достижений
       achievements: {
         getAll: () => this.managers.achievement?.getAllAchievements(),
         getCompleted: () => this.managers.achievement?.getCompletedAchievements(),
@@ -596,8 +597,8 @@ export class GameCore extends CleanupMixin {
         buffs: this.managers.buff?.getDebugInfo(),
         effects: this.managers.ui?.effectIndicators?.getDebugInfo(),
         gameLoop: this.gameLoop?.getRenderStats(),
-        energy: this.managers.energy?.getEnergyStatistics(), // НОВЫЙ
-        achievements: this.managers.achievement?.getAchievementStats() // НОВЫЙ
+        energy: this.managers.energy?.getEnergyStatistics(),
+        achievements: this.managers.achievement?.getAchievementStats()
       }),
       
       getFPS: () => this.gameLoop?.getFPS(),

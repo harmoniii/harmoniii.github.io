@@ -1,4 +1,4 @@
-// core/GameState.js - Обновленная версия с поддержкой энергетической системы
+// core/GameState.js - ИСПРАВЛЕННАЯ версия с поддержкой энергетической системы
 import { RESOURCES } from '../config/ResourceConfig.js';
 import { BUILDING_DEFS } from '../managers/BuildingManager.js';
 import { SKILL_DEFS } from '../managers/SkillManager.js';
@@ -18,7 +18,7 @@ export class GameState {
       return obj;
     }, {});
 
-    // НОВАЯ: Энергетическая система (отдельно от ресурсов)
+    // Энергетическая система (отдельно от ресурсов)
     this.energy = {
       current: ENERGY_CONSTANTS.INITIAL_ENERGY,
       max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
@@ -78,10 +78,10 @@ export class GameState {
       dailyDeals: [],
       purchaseHistory: [],
       reputation: 0,
-      permanentBonuses: {} // НОВОЕ: для постоянных бонусов энергии
+      permanentBonuses: {}
     };
 
-    // НОВАЯ: Система достижений
+    // Система достижений
     this.achievements = {
       completed: new Set(),
       statistics: {
@@ -132,7 +132,7 @@ export class GameState {
     };
   }
 
-  // НОВАЯ: Валидация энергии
+  // Валидация энергии
   validateEnergy(energy) {
     if (!energy || typeof energy !== 'object') {
       return { ...this.energy };
@@ -147,7 +147,7 @@ export class GameState {
     };
   }
 
-  // НОВАЯ: Валидация достижений
+  // Валидация достижений
   validateAchievements(achievements) {
     if (!achievements || typeof achievements !== 'object') {
       return { ...this.achievements };
@@ -217,7 +217,7 @@ export class GameState {
         // Основные ресурсы с валидацией (БЕЗ энергии)
         resources: this.resources ? { ...this.resources } : {},
         
-        // НОВАЯ: Энергетическая система
+        // Энергетическая система
         energy: this.energy ? { ...this.energy } : {
           current: ENERGY_CONSTANTS.INITIAL_ENERGY,
           max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
@@ -248,7 +248,7 @@ export class GameState {
         // Маркет
         market: this.market ? { ...this.market } : {},
         
-        // НОВАЯ: Достижения
+        // Достижения
         achievements: {
           completed: Array.from(this.achievements.completed || []),
           statistics: { ...this.achievements.statistics }
@@ -347,7 +347,7 @@ export class GameState {
       });
     }
 
-    // НОВАЯ: Загружаем энергию
+    // Загружаем энергию
     if (data.energy && typeof data.energy === 'object') {
       this.energy = this.validateEnergy(data.energy);
     } else {
@@ -410,7 +410,7 @@ export class GameState {
       };
     }
 
-    // НОВАЯ: Загружаем достижения
+    // Загружаем достижения
     if (data.achievements && typeof data.achievements === 'object') {
       this.achievements = this.validateAchievements(data.achievements);
     }
@@ -435,7 +435,7 @@ export class GameState {
     return !this.isDestroyed && 
            this.resources && 
            this.combo && 
-           this.energy && // НОВАЯ проверка
+           this.energy &&
            typeof this.skillPoints === 'number';
   }
 
@@ -457,21 +457,21 @@ export class GameState {
     
     // Clear all references
     this.resources = null;
-    this.energy = null; // НОВАЯ очистка
+    this.energy = null;
     this.combo = null;
     this.buildings = null;
     this.skills = null;
     this.skillStates = null;
     this.market = null;
-    this.achievements = null; // НОВАЯ очистка
+    this.achievements = null;
     this.buffs = null;
     this.debuffs = null;
     this.effectStates = null;
     
     // Clear manager references
     this.buffManager = null;
-    this.energyManager = null; // НОВАЯ очистка
-    this.achievementManager = null; // НОВАЯ очистка
+    this.energyManager = null;
+    this.achievementManager = null;
     this.buildingManager = null;
     this.skillManager = null;
     this.marketManager = null;

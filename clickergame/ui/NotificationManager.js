@@ -1,4 +1,4 @@
-// ui/NotificationManager.js - Управление уведомлениями
+// ui/NotificationManager.js - ИСПРАВЛЕННАЯ версия управления уведомлениями
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
@@ -24,11 +24,8 @@ export class NotificationManager extends CleanupMixin {
     this.container.className = 'notifications-container';
     document.body.appendChild(this.container);
     
-    this.onDestroy(() => {
-      if (document.body.contains(this.container)) {
-        document.body.removeChild(this.container);
-      }
-    });
+    // ИСПРАВЛЕНИЕ: Правильная регистрация DOM элемента для очистки
+    this.registerDOMElement(this.container);
   }
 
   // Показать обычное уведомление
@@ -182,7 +179,11 @@ export class NotificationManager extends CleanupMixin {
 
   // Деструктор
   destroy() {
+    console.log('🧹 NotificationManager cleanup started');
+    
     this.clearAll();
     super.destroy();
+    
+    console.log('✅ NotificationManager destroyed');
   }
 }
