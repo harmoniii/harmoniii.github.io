@@ -1,4 +1,4 @@
-// core/GameCore.js - ИСПРАВЛЕННАЯ версия с правильными ссылками менеджеров
+// core/GameCore.js - ИСПРАВЛЕННАЯ версия с правильными ссылками менеджеров и синхронизацией зон
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -27,6 +27,9 @@ export class GameCore extends CleanupMixin {
       resource: 0
     };
     
+    // НОВОЕ: Счетчик проверок синхронизации зон
+    this.zoneSyncCheckInterval = null;
+    
     this.initialize();
   }
 
@@ -40,8 +43,11 @@ export class GameCore extends CleanupMixin {
       await this.initializeUI();
       await this.startGameLoop();
       
-      // Устанавливаем правильные ссылки между менеджерами
+      // ИСПРАВЛЕНИЕ: Устанавливаем правильные ссылки между менеджерами
       this.setupManagerReferences();
+      
+      // НОВОЕ: Запускаем проверку синхронизации зон
+      this.startZoneSyncChecker();
       
       // Подписываемся на системные события
       this.bindSystemEvents();
@@ -91,6 +97,8 @@ export class GameCore extends CleanupMixin {
       this.managers.building = new BuildingManager(this.gameState);
       this.managers.skill = new SkillManager(this.gameState);
       this.managers.market = new MarketManager(this.gameState);
+      
+      // КРИТИЧНО: FeatureManager создается последним и получает ссылку на BuffManager
       this.managers.feature = new FeatureManager(this.gameState, this.managers.buff);
       
       // Регистрируем менеджеры для очистки
@@ -124,16 +132,49 @@ export class GameCore extends CleanupMixin {
       this.gameState.managers = this.managers;
       this.gameState.featureMgr = this.managers.feature;
       
-      // НОВОЕ: Обеспечиваем синхронизацию зон после инициализации всех менеджеров
+      // НОВОЕ: Принудительная синхронизация зон после инициализации всех менеджеров
       if (this.managers.feature && typeof this.managers.feature.forceZoneSync === 'function') {
-        this.managers.feature.forceZoneSync();
-        console.log('🎯 Zone synchronization forced after manager setup');
+        // Задержка для полной инициализации
+        this.createTimeout(() => {
+          this.managers.feature.forceZoneSync();
+          console.log('🎯 Initial zone synchronization completed');
+        }, 200);
       }
       
       console.log('✅ Manager references set up successfully');
       
     } catch (error) {
       console.error('💀 Failed to set up manager references:', error);
+    }
+  }
+
+  // НОВОЕ: Запуск проверки синхронизации зон
+  startZoneSyncChecker() {
+    // Проверяем синхронизацию зон каждые 5 секунд в debug режиме
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      this.zoneSyncCheckInterval = this.createInterval(() => {
+        this.checkZoneSynchronization();
+      }, 5000, 'zone-sync-checker');
+      
+      console.log('🔍 Zone synchronization checker started (debug mode)');
+    }
+  }
+
+  // НОВОЕ: Проверка синхронизации зон
+  checkZoneSynchronization() {
+    try {
+      if (!this.gameLoop || !this.managers.feature) return;
+      
+      const syncInfo = this.gameLoop.getZoneSyncInfo?.();
+      if (syncInfo && !syncInfo.synchronized) {
+        console.warn('⚠️ Zone desynchronization detected in automatic check:', syncInfo);
+        console.log('🔧 Auto-fixing zone synchronization...');
+        
+        // Исправляем автоматически
+        this.gameLoop.fixDesync?.();
+      }
+    } catch (error) {
+      console.warn('⚠️ Error in zone sync check:', error);
     }
   }
 
@@ -271,7 +312,7 @@ export class GameCore extends CleanupMixin {
     }
   }
 
-  // Перезапуск менеджеров после загрузки
+  // ИСПРАВЛЕННЫЙ перезапуск менеджеров после загрузки с синхронизацией зон
   restartManagersAfterLoad() {
     console.log('🔄 Restarting managers after load...');
     
@@ -302,22 +343,34 @@ export class GameCore extends CleanupMixin {
         console.log('✅ Achievements checked');
       }
 
+      // КРИТИЧНО: Принудительно переинициализируем зоны после загрузки
+      if (this.managers.feature) {
+        this.createTimeout(() => {
+          this.managers.feature.forceZoneReset();
+          console.log('✅ Zones reset and synchronized after load');
+          
+          // Дополнительная синхронизация через GameLoop
+          if (this.gameLoop && typeof this.gameLoop.forceSyncAll === 'function') {
+            this.gameLoop.forceSyncAll();
+            console.log('✅ GameLoop synchronized after load');
+          }
+        }, 300);
+      }
+
       // Обновляем UI
       if (this.managers.ui) {
-        this.managers.ui.forceUpdate();
-        console.log('✅ UI updated');
+        this.createTimeout(() => {
+          this.managers.ui.forceUpdate();
+          console.log('✅ UI updated after load');
+        }, 500);
       }
 
       // Принудительно обновляем игровой цикл
       if (this.gameLoop) {
-        this.gameLoop.forceRedraw();
-        console.log('✅ Game loop refreshed');
-      }
-
-      // НОВОЕ: Синхронизируем зоны после загрузки
-      if (this.managers.feature && typeof this.managers.feature.forceZoneSync === 'function') {
-        this.managers.feature.forceZoneSync();
-        console.log('✅ Zones synchronized');
+        this.createTimeout(() => {
+          this.gameLoop.forceRedraw();
+          console.log('✅ Game loop refreshed after load');
+        }, 600);
       }
 
     } catch (error) {
@@ -413,6 +466,12 @@ export class GameCore extends CleanupMixin {
   stopAllGameProcesses() {
     try {
       console.log('🛑 Stopping all game processes...');
+      
+      // Останавливаем проверку синхронизации зон
+      if (this.zoneSyncCheckInterval) {
+        this.cleanupManager.clearInterval(this.zoneSyncCheckInterval);
+        this.zoneSyncCheckInterval = null;
+      }
       
       // Останавливаем все менеджеры которые имеют методы остановки
       if (this.managers.buff && typeof this.managers.buff.clearAllEffects === 'function') {
@@ -516,6 +575,12 @@ export class GameCore extends CleanupMixin {
         completed: this.managers.achievement.getCompletedAchievements().length,
         total: this.managers.achievement.getAllAchievements().length,
         completionPercent: this.managers.achievement.getAchievementStats().completionPercent
+      } : null,
+      // НОВОЕ: Статистики зон
+      zones: this.managers.feature ? {
+        targetZone: this.gameState.targetZone,
+        zoneStats: this.managers.feature.getZoneStatistics(),
+        syncInfo: this.gameLoop ? this.gameLoop.getZoneSyncInfo() : null
       } : null
     };
   }
@@ -609,16 +674,19 @@ export class GameCore extends CleanupMixin {
           return this.managers.feature.getZoneInfo();
         },
         
-        // Сравнить состояние GameLoop и FeatureManager
+        // НОВОЕ: Сравнить состояние GameLoop и FeatureManager
         compare: () => {
           const gameLoopTarget = this.gameState.targetZone;
           const featureManagerState = this.managers.feature ? this.managers.feature.getZonesDebugInfo() : null;
+          const gameLoopSyncInfo = this.gameLoop ? this.gameLoop.getZoneSyncInfo() : null;
           
           return {
             gameStateTarget: gameLoopTarget,
             featureManagerTarget: featureManagerState?.targetZone,
+            gameLoopSyncInfo: gameLoopSyncInfo,
             synchronized: gameLoopTarget === featureManagerState?.targetZone,
-            zoneTypes: featureManagerState?.zoneTypes || 'not available'
+            zoneTypes: featureManagerState?.zoneTypes || 'not available',
+            allSynced: gameLoopSyncInfo?.synchronized || false
           };
         },
         
@@ -631,14 +699,14 @@ export class GameCore extends CleanupMixin {
             this.gameState.targetZone = 0;
             this.gameState.previousTargetZone = 0;
             
-            // 2. Полностью переинициализируем зоны
+            // 2. Полностью переинициализируем зоны в FeatureManager
             if (this.managers.feature) {
               this.managers.feature.forceZoneReset();
             }
             
-            // 3. Принудительно перерисовываем
+            // 3. Синхронизируем GameLoop
             if (this.gameLoop) {
-              this.gameLoop.forceRedraw();
+              this.gameLoop.forceSyncAll();
             }
             
             // 4. Обновляем UI
@@ -650,6 +718,18 @@ export class GameCore extends CleanupMixin {
           } catch (error) {
             console.error('Error fixing zones:', error);
             return `Error: ${error.message}`;
+          }
+        },
+        
+        // НОВОЕ: Включить/выключить автоматическую проверку синхронизации
+        toggleAutoSync: () => {
+          if (this.zoneSyncCheckInterval) {
+            this.cleanupManager.clearInterval(this.zoneSyncCheckInterval);
+            this.zoneSyncCheckInterval = null;
+            return 'Auto sync checker disabled';
+          } else {
+            this.startZoneSyncChecker();
+            return 'Auto sync checker enabled';
           }
         },
         
@@ -702,64 +782,3 @@ export class GameCore extends CleanupMixin {
         gameLoop: this.gameLoop?.getRenderStats(),
         energy: this.managers.energy?.getEnergyStatistics(),
         achievements: this.managers.achievement?.getAchievementStats()
-      }),
-      
-      getFPS: () => this.gameLoop?.getFPS(),
-      forceRedraw: () => this.gameLoop?.forceRedraw(),
-      restartManagers: () => this.restartManagersAfterLoad()
-    };
-    
-    console.log('🐛 Debug mode enabled! Use window.gameDebug for debugging');
-    
-    // Включаем отладку в менеджерах
-    if (this.managers.buff && typeof this.managers.buff.setDebugMode === 'function') {
-      this.managers.buff.setDebugMode(true);
-    }
-    
-    if (this.cleanupManager && typeof this.cleanupManager.setDebugMode === 'function') {
-      this.cleanupManager.setDebugMode(true);
-    }
-
-    // НОВОЕ: Автоматическая проверка и исправление зон при включении debug режима
-    if (this.managers.feature) {
-      const comparison = window.gameDebug.zones.compare();
-      if (comparison && !comparison.synchronized) {
-        console.warn('⚠️ Zone desynchronization detected on debug init:', comparison);
-        console.log('🔧 Auto-fixing...');
-        window.gameDebug.zones.fixAll();
-      }
-    }
-
-    // Функция для автоматической проверки синхронизации зон (только в debug режиме)
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      setInterval(() => {
-        const comparison = window.gameDebug?.zones?.compare();
-        if (comparison && !comparison.synchronized) {
-          console.warn('⚠️ Zone desynchronization detected:', comparison);
-          console.log('🔧 Auto-fixing...');
-          window.gameDebug.zones.fixAll();
-        }
-      }, 5000);
-    }
-  }
-
-  // Деструктор
-  destroy() {
-    console.log('🧹 Destroying GameCore...');
-    
-    try {
-      // Сохраняем перед уничтожением
-      this.autoSave();
-      
-      // Останавливаем все процессы
-      this.stopAllGameProcesses();
-      
-      // Вызываем родительский деструктор
-      super.destroy();
-      
-      console.log('✅ GameCore destroyed');
-    } catch (error) {
-      console.error('💀 Error during GameCore destruction:', error);
-    }
-  }
-}

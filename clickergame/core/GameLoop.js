@@ -33,9 +33,9 @@ export class GameLoop extends CleanupMixin {
     this.needsRedraw = true;
     this.lastAngle = 0;
     
-    // НОВОЕ: Отслеживание состояния зон для синхронизации
-    this.lastZoneString = '';
-    this.lastTargetZone = -1;
+    // ИСПРАВЛЕНИЕ: Принудительная перерисовка каждые несколько кадров для зон
+    this.forceRedrawCounter = 0;
+    this.forceRedrawInterval = 30; // Каждые 30 кадров
     
     this.initializeCanvas();
     this.bindEvents();
@@ -137,26 +137,15 @@ export class GameLoop extends CleanupMixin {
       this.gameState.targetZone = newTargetZone;
       this.needsRedraw = true;
       
-      // НОВОЕ: Дополнительная принудительная перерисовка через короткие интервалы
-      // для обеспечения синхронизации
-      setTimeout(() => {
-        this.needsRedraw = true;
-      }, 10);
+      // ИСПРАВЛЕНИЕ: Принудительная перерисовка в следующих нескольких кадрах
+      this.forceRedrawCounter = 0; // Сбрасываем счетчик
       
-      setTimeout(() => {
-        this.needsRedraw = true;
-      }, 50);
-      
-      setTimeout(() => {
-        this.needsRedraw = true;
-      }, 100);
-    });
-    
-    // НОВОЕ: Обработчик для полного сброса зон
-    eventBus.subscribe('ZONES_RESET', () => {
-      console.log('🎯 GameLoop: Zones reset detected, forcing redraw');
-      this.needsRedraw = true;
-      this.forceRedraw();
+      // Дополнительные принудительные перерисовки
+      for (let i = 0; i < 5; i++) {
+        setTimeout(() => {
+          this.needsRedraw = true;
+        }, i * 50);
+      }
     });
     
     // ДОПОЛНИТЕЛЬНО: Принудительная перерисовка при изменении комбо
@@ -216,7 +205,16 @@ export class GameLoop extends CleanupMixin {
       
       const angleChanged = this.updateRotation();
       
-      if (this.needsRedraw || angleChanged) {
+      // ИСПРАВЛЕНИЕ: Принудительная перерисовка для синхронизации зон
+      this.forceRedrawCounter++;
+      const shouldForceRedraw = this.forceRedrawCounter >= this.forceRedrawInterval;
+      
+      if (shouldForceRedraw) {
+        this.forceRedrawCounter = 0;
+        this.needsRedraw = true;
+      }
+      
+      if (this.needsRedraw || angleChanged || shouldForceRedraw) {
         this.render();
         this.needsRedraw = false;
       }
@@ -279,31 +277,14 @@ export class GameLoop extends CleanupMixin {
     return angleChanged;
   }
 
-  // НОВЫЙ МЕТОД: Принудительная синхронизация с FeatureManager
-  forceSyncWithFeatureManager() {
-    if (this.managers?.feature) {
-      const featureManagerInfo = this.managers.feature.getZonesDebugInfo();
-      if (featureManagerInfo && featureManagerInfo.targetZone !== this.gameState.targetZone) {
-        console.log(`🔄 GameLoop: Syncing target zone from ${this.gameState.targetZone} to ${featureManagerInfo.targetZone}`);
-        this.gameState.targetZone = featureManagerInfo.targetZone;
-        this.needsRedraw = true;
-      }
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Правильное рисование секторов с синхронизацией
+  // ИСПРАВЛЕНИЕ: Правильное рисование с синхронизацией
   render() {
-    // НОВОЕ: Проверяем синхронизацию зон перед каждым рендером
-    if (this.managers?.feature && Math.random() < 0.01) { // 1% шанс на проверку для производительности
-      this.forceSyncWithFeatureManager();
-    }
-    
     this.clearCanvas();
     this.drawZones();
     this.drawReverseIndicator();
   }
 
-  // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Правильное получение типов зон через FeatureManager
+  // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Правильное получение и отображение типов зон
   drawZones() {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
@@ -314,11 +295,8 @@ export class GameLoop extends CleanupMixin {
     // ИСПРАВЛЕНИЕ: Получаем актуальную целевую зону
     const targetZone = this.gameState.targetZone || 0;
     
-    // ИСПРАВЛЕНИЕ: Получаем актуальные типы зон из FeatureManager
-    let actualZoneTypes = null;
-    if (this.managers.feature && this.managers.feature.zoneTypes) {
-      actualZoneTypes = this.managers.feature.zoneTypes;
-    }
+    // КРИТИЧЕСКИ ВАЖНО: Получаем актуальные типы зон из FeatureManager
+    let actualZoneTypes = this.getZoneTypesFromFeatureManager();
     
     // Рисуем каждую зону
     for (let i = 0; i < zoneCount; i++) {
@@ -376,18 +354,34 @@ export class GameLoop extends CleanupMixin {
       // Подпись зоны
       this.drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, i, isTarget, zoneColor, actualZoneTypes);
     }
-    
-    // НОВОЕ: Логирование состояния зон для отладки (без спама)
-    if (actualZoneTypes) {
-      const currentZoneString = actualZoneTypes.map((zt, i) => `${i}:${zt?.id || 'unknown'}`).join(', ');
-      const targetChanged = this.lastTargetZone !== targetZone;
-      
-      // Логируем только при изменении состояния
-      if (this.lastZoneString !== currentZoneString || targetChanged) {
-        console.log(`🎯 Rendering - Target: ${targetZone}, Types: ${currentZoneString}`);
-        this.lastZoneString = currentZoneString;
-        this.lastTargetZone = targetZone;
+  }
+
+  // ИСПРАВЛЕНИЕ: Правильное получение типов зон из FeatureManager
+  getZoneTypesFromFeatureManager() {
+    try {
+      if (this.managers?.feature && this.managers.feature.zoneTypes) {
+        return this.managers.feature.zoneTypes;
       }
+      
+      // Fallback: если нет типов зон, создаем базовые
+      const zoneCount = 8;
+      const targetZone = this.gameState.targetZone || 0;
+      const defaultTypes = new Array(zoneCount);
+      
+      for (let i = 0; i < zoneCount; i++) {
+        if (i === targetZone) {
+          defaultTypes[i] = ZONE_TYPES.GOLD;
+        } else {
+          defaultTypes[i] = ZONE_TYPES.INACTIVE;
+        }
+      }
+      
+      console.warn('⚠️ Using fallback zone types');
+      return defaultTypes;
+      
+    } catch (error) {
+      console.error('❌ Error getting zone types:', error);
+      return null;
     }
   }
 
@@ -432,7 +426,7 @@ export class GameLoop extends CleanupMixin {
     }
     
     // Показываем номер зоны только для целевой (для отладки)
-    if (isTarget) {
+    if (isTarget && window.gameDebug) {
       this.ctx.font = 'bold 12px Arial';
       this.ctx.fillStyle = '#FFFFFF';
       this.ctx.strokeStyle = '#000000';
@@ -492,9 +486,6 @@ export class GameLoop extends CleanupMixin {
   forceRedraw() {
     console.log('🔄 GameLoop: Force redraw requested');
     
-    // Синхронизируемся с FeatureManager
-    this.forceSyncWithFeatureManager();
-    
     this.needsRedraw = true;
     
     // Принудительно рендерим несколько раз для гарантии
@@ -503,12 +494,14 @@ export class GameLoop extends CleanupMixin {
       
       setTimeout(() => {
         if (this.isRunning) {
+          this.needsRedraw = true;
           this.render();
         }
       }, 16); // Один кадр при 60 FPS
       
       setTimeout(() => {
         if (this.isRunning) {
+          this.needsRedraw = true;
           this.render();
         }
       }, 32); // Два кадра при 60 FPS
@@ -559,11 +552,11 @@ export class GameLoop extends CleanupMixin {
         width: this.canvas?.width || 0,
         height: this.canvas?.height || 0
       },
-      // НОВОЕ: Статистика синхронизации зон
+      forceRedrawCounter: this.forceRedrawCounter,
       zoneSync: {
-        lastTargetZone: this.lastTargetZone,
         currentTargetZone: this.gameState.targetZone,
-        lastZoneString: this.lastZoneString
+        hasFeatureManager: !!(this.managers?.feature),
+        hasZoneTypes: !!(this.managers?.feature?.zoneTypes)
       }
     };
   }
@@ -589,9 +582,6 @@ export class GameLoop extends CleanupMixin {
   forceSyncAll() {
     console.log('🔄 GameLoop: Force syncing all states...');
     
-    // Синхронизируем с FeatureManager
-    this.forceSyncWithFeatureManager();
-    
     // Обновляем направление вращения
     this.updateRotationDirection();
     
@@ -603,16 +593,16 @@ export class GameLoop extends CleanupMixin {
 
   // НОВЫЙ МЕТОД: Получить отладочную информацию о синхронизации зон
   getZoneSyncInfo() {
-    const featureManagerInfo = this.managers?.feature?.getZonesDebugInfo();
+    const featureManagerInfo = this.managers?.feature?.getZonesDebugInfo?.();
     
     return {
       gameLoopTargetZone: this.gameState.targetZone,
       featureManagerTargetZone: featureManagerInfo?.targetZone,
       synchronized: this.gameState.targetZone === featureManagerInfo?.targetZone,
-      lastRenderedTarget: this.lastTargetZone,
-      lastZoneString: this.lastZoneString,
       hasFeatureManager: !!this.managers?.feature,
-      hasZoneTypes: !!(this.managers?.feature?.zoneTypes)
+      hasZoneTypes: !!(this.managers?.feature?.zoneTypes),
+      zoneTypesLength: this.managers?.feature?.zoneTypes?.length || 0,
+      forceRedrawCounter: this.forceRedrawCounter
     };
   }
 
@@ -629,14 +619,26 @@ export class GameLoop extends CleanupMixin {
       console.log(`🔧 Fixed target zone: ${this.gameState.targetZone}`);
     }
     
-    // Сбрасываем кэши
-    this.lastZoneString = '';
-    this.lastTargetZone = -1;
+    // Сбрасываем счетчик принудительной перерисовки
+    this.forceRedrawCounter = 0;
     
     // Принудительно перерисовываем
     this.forceRedraw();
     
     console.log('✅ GameLoop: Desync fixed');
+  }
+
+  // НОВЫЙ МЕТОД: Проверка и автоматическое исправление десинхронизации
+  checkAndFixDesync() {
+    const syncInfo = this.getZoneSyncInfo();
+    
+    if (!syncInfo.synchronized) {
+      console.warn('⚠️ Zone desynchronization detected, auto-fixing...');
+      this.fixDesync();
+      return true;
+    }
+    
+    return false;
   }
 
   // Деструктор
