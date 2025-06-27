@@ -1,4 +1,4 @@
-// ui/EnergyDisplay.js - ИСПРАВЛЕННАЯ версия с ограничением уведомлений и правильным размещением
+// ui/EnergyDisplay.js - ИСПРАВЛЕННАЯ версия с registerDOMElement
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
@@ -55,10 +55,15 @@ export class EnergyDisplay extends CleanupMixin {
         if (gameArea) {
           gameArea.appendChild(this.container);
           console.log('⚡ Energy display placed in game area (fallback)');
+        } else {
+          // Final fallback: добавляем в body
+          document.body.appendChild(this.container);
+          console.log('⚡ Energy display placed in body (final fallback)');
         }
       }
     }
     
+    // ИСПРАВЛЕНИЕ: Правильная регистрация DOM элемента
     this.registerDOMElement(this.container);
   }
 

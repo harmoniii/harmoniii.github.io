@@ -1,4 +1,4 @@
-// core/CleanupManager.js - Упрощенная версия
+// core/CleanupManager.js - ИСПРАВЛЕННАЯ версия с registerDOMElement
 export class CleanupManager {
   constructor() {
     this.components = new Set();
@@ -6,6 +6,7 @@ export class CleanupManager {
     this.intervals = new Map();
     this.eventListeners = new Map();
     this.cleanupFunctions = new Set();
+    this.domElements = new Set(); // НОВОЕ: для отслеживания DOM элементов
     this.isDestroyed = false;
     this.isDestroying = false;
     this.nextId = 1;
@@ -28,6 +29,36 @@ export class CleanupManager {
 
   unregisterComponent(component) {
     return this.components.delete(component);
+  }
+
+  // НОВОЕ: Регистрация DOM элементов для автоматической очистки
+  registerDOMElement(element, parentToRemoveFrom = null) {
+    if (this.isDestroyed || this.isDestroying || !element) return false;
+    
+    if (!(element instanceof Node)) {
+      console.warn('registerDOMElement: element must be a DOM Node');
+      return false;
+    }
+    
+    const elementInfo = {
+      element,
+      parentToRemoveFrom: parentToRemoveFrom || element.parentNode,
+      id: this.nextId++
+    };
+    
+    this.domElements.add(elementInfo);
+    return true;
+  }
+
+  // НОВОЕ: Отмена регистрации DOM элемента
+  unregisterDOMElement(element) {
+    for (const elementInfo of this.domElements) {
+      if (elementInfo.element === element) {
+        this.domElements.delete(elementInfo);
+        return true;
+      }
+    }
+    return false;
   }
 
   createTimeout(callback, delay, name = 'anonymous') {
@@ -184,6 +215,18 @@ export class CleanupManager {
       });
       this.eventListeners.clear();
       
+      // НОВОЕ: Очищаем DOM элементы
+      this.domElements.forEach(elementInfo => {
+        try {
+          if (elementInfo.element && elementInfo.element.parentNode) {
+            elementInfo.element.parentNode.removeChild(elementInfo.element);
+          }
+        } catch (error) {
+          console.error('Error removing DOM element:', error);
+        }
+      });
+      this.domElements.clear();
+      
       // Выполняем функции очистки
       this.cleanupFunctions.forEach(cleanupFn => {
         try {
@@ -205,6 +248,20 @@ export class CleanupManager {
   isActive() {
     return !this.isDestroyed && !this.isDestroying;
   }
+
+  // НОВОЕ: Получить статистику для отладки
+  getStats() {
+    return {
+      components: this.components.size,
+      timeouts: this.timeouts.size,
+      intervals: this.intervals.size,
+      eventListeners: this.eventListeners.size,
+      domElements: this.domElements.size,
+      cleanupFunctions: this.cleanupFunctions.size,
+      isDestroyed: this.isDestroyed,
+      isDestroying: this.isDestroying
+    };
+  }
 }
 
 export class CleanupMixin {
@@ -224,6 +281,11 @@ export class CleanupMixin {
 
   addEventListener(element, event, handler, options) {
     return this.cleanupManager.addEventListener(element, event, handler, options);
+  }
+
+  // НОВОЕ: Метод для регистрации DOM элементов
+  registerDOMElement(element, parentToRemoveFrom = null) {
+    return this.cleanupManager.registerDOMElement(element, parentToRemoveFrom);
   }
 
   onDestroy(cleanupFn, name) {

@@ -1,4 +1,4 @@
-// ui/CardFactory.js - ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ версия с корректной проверкой доступности
+// ui/CardFactory.js - ИСПРАВЛЕННАЯ версия с корректной проверкой доступности
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { getResourceEmoji } from '../config/ResourceConfig.js';
@@ -29,7 +29,7 @@ export class CardFactory extends CleanupMixin {
     card.appendChild(details);
     card.appendChild(footer);
     
-    // Регистрируем карточку для очистки
+    // ИСПРАВЛЕНИЕ: Правильная регистрация карточки для очистки
     this.registerDOMElement(card);
     
     return card;
@@ -55,7 +55,7 @@ export class CardFactory extends CleanupMixin {
     card.appendChild(details);
     card.appendChild(footer);
     
-    // Регистрируем карточку для очистки
+    // ИСПРАВЛЕНИЕ: Правильная регистрация карточки для очистки
     this.registerDOMElement(card);
     
     return card;
