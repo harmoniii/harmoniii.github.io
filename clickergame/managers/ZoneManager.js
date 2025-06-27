@@ -2,6 +2,8 @@
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { Zone } from '../utils/Zone.js';
+import { AngleManager } from '../utils/AngleManager.js';
+import { ZoneEventQueue } from '../core/ZoneEventQueue.js';
 import { ZONE_COUNT } from '../config/ResourceConfig.js';
 
 // ЕДИНЫЕ типы зон
@@ -55,248 +57,397 @@ export class ZoneManager extends CleanupMixin {
     
     this.gameState = gameState;
     this.zones = [];
-    this.zoneTypes = new Array(ZONE_COUNT); // Состояние типов зон
+    this.zoneTypes = [];
     this.targetZone = 0;
+    this.isInitialized = false;
+    this.initializationPromise = null;
     
-    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Правильная последовательность инициализации
-    this.initializeZonesStructure();
-    this.initializeZoneTypes();
-    this.bindEvents();
+    // Очередь событий для синхронизации
+    this.eventQueue = new ZoneEventQueue();
+    this.cleanupManager.registerComponent(this.eventQueue, 'ZoneEventQueue');
     
-    console.log('🎯 ZoneManager initialized with unified zone system');
+    // Инициализируем зоны синхронно и надежно
+    this.initialize();
+    
+    console.log('🎯 ZoneManager initialized with synchronized zone system');
   }
 
-  // ИСПРАВЛЕНИЕ: Отдельная инициализация структуры зон
-  initializeZonesStructure() {
-    console.log('🎯 Initializing zones structure...');
-    
-    // Инициализируем целевую зону
-    this.targetZone = this.gameState.targetZone || 0;
-    
-    // КРИТИЧЕСКИ ВАЖНО: Создаем массив зон ПЕРЕД инициализацией типов
-    this.zones = Array.from({ length: ZONE_COUNT }, (_, i) => {
-      return new Zone(ZONE_TYPES.INACTIVE, i, ZONE_COUNT);
-    });
-    
-    // Инициализируем массив типов зон со значениями по умолчанию
-    for (let i = 0; i < ZONE_COUNT; i++) {
-      this.zoneTypes[i] = { ...ZONE_TYPES.INACTIVE };
+  /**
+   * ИСПРАВЛЕНИЕ: Синхронная и надежная инициализация
+   */
+  initialize() {
+    try {
+      console.log('🎯 Starting ZoneManager initialization...');
+      
+      // Шаг 1: Валидация входных данных
+      this.validateInitializationData();
+      
+      // Шаг 2: Создание базовой структуры зон
+      this.createZoneStructure();
+      
+      // Шаг 3: Инициализация типов зон
+      this.initializeZoneTypes();
+      
+      // Шаг 4: Валидация результата
+      this.validateInitialization();
+      
+      // Шаг 5: Привязка событий
+      this.bindEvents();
+      
+      this.isInitialized = true;
+      console.log('✅ ZoneManager initialization completed successfully');
+      
+    } catch (error) {
+      console.error('❌ ZoneManager initialization failed:', error);
+      this.handleInitializationFailure(error);
+    }
+  }
+
+  /**
+   * Валидация данных для инициализации
+   */
+  validateInitializationData() {
+    if (!this.gameState) {
+      throw new Error('GameState is required for ZoneManager');
     }
     
-    console.log(`✅ Created ${ZONE_COUNT} zones and initialized zone types array`);
+    if (typeof ZONE_COUNT !== 'number' || ZONE_COUNT < 4 || ZONE_COUNT > 16) {
+      throw new Error(`Invalid ZONE_COUNT: ${ZONE_COUNT}. Must be between 4 and 16`);
+    }
+    
+    if (!ZONE_TYPES || typeof ZONE_TYPES !== 'object') {
+      throw new Error('ZONE_TYPES configuration is missing');
+    }
+    
+    console.log(`✅ Validation passed for ${ZONE_COUNT} zones`);
   }
 
-  // ИСПРАВЛЕНИЕ: Отдельная инициализация типов зон
+  /**
+   * Создание базовой структуры зон
+   */
+  createZoneStructure() {
+    console.log('🎯 Creating zone structure...');
+    
+    // Очищаем предыдущие данные
+    this.zones = [];
+    this.zoneTypes = [];
+    
+    // Создаем зоны с использованием Zone класса
+    for (let i = 0; i < ZONE_COUNT; i++) {
+      const zone = new Zone(ZONE_TYPES.INACTIVE, i, ZONE_COUNT);
+      this.zones.push(zone);
+      this.zoneTypes.push({ ...ZONE_TYPES.INACTIVE });
+    }
+    
+    // Валидируем созданную структуру
+    if (this.zones.length !== ZONE_COUNT) {
+      throw new Error(`Zone creation failed: expected ${ZONE_COUNT}, got ${this.zones.length}`);
+    }
+    
+    console.log(`✅ Created ${ZONE_COUNT} zones successfully`);
+  }
+
+  /**
+   * Инициализация типов зон
+   */
   initializeZoneTypes() {
     console.log('🎯 Initializing zone types...');
     
-    // Проверяем, что структура создана
-    if (!this.zones || this.zones.length !== ZONE_COUNT) {
-      console.error('❌ Zones structure not properly initialized!');
-      this.initializeZonesStructure();
-    }
+    // Устанавливаем целевую зону
+    this.targetZone = this.validateTargetZone(this.gameState.targetZone || 0);
+    this.gameState.targetZone = this.targetZone;
     
-    if (!this.zoneTypes || this.zoneTypes.length !== ZONE_COUNT) {
-      console.error('❌ Zone types array not properly initialized!');
-      this.zoneTypes = new Array(ZONE_COUNT);
-      for (let i = 0; i < ZONE_COUNT; i++) {
-        this.zoneTypes[i] = { ...ZONE_TYPES.INACTIVE };
-      }
-    }
-    
-    // Теперь безопасно генерируем типы зон
+    // Генерируем типы зон
     this.generateZoneTypes();
+    
+    console.log(`✅ Zone types initialized with target zone: ${this.targetZone}`);
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная генерация типов зон
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная генерация типов зон
+   */
   generateZoneTypes() {
-    console.log('🎯 Generating zone types...');
-    
-    // КРИТИЧЕСКАЯ ПРОВЕРКА: убеждаемся что все массивы инициализированы
-    if (!this.zones || this.zones.length !== ZONE_COUNT) {
-      console.error('❌ Zones array not ready for type generation!');
-      return false;
-    }
-    
-    if (!this.zoneTypes || this.zoneTypes.length !== ZONE_COUNT) {
-      console.error('❌ Zone types array not ready for type generation!');
-      return false;
-    }
-    
     try {
       // Сбрасываем все зоны на неактивные
       for (let i = 0; i < ZONE_COUNT; i++) {
-        // ИСПРАВЛЕНИЕ: Проверяем существование элементов перед обращением
-        if (!this.zones[i]) {
-          console.error(`❌ Zone ${i} is undefined! Recreating...`);
-          this.zones[i] = new Zone(ZONE_TYPES.INACTIVE, i, ZONE_COUNT);
-        }
-        
         this.zoneTypes[i] = { ...ZONE_TYPES.INACTIVE };
         this.zones[i].definition = this.zoneTypes[i];
       }
       
       // Устанавливаем целевую зону
-      if (this.targetZone >= 0 && this.targetZone < ZONE_COUNT) {
-        this.zoneTypes[this.targetZone] = { ...ZONE_TYPES.TARGET };
-        this.zones[this.targetZone].definition = this.zoneTypes[this.targetZone];
-      } else {
-        console.warn(`⚠️ Invalid target zone ${this.targetZone}, using 0`);
-        this.targetZone = 0;
-        this.zoneTypes[0] = { ...ZONE_TYPES.TARGET };
-        this.zones[0].definition = this.zoneTypes[0];
-      }
+      this.zoneTypes[this.targetZone] = { ...ZONE_TYPES.TARGET };
+      this.zones[this.targetZone].definition = this.zoneTypes[this.targetZone];
       
       // Генерируем специальные зоны
-      const availableIndices = [];
-      for (let i = 0; i < ZONE_COUNT; i++) {
-        if (i !== this.targetZone) {
-          availableIndices.push(i);
-        }
-      }
+      this.generateSpecialZones();
       
-      // Добавляем энергетические зоны (25% шанс)
-      const energyZoneCount = Math.max(1, Math.floor(availableIndices.length * 0.25));
-      for (let i = 0; i < energyZoneCount && availableIndices.length > 0; i++) {
-        const randomIndex = Math.floor(Math.random() * availableIndices.length);
-        const zoneIndex = availableIndices.splice(randomIndex, 1)[0];
-        
-        this.zoneTypes[zoneIndex] = { ...ZONE_TYPES.ENERGY };
-        this.zones[zoneIndex].definition = this.zoneTypes[zoneIndex];
-      }
-      
-      // Добавляем бонусные зоны (15% шанс)
-      const bonusZoneCount = Math.max(1, Math.floor(availableIndices.length * 0.15));
-      for (let i = 0; i < bonusZoneCount && availableIndices.length > 0; i++) {
-        const randomIndex = Math.floor(Math.random() * availableIndices.length);
-        const zoneIndex = availableIndices.splice(randomIndex, 1)[0];
-        
-        this.zoneTypes[zoneIndex] = { ...ZONE_TYPES.BONUS };
-        this.zones[zoneIndex].definition = this.zoneTypes[zoneIndex];
-      }
-      
-      console.log(`✅ Zone types generated - Target: ${this.targetZone}, Energy: ${energyZoneCount}, Bonus: ${bonusZoneCount}`);
-      return true;
+      console.log(`✅ Zone types generated successfully`);
       
     } catch (error) {
-      console.error('❌ Error during zone type generation:', error);
-      return false;
+      console.error('❌ Error generating zone types:', error);
+      this.fallbackZoneGeneration();
     }
   }
 
-  // Привязка событий
+  /**
+   * Генерация специальных зон (энергетические, бонусные)
+   */
+  generateSpecialZones() {
+    const availableIndices = [];
+    
+    // Собираем доступные индексы (исключая целевую зону)
+    for (let i = 0; i < ZONE_COUNT; i++) {
+      if (i !== this.targetZone) {
+        availableIndices.push(i);
+      }
+    }
+    
+    // Энергетические зоны (25% от доступных)
+    const energyZoneCount = Math.max(1, Math.floor(availableIndices.length * 0.25));
+    for (let i = 0; i < energyZoneCount && availableIndices.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * availableIndices.length);
+      const zoneIndex = availableIndices.splice(randomIndex, 1)[0];
+      
+      this.zoneTypes[zoneIndex] = { ...ZONE_TYPES.ENERGY };
+      this.zones[zoneIndex].definition = this.zoneTypes[zoneIndex];
+    }
+    
+    // Бонусные зоны (15% от доступных)
+    const bonusZoneCount = Math.max(1, Math.floor(availableIndices.length * 0.15));
+    for (let i = 0; i < bonusZoneCount && availableIndices.length > 0; i++) {
+      const randomIndex = Math.floor(Math.random() * availableIndices.length);
+      const zoneIndex = availableIndices.splice(randomIndex, 1)[0];
+      
+      this.zoneTypes[zoneIndex] = { ...ZONE_TYPES.BONUS };
+      this.zones[zoneIndex].definition = this.zoneTypes[zoneIndex];
+    }
+    
+    console.log(`Generated ${energyZoneCount} energy zones and ${bonusZoneCount} bonus zones`);
+  }
+
+  /**
+   * Fallback генерация зон при ошибке
+   */
+  fallbackZoneGeneration() {
+    console.warn('⚠️ Using fallback zone generation');
+    
+    for (let i = 0; i < ZONE_COUNT; i++) {
+      if (i === this.targetZone) {
+        this.zoneTypes[i] = { ...ZONE_TYPES.TARGET };
+      } else {
+        this.zoneTypes[i] = { ...ZONE_TYPES.INACTIVE };
+      }
+      this.zones[i].definition = this.zoneTypes[i];
+    }
+  }
+
+  /**
+   * Валидация инициализации
+   */
+  validateInitialization() {
+    const errors = [];
+    
+    if (this.zones.length !== ZONE_COUNT) {
+      errors.push(`Wrong zone count: ${this.zones.length} !== ${ZONE_COUNT}`);
+    }
+    
+    if (this.zoneTypes.length !== ZONE_COUNT) {
+      errors.push(`Wrong zone types count: ${this.zoneTypes.length} !== ${ZONE_COUNT}`);
+    }
+    
+    if (this.targetZone < 0 || this.targetZone >= ZONE_COUNT) {
+      errors.push(`Invalid target zone: ${this.targetZone}`);
+    }
+    
+    // Проверяем, что есть ровно одна целевая зона
+    const targetZones = this.zoneTypes.filter(type => type.id === 'target');
+    if (targetZones.length !== 1) {
+      errors.push(`Expected 1 target zone, found ${targetZones.length}`);
+    }
+    
+    // Проверяем углы зон
+    for (let i = 0; i < this.zones.length; i++) {
+      const zone = this.zones[i];
+      if (!AngleManager.isValidAngle(zone.getStartAngle()) || 
+          !AngleManager.isValidAngle(zone.getEndAngle())) {
+        errors.push(`Invalid angles in zone ${i}`);
+      }
+    }
+    
+    if (errors.length > 0) {
+      throw new Error(`Zone validation failed: ${errors.join(', ')}`);
+    }
+    
+    console.log('✅ Zone initialization validation passed');
+  }
+
+  /**
+   * Обработка ошибки инициализации
+   */
+  handleInitializationFailure(error) {
+    console.error('❌ ZoneManager initialization failed, attempting recovery...');
+    
+    try {
+      // Создаем минимальную рабочую конфигурацию
+      this.zones = Zone.createZones(ZONE_COUNT, ZONE_TYPES.INACTIVE);
+      this.zoneTypes = Array(ZONE_COUNT).fill({ ...ZONE_TYPES.INACTIVE });
+      this.targetZone = 0;
+      this.zoneTypes[0] = { ...ZONE_TYPES.TARGET };
+      this.zones[0].definition = this.zoneTypes[0];
+      
+      this.isInitialized = true;
+      console.log('✅ Recovery successful with minimal configuration');
+      
+    } catch (recoveryError) {
+      console.error('❌ Recovery failed:', recoveryError);
+      throw new Error(`ZoneManager initialization failed and recovery impossible: ${error.message}`);
+    }
+  }
+
+  /**
+   * Привязка событий
+   */
   bindEvents() {
-    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, (newTargetZone) => {
-      console.log(`🎯 Zone shuffle event: ${this.targetZone} -> ${newTargetZone}`);
-      this.setTargetZone(newTargetZone);
+    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, (data) => {
+      if (data && typeof data.newTargetZone === 'number') {
+        this.handleZoneShuffleEvent(data.newTargetZone, data.reason);
+      }
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная установка целевой зоны
+  /**
+   * Обработка события перемешивания зон
+   */
+  handleZoneShuffleEvent(newTargetZone, reason = 'unknown') {
+    if (!this.isInitialized) {
+      console.warn('⚠️ ZoneManager not initialized, ignoring shuffle event');
+      return;
+    }
+    
+    console.log(`🎯 Handling zone shuffle: ${this.targetZone} -> ${newTargetZone} (${reason})`);
+    this.setTargetZone(newTargetZone);
+  }
+
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная установка целевой зоны с валидацией
+   */
   setTargetZone(newTargetZone) {
-    // Валидация входного параметра
-    if (typeof newTargetZone !== 'number' || isNaN(newTargetZone)) {
-      console.warn('Invalid target zone type:', typeof newTargetZone, newTargetZone);
+    if (!this.isInitialized) {
+      console.warn('⚠️ Cannot set target zone: ZoneManager not initialized');
       return false;
     }
     
-    if (newTargetZone < 0 || newTargetZone >= ZONE_COUNT) {
-      console.warn('Invalid target zone range:', newTargetZone);
-      return false;
-    }
-    
-    // Проверяем готовность структур
-    if (!this.zones || this.zones.length !== ZONE_COUNT) {
-      console.error('❌ Zones not ready for target zone change');
-      return false;
+    const validatedTarget = this.validateTargetZone(newTargetZone);
+    if (validatedTarget === this.targetZone) {
+      return true; // Нет изменений
     }
     
     const oldTargetZone = this.targetZone;
-    this.targetZone = newTargetZone;
-    this.gameState.targetZone = newTargetZone;
-    this.gameState.previousTargetZone = oldTargetZone;
     
-    // Безопасно перегенерируем типы зон
-    const success = this.generateZoneTypes();
-    if (!success) {
-      console.error('❌ Failed to regenerate zone types');
+    try {
+      // Обновляем старую целевую зону
+      if (oldTargetZone >= 0 && oldTargetZone < ZONE_COUNT) {
+        this.zoneTypes[oldTargetZone] = { ...ZONE_TYPES.INACTIVE };
+        this.zones[oldTargetZone].definition = this.zoneTypes[oldTargetZone];
+      }
+      
+      // Устанавливаем новую целевую зону
+      this.targetZone = validatedTarget;
+      this.zoneTypes[this.targetZone] = { ...ZONE_TYPES.TARGET };
+      this.zones[this.targetZone].definition = this.zoneTypes[this.targetZone];
+      
+      // Обновляем состояние игры
+      this.gameState.targetZone = this.targetZone;
+      this.gameState.previousTargetZone = oldTargetZone;
+      
+      // Регенерируем специальные зоны
+      this.generateSpecialZones();
+      
+      // Уведомляем через очередь событий
+      this.eventQueue.safeEnqueue('TARGET_ZONE_CHANGE', {
+        previousZone: oldTargetZone,
+        newZone: this.targetZone,
+        source: 'setTargetZone'
+      }, 2);
+      
+      console.log(`✅ Target zone changed: ${oldTargetZone} -> ${this.targetZone}`);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Error setting target zone:', error);
+      
       // Откатываемся к предыдущему состоянию
       this.targetZone = oldTargetZone;
       this.gameState.targetZone = oldTargetZone;
       return false;
     }
+  }
+
+  /**
+   * Валидация целевой зоны
+   */
+  validateTargetZone(zoneIndex) {
+    if (typeof zoneIndex !== 'number' || isNaN(zoneIndex)) {
+      console.warn(`Invalid target zone type: ${typeof zoneIndex}`);
+      return 0;
+    }
     
-    console.log(`🎯 Target zone changed: ${oldTargetZone} -> ${newTargetZone}`);
-    return true;
+    if (zoneIndex < 0) {
+      console.warn(`Target zone too low: ${zoneIndex}`);
+      return 0;
+    }
+    
+    if (zoneIndex >= ZONE_COUNT) {
+      console.warn(`Target zone too high: ${zoneIndex} >= ${ZONE_COUNT}`);
+      return ZONE_COUNT - 1;
+    }
+    
+    return Math.floor(zoneIndex);
   }
 
-  // Получить тип зоны по индексу
-  getZoneType(zoneIndex) {
-    if (zoneIndex < 0 || zoneIndex >= ZONE_COUNT) {
-      return ZONE_TYPES.INACTIVE;
-    }
-    if (!this.zoneTypes || !this.zoneTypes[zoneIndex]) {
-      return ZONE_TYPES.INACTIVE;
-    }
-    return this.zoneTypes[zoneIndex];
-  }
-
-  // Получить зону по индексу
-  getZone(zoneIndex) {
-    if (zoneIndex < 0 || zoneIndex >= ZONE_COUNT) {
-      return null;
-    }
-    if (!this.zones || !this.zones[zoneIndex]) {
-      return null;
-    }
-    return this.zones[zoneIndex];
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасный поиск зоны по углу
+  /**
+   * ИСПРАВЛЕНИЕ: Точный поиск зоны по углу с использованием AngleManager
+   */
   findZoneByAngle(angle) {
-    if (!this.zones || this.zones.length === 0) {
-      console.warn('⚠️ No zones available for angle search');
+    if (!this.isInitialized) {
+      console.warn('⚠️ ZoneManager not initialized for angle search');
       return null;
     }
     
-    // Валидируем угол
-    if (typeof angle !== 'number' || isNaN(angle)) {
-      console.warn('⚠️ Invalid angle for zone search:', angle);
-      return null;
-    }
-    
-    try {
-      const foundZone = this.zones.find(zone => zone && zone.contains && zone.contains(angle));
-      return foundZone || null;
-    } catch (error) {
-      console.error('❌ Error finding zone by angle:', error);
-      return null;
-    }
+    return AngleManager.findZoneByAngle(angle, this.zones);
   }
 
-  // Получить все зоны для рендеринга
+  /**
+   * Получить тип зоны по индексу
+   */
+  getZoneType(zoneIndex) {
+    if (!this.isInitialized || zoneIndex < 0 || zoneIndex >= ZONE_COUNT) {
+      return ZONE_TYPES.INACTIVE;
+    }
+    return this.zoneTypes[zoneIndex] || ZONE_TYPES.INACTIVE;
+  }
+
+  /**
+   * Получить зону по индексу
+   */
+  getZone(zoneIndex) {
+    if (!this.isInitialized || zoneIndex < 0 || zoneIndex >= ZONE_COUNT) {
+      return null;
+    }
+    return this.zones[zoneIndex] || null;
+  }
+
+  /**
+   * ИСПРАВЛЕНИЕ: Надежное получение зон для рендеринга
+   */
   getZonesForRendering() {
-    if (!this.zones || this.zones.length === 0) {
-      console.warn('⚠️ No zones available for rendering');
-      return [];
+    if (!this.isInitialized) {
+      console.warn('⚠️ ZoneManager not initialized for rendering');
+      return this.createEmergencyRenderZones();
     }
     
     try {
       return this.zones.map((zone, index) => {
-        if (!zone) {
-          console.warn(`⚠️ Zone ${index} is null, creating fallback`);
-          return {
-            index,
-            zone: null,
-            type: ZONE_TYPES.INACTIVE,
-            isTarget: false,
-            color: ZONE_TYPES.INACTIVE.color,
-            startAngle: (index * 2 * Math.PI) / ZONE_COUNT,
-            endAngle: ((index + 1) * 2 * Math.PI) / ZONE_COUNT,
-            centerAngle: ((index + 0.5) * 2 * Math.PI) / ZONE_COUNT
-          };
-        }
-        
         const zoneType = this.zoneTypes[index] || ZONE_TYPES.INACTIVE;
         
         return {
@@ -307,28 +458,62 @@ export class ZoneManager extends CleanupMixin {
           color: zoneType.color,
           startAngle: zone.getStartAngle(),
           endAngle: zone.getEndAngle(),
-          centerAngle: zone.getCenterAngle()
+          centerAngle: zone.getCenterAngle(),
+          definition: zoneType
         };
       });
+      
     } catch (error) {
       console.error('❌ Error getting zones for rendering:', error);
-      return [];
+      return this.createEmergencyRenderZones();
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка клика по зоне
+  /**
+   * Создание аварийных зон для рендеринга
+   */
+  createEmergencyRenderZones() {
+    console.warn('⚠️ Creating emergency render zones');
+    
+    const stepAngle = (2 * Math.PI) / ZONE_COUNT;
+    const emergencyZones = [];
+    
+    for (let i = 0; i < ZONE_COUNT; i++) {
+      const isTarget = (i === (this.targetZone || 0));
+      const zoneType = isTarget ? ZONE_TYPES.TARGET : ZONE_TYPES.INACTIVE;
+      
+      emergencyZones.push({
+        index: i,
+        zone: null,
+        type: zoneType,
+        isTarget,
+        color: zoneType.color,
+        startAngle: i * stepAngle,
+        endAngle: (i + 1) * stepAngle,
+        centerAngle: (i + 0.5) * stepAngle,
+        definition: zoneType
+      });
+    }
+    
+    return emergencyZones;
+  }
+
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка клика по зоне
+   */
   handleZoneClick(clickedZone, angle) {
-    if (!clickedZone) {
-      console.warn('⚠️ No zone provided for click handling');
+    if (!this.isInitialized) {
+      console.warn('⚠️ ZoneManager not initialized for click handling');
       return null;
     }
     
-    // Безопасно получаем индекс зоны
     let zoneIndex;
-    if (typeof clickedZone === 'object' && clickedZone.index !== undefined) {
-      zoneIndex = clickedZone.index;
-    } else if (typeof clickedZone === 'number') {
+    
+    // Определяем индекс зоны
+    if (typeof clickedZone === 'number') {
       zoneIndex = clickedZone;
+    } else if (clickedZone && typeof clickedZone.index === 'number') {
+      zoneIndex = clickedZone.index;
     } else {
       console.warn('⚠️ Invalid clicked zone format:', clickedZone);
       return null;
@@ -341,27 +526,46 @@ export class ZoneManager extends CleanupMixin {
     }
     
     const zoneType = this.getZoneType(zoneIndex);
-    
-    console.log(`🖱️ Zone click: ${zoneIndex}, type: ${zoneType.id}`);
+    const normalizedAngle = AngleManager.normalize(angle);
     
     const result = {
       zoneIndex,
       zoneType,
-      angle: angle || 0,
+      angle: normalizedAngle,
       isTarget: zoneIndex === this.targetZone,
-      effects: { ...zoneType.effects }
+      effects: { ...zoneType.effects },
+      accuracy: this.calculateClickAccuracy(zoneIndex, normalizedAngle)
     };
     
-    // Эмитируем событие клика по зоне
-    eventBus.emit(GameEvents.ZONE_HIT, result);
+    // Добавляем в очередь событий
+    this.eventQueue.safeEnqueue('ZONE_CLICK', result, 3);
+    
+    console.log(`🖱️ Zone click processed: ${zoneIndex} (${zoneType.id}), accuracy: ${result.accuracy.toFixed(2)}`);
     
     return result;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное перемешивание зон
+  /**
+   * Вычисление точности клика
+   */
+  calculateClickAccuracy(zoneIndex, angle) {
+    const zone = this.getZone(zoneIndex);
+    if (!zone) return 0;
+    
+    try {
+      return zone.getAccuracy(angle);
+    } catch (error) {
+      console.warn('⚠️ Error calculating click accuracy:', error);
+      return 0.5; // Средняя точность как fallback
+    }
+  }
+
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасное перемешивание зон
+   */
   shuffleZones() {
-    if (!this.zones || this.zones.length === 0) {
-      console.warn('⚠️ Cannot shuffle zones - no zones available');
+    if (!this.isInitialized) {
+      console.warn('⚠️ Cannot shuffle zones: ZoneManager not initialized');
       return this.targetZone;
     }
     
@@ -384,17 +588,23 @@ export class ZoneManager extends CleanupMixin {
       return this.targetZone;
     }
     
-    // Эмитируем событие перемешивания
-    eventBus.emit(GameEvents.ZONES_SHUFFLED, newTarget);
+    // Уведомляем через очередь событий
+    this.eventQueue.safeEnqueue('ZONE_SHUFFLE', {
+      newTargetZone: newTarget,
+      reason: 'shuffle'
+    }, 2);
     
     return newTarget;
   }
 
-  // Получить статистику зон
+  /**
+   * Получить статистику зон
+   */
   getZoneStatistics() {
     const stats = {
       total: ZONE_COUNT,
       target: this.targetZone,
+      isInitialized: this.isInitialized,
       types: {
         target: 0,
         energy: 0,
@@ -405,7 +615,7 @@ export class ZoneManager extends CleanupMixin {
       typesReady: this.zoneTypes ? this.zoneTypes.length : 0
     };
     
-    if (this.zoneTypes && this.zoneTypes.length > 0) {
+    if (this.isInitialized && this.zoneTypes) {
       this.zoneTypes.forEach(zoneType => {
         if (zoneType && stats.types[zoneType.id] !== undefined) {
           stats.types[zoneType.id]++;
@@ -416,63 +626,79 @@ export class ZoneManager extends CleanupMixin {
     return stats;
   }
 
-  // Получить отладочную информацию
+  /**
+   * Получить отладочную информацию
+   */
   getDebugInfo() {
     return {
+      isInitialized: this.isInitialized,
       targetZone: this.targetZone,
       zoneCount: ZONE_COUNT,
-      zonesInitialized: !!(this.zones && this.zones.length === ZONE_COUNT),
-      zoneTypesInitialized: !!(this.zoneTypes && this.zoneTypes.length === ZONE_COUNT),
-      zoneTypes: this.zoneTypes ? this.zoneTypes.map((type, index) => ({
+      zonesLength: this.zones ? this.zones.length : 0,
+      zoneTypesLength: this.zoneTypes ? this.zoneTypes.length : 0,
+      eventQueueStats: this.eventQueue ? this.eventQueue.getQueueStats() : null,
+      zoneDetails: this.isInitialized ? this.zones.map((zone, index) => ({
         index,
-        type: type ? type.id : 'null',
-        color: type ? type.color : 'none',
-        isTarget: index === this.targetZone
+        type: this.zoneTypes[index] ? this.zoneTypes[index].id : 'unknown',
+        color: this.zoneTypes[index] ? this.zoneTypes[index].color : 'none',
+        isTarget: index === this.targetZone,
+        angles: zone ? {
+          start: zone.getStartAngle(),
+          end: zone.getEndAngle(),
+          center: zone.getCenterAngle()
+        } : null
       })) : [],
       statistics: this.getZoneStatistics()
     };
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное принудительное обновление зон
+  /**
+   * Принудительное обновление зон
+   */
   forceUpdate() {
     console.log('🔄 Force updating zones...');
     
+    if (!this.isInitialized) {
+      console.log('🔄 ZoneManager not initialized, performing full initialization...');
+      this.initialize();
+      return;
+    }
+    
     try {
-      // Переинициализируем структуру если нужно
-      if (!this.zones || this.zones.length !== ZONE_COUNT) {
-        console.log('🔄 Reinitializing zones structure...');
-        this.initializeZonesStructure();
-      }
+      // Перегенерируем типы зон
+      this.generateZoneTypes();
       
-      if (!this.zoneTypes || this.zoneTypes.length !== ZONE_COUNT) {
-        console.log('🔄 Reinitializing zone types...');
-        this.initializeZoneTypes();
-      } else {
-        // Просто перегенерируем типы
-        this.generateZoneTypes();
-      }
+      // Валидируем результат
+      this.validateInitialization();
       
       console.log('✅ Zones force updated successfully');
-      return true;
       
     } catch (error) {
       console.error('❌ Error during force update:', error);
-      return false;
+      
+      // Попытка восстановления
+      this.isInitialized = false;
+      this.initialize();
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасный сброс зон
+  /**
+   * Сброс зон в исходное состояние
+   */
   reset() {
     console.log('🔄 Resetting zones...');
     
     try {
+      this.isInitialized = false;
       this.targetZone = 0;
       this.gameState.targetZone = 0;
       this.gameState.previousTargetZone = 0;
       
-      // Переинициализируем все с нуля
-      this.initializeZonesStructure();
-      this.initializeZoneTypes();
+      // Очищаем очередь событий
+      this.eventQueue.clearQueue();
+      
+      // Переинициализируем
+      this.initialize();
       
       console.log('✅ Zones reset successfully');
       return true;
@@ -483,103 +709,60 @@ export class ZoneManager extends CleanupMixin {
     }
   }
 
-  // Проверить валидность состояния зон
+  /**
+   * Валидация состояния зон
+   */
   validateZones() {
-    let isValid = true;
     const errors = [];
     
-    // Проверяем количество зон
+    if (!this.isInitialized) {
+      errors.push('ZoneManager not initialized');
+      return { isValid: false, errors };
+    }
+    
     if (!this.zones || this.zones.length !== ZONE_COUNT) {
       errors.push(`Zone count mismatch: expected ${ZONE_COUNT}, got ${this.zones ? this.zones.length : 0}`);
-      isValid = false;
     }
     
     if (!this.zoneTypes || this.zoneTypes.length !== ZONE_COUNT) {
       errors.push(`Zone types count mismatch: expected ${ZONE_COUNT}, got ${this.zoneTypes ? this.zoneTypes.length : 0}`);
-      isValid = false;
     }
     
-    // Проверяем целевую зону
     if (this.targetZone < 0 || this.targetZone >= ZONE_COUNT) {
       errors.push(`Target zone out of range: ${this.targetZone}`);
-      isValid = false;
     }
     
-    // Проверяем, что целевая зона имеет правильный тип
-    if (this.zoneTypes && this.zoneTypes[this.targetZone]) {
-      const targetZoneType = this.zoneTypes[this.targetZone];
-      if (targetZoneType.id !== 'target') {
-        errors.push(`Target zone has wrong type: ${targetZoneType.id}`);
-        isValid = false;
-      }
-    }
-    
-    // Проверяем, что есть хотя бы одна целевая зона
     if (this.zoneTypes) {
       const targetCount = this.zoneTypes.filter(type => type && type.id === 'target').length;
       if (targetCount !== 1) {
         errors.push(`Expected exactly 1 target zone, found: ${targetCount}`);
-        isValid = false;
       }
     }
-    
-    if (!isValid) {
-      console.warn('⚠️ Zone validation failed:', errors);
-    }
-    
-    return { isValid, errors };
-  }
-
-  // Исправить поврежденные зоны
-  fixCorruptedZones() {
-    console.log('🔧 Fixing corrupted zones...');
-    
-    const validation = this.validateZones();
-    if (validation.isValid) {
-      console.log('✅ Zones are valid, no fix needed');
-      return false;
-    }
-    
-    console.log('🔧 Zones are corrupted, performing reset...');
-    const success = this.reset();
-    
-    if (success) {
-      const revalidation = this.validateZones();
-      if (revalidation.isValid) {
-        console.log('✅ Zones fixed successfully');
-        return true;
-      } else {
-        console.error('❌ Failed to fix zones:', revalidation.errors);
-        return false;
-      }
-    }
-    
-    return false;
-  }
-
-  // Безопасное получение информации о зоне
-  getZoneInfo(zoneIndex) {
-    if (zoneIndex < 0 || zoneIndex >= ZONE_COUNT) {
-      return null;
-    }
-    
-    const zone = this.getZone(zoneIndex);
-    const zoneType = this.getZoneType(zoneIndex);
     
     return {
-      index: zoneIndex,
-      zone: zone,
-      type: zoneType,
-      isTarget: zoneIndex === this.targetZone,
-      isValid: !!(zone && zoneType)
+      isValid: errors.length === 0,
+      errors
     };
   }
 
-  // Деструктор
+  /**
+   * Проверка готовности для использования
+   */
+  isReady() {
+    return this.isInitialized && 
+           this.zones && 
+           this.zones.length === ZONE_COUNT &&
+           this.zoneTypes &&
+           this.zoneTypes.length === ZONE_COUNT;
+  }
+
+  /**
+   * Деструктор
+   */
   destroy() {
     console.log('🧹 ZoneManager cleanup started');
     
-    // Очищаем массивы
+    this.isInitialized = false;
     this.zones = null;
     this.zoneTypes = null;
     
