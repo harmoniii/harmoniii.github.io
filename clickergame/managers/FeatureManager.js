@@ -1,4 +1,4 @@
-// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с уменьшенными уведомлениями об энергии
+// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с правильной системой зон
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { Zone } from '../utils/Zone.js';
@@ -18,7 +18,7 @@ export class FeatureManager extends CleanupMixin {
     
     this.comboCheckInterval = null;
     
-    // ИСПРАВЛЕНИЕ: Добавляем ограничение на частоту уведомлений об энергии
+    // Ограничение на частоту уведомлений об энергии
     this.lastEnergyNotification = 0;
     this.energyNotificationCooldown = 2000; // 2 секунды между уведомлениями об энергии
     
@@ -26,12 +26,12 @@ export class FeatureManager extends CleanupMixin {
     this.bindEvents();
     this.startComboTimer();
     
-    console.log('🎯 FeatureManager initialized with energy zones and reduced notifications');
+    console.log('🎯 FeatureManager initialized with fixed zone system');
   }
 
-  // Инициализация зон
+  // ИСПРАВЛЕНИЕ: Инициализация зон с правильной системой
   initializeZones() {
-    // ИСПРАВЛЕНИЕ: Убеждаемся что всегда есть хотя бы одна золотая зона
+    // Проверяем целевую зону
     if (typeof this.gameState.targetZone !== 'number' || 
         this.gameState.targetZone < 0 || 
         this.gameState.targetZone >= ZONE_COUNT) {
@@ -42,29 +42,34 @@ export class FeatureManager extends CleanupMixin {
       this.gameState.previousTargetZone = this.gameState.targetZone;
     }
     
-    // Генерируем типы зон с гарантированной золотой зоной на целевой позиции
+    // ИСПРАВЛЕНИЕ: Генерируем правильные типы зон
     this.generateZoneTypes();
     
     // Создаем зоны с типами
     this.zones = Array.from({ length: ZONE_COUNT }, (_, i) => {
-      const zoneType = this.zoneTypes[i] || ZONE_TYPES.GOLD;
+      const zoneType = this.zoneTypes[i] || ZONE_TYPES.INACTIVE;
       return new Zone({ type: zoneType.id, zoneType: zoneType }, i, ZONE_COUNT);
     });
     
-    console.log(`🎯 Created ${ZONE_COUNT} zones with energy system`);
+    console.log(`🎯 Created ${ZONE_COUNT} zones with fixed system - Target: ${this.gameState.targetZone}`);
   }
 
+  // ИСПРАВЛЕНИЕ: Генерация типов зон с правильной логикой
   generateZoneTypes() {
-    // Используем адаптивную генерацию из исправленного ZoneTypeManager
+    // Получаем процент энергии для адаптивной генерации
     const energyPercentage = this.calculateEnergyZonePercentage();
+    
+    // Генерируем зоны (все серые изначально)
     this.zoneTypes = ZoneTypeManager.generateAdaptiveZoneTypes(ZONE_COUNT, energyPercentage);
     
-    // ИСПРАВЛЕНИЕ: Гарантируем что целевая зона всегда золотая (для комбо)
-    if (this.zoneTypes[this.gameState.targetZone]?.id !== 'gold') {
-      this.zoneTypes[this.gameState.targetZone] = ZONE_TYPES.GOLD;
-    }
+    // КРИТИЧЕСКИ ВАЖНО: Устанавливаем целевую зону как красную
+    ZoneTypeManager.setTargetZone(this.zoneTypes, this.gameState.targetZone);
     
-    console.log(`🎯 Generated zone types with ${energyPercentage * 100}% energy preference, target zone ${this.gameState.targetZone} is gold`);
+    console.log(`🎯 Generated zones: Target(${this.gameState.targetZone}) = RED, Others = varied`);
+    
+    // Логируем статистику зон
+    const stats = ZoneTypeManager.getZoneStatistics(this.zoneTypes);
+    console.log(`Zone stats:`, stats);
   }
 
   calculateEnergyZonePercentage() {
@@ -141,7 +146,7 @@ export class FeatureManager extends CleanupMixin {
     console.log('🎯 Event handlers bound');
   }
 
-  // Главный обработчик кликов
+  // ИСПРАВЛЕНИЕ: Главный обработчик кликов с правильной логикой зон
   handleClick(angle) {
     if (!this.isActive()) return;
     
@@ -165,37 +170,134 @@ export class FeatureManager extends CleanupMixin {
     // Получаем тип зоны
     const zoneType = this.getZoneType(clickedZone.index);
     
-    // Проверяем энергию только для зон, которые тратят энергию
+    // ИСПРАВЛЕНИЕ: Логика обработки разных типов зон
+    if (clickedZone.index === this.gameState.targetZone) {
+      // ПОПАДАНИЕ В КРАСНУЮ (ЦЕЛЕВУЮ) ЗОНУ
+      this.handleTargetZoneHit(clickedZone, zoneType, normalizedAngle, now);
+    } else {
+      // ПОПАДАНИЕ В ДРУГИЕ ЗОНЫ
+      this.handleNonTargetZoneHit(clickedZone, zoneType, normalizedAngle, now);
+    }
+  }
+
+  // ИСПРАВЛЕНИЕ: Обработка попадания в целевую (красную) зону
+  handleTargetZoneHit(clickedZone, zoneType, normalizedAngle, now) {
+    console.log(`🎯 HIT TARGET ZONE ${clickedZone.index}!`);
+    
+    // Проверяем энергию для целевой зоны
     if (zoneType.effects.energyCost > 0) {
       if (!this.checkEnergyForClick(zoneType.effects.energyCost)) {
         return;
       }
     }
 
-    // Ghost Click debuff
+    // Проверяем дебаффы
     if (this.isGhostClickActive() && Math.random() < GAME_CONSTANTS.GHOST_CLICK_CHANCE) {
       eventBus.emit(GameEvents.GHOST_CLICK);
       return;
     }
 
-    // Heavy Click debuff
     if (this.isHeavyClickActive()) {
       if (!this.handleHeavyClick(clickedZone)) {
         return;
       }
     }
 
-    // Обрабатываем эффекты зоны
-    this.handleZoneEffects(clickedZone, zoneType, normalizedAngle, now);
-
-    // ИСПРАВЛЕНИЕ: Перемещение целевой зоны только для золотых зон
-    if (zoneType.effects.givesGold) {
-      this.handleZoneShuffle(clickedZone);
+    // Обрабатываем комбо (только для целевой зоны)
+    const effectiveCombo = this.handleCombo(clickedZone, normalizedAngle, now);
+    
+    // Обрабатываем получение золота
+    this.handleGoldGain(clickedZone, effectiveCombo, zoneType);
+    
+    // Тратим энергию
+    if (zoneType.effects.energyCost > 0) {
+      this.handleEnergyConsumption(zoneType.effects.energyCost);
     }
+    
+    // Перемещаем целевую зону
+    this.handleZoneShuffle(clickedZone);
+    
+    // Обрабатываем появление баффов/дебаффов
+    this.handleEffectChance();
+    
+    // Эмитируем событие попадания
+    eventBus.emit(GameEvents.ZONE_HIT, {
+      zone: clickedZone.index,
+      zoneType: zoneType.id,
+      combo: effectiveCombo,
+      angle: normalizedAngle,
+      isTarget: true
+    });
+  }
 
-    // Обрабатываем появление баффов/дебаффов только для золотых зон
-    if (zoneType.effects.givesGold) {
-      this.handleEffectChance();
+  // ИСПРАВЛЕНИЕ: Обработка попадания в НЕ целевые зоны
+  handleNonTargetZoneHit(clickedZone, zoneType, normalizedAngle, now) {
+    console.log(`❌ HIT NON-TARGET ZONE ${clickedZone.index} (type: ${zoneType.id})`);
+    
+    // Серые зоны - ничего не делают
+    if (zoneType.id === 'inactive') {
+      eventBus.emit(GameEvents.NOTIFICATION, '⚫ Inactive zone - no effect');
+      
+      // Сбрасываем комбо при попадании в серую зону
+      this.resetCombo('missed target');
+      return;
+    }
+    
+    // Зеленые зоны - восстанавливают энергию
+    if (zoneType.id === 'energy') {
+      this.handleEnergyRestore(zoneType.effects.energyRestore, zoneType.id);
+      eventBus.emit(GameEvents.NOTIFICATION, `⚡ Energy zone: +${zoneType.effects.energyRestore} Energy`);
+      
+      // Зеленые зоны не сбрасывают комбо, но и не увеличивают его
+      eventBus.emit(GameEvents.ENERGY_ZONE_HIT, {
+        amount: zoneType.effects.energyRestore,
+        zoneType: zoneType.id
+      });
+      return;
+    }
+    
+    // Золотые зоны - дают ресурсы и энергию
+    if (zoneType.id === 'bonus') {
+      this.handleEnergyRestore(zoneType.effects.energyRestore, zoneType.id);
+      this.handleBonusResources(zoneType.effects.resourceAmount || 2);
+      eventBus.emit(GameEvents.NOTIFICATION, `💰 Bonus zone: resources + energy!`);
+      
+      // Бонусные зоны тоже не сбрасывают комбо
+      return;
+    }
+    
+    // Для всех остальных типов зон - сбрасываем комбо
+    this.resetCombo('hit non-target zone');
+    
+    // Эмитируем событие промаха
+    eventBus.emit(GameEvents.ZONE_MISS, {
+      zone: clickedZone.index,
+      zoneType: zoneType.id,
+      target: this.gameState.targetZone,
+      angle: normalizedAngle
+    });
+  }
+
+  // ИСПРАВЛЕНИЕ: Сброс комбо
+  resetCombo(reason = 'unknown') {
+    if (this.gameState.combo && this.gameState.combo.count > 0) {
+      console.log(`💥 Combo reset: ${reason} (was ${this.gameState.combo.count})`);
+      
+      const oldCombo = this.gameState.combo.count;
+      this.gameState.combo.count = 0;
+      this.gameState.combo.deadline = 0;
+      this.gameState.combo.lastZone = null;
+      this.gameState.combo.lastAngle = null;
+      
+      eventBus.emit(GameEvents.COMBO_CHANGED, {
+        count: 0,
+        effective: 0,
+        zone: null,
+        target: this.gameState.targetZone,
+        deadline: 0,
+        reason: reason,
+        previousCount: oldCombo
+      });
     }
   }
 
@@ -213,95 +315,7 @@ export class FeatureManager extends CleanupMixin {
   }
 
   getZoneType(zoneIndex) {
-    return this.zoneTypes[zoneIndex] || ZONE_TYPES.GOLD;
-  }
-
-  handleZoneEffects(zone, zoneType, normalizedAngle, now) {
-    let effectiveCombo = 0;
-    
-    // ИСПРАВЛЕНИЕ: Комбо только для зон, которые дают комбо (золотые и бонусные)
-    if (zoneType.effects.givesCombo) {
-      effectiveCombo = this.handleCombo(zone, normalizedAngle, now);
-    }
-
-    // Обрабатываем получение золота
-    if (zoneType.effects.givesGold) {
-      this.handleGoldGain(zone, effectiveCombo, zoneType);
-    }
-
-    // ИСПРАВЛЕНИЕ: Обрабатываем восстановление энергии с ограниченными уведомлениями
-    if (zoneType.effects.energyRestore > 0) {
-      this.handleEnergyRestore(zoneType.effects.energyRestore, zoneType.id);
-    }
-
-    // Обрабатываем случайные ресурсы от бонусной зоны
-    if (zoneType.effects.resourceBonus) {
-      this.handleBonusResources(zoneType.effects.resourceAmount || 2);
-    }
-
-    // Обрабатываем трату энергии
-    if (zoneType.effects.energyCost > 0) {
-      this.handleEnergyConsumption(zoneType.effects.energyCost);
-    }
-
-    // Эмитируем событие попадания в зону
-    eventBus.emit(GameEvents.ZONE_HIT, {
-      zone: zone.index,
-      zoneType: zoneType.id,
-      combo: effectiveCombo,
-      angle: normalizedAngle
-    });
-  }
-
-  // ИСПРАВЛЕНИЕ: Уменьшаем количество уведомлений об энергии
-  handleEnergyRestore(amount, zoneType) {
-    if (this.gameState.energyManager) {
-      const now = Date.now();
-      
-      // Используем правильные методы восстановления энергии
-      if (zoneType === 'energy') {
-        this.gameState.energyManager.restoreEnergy(amount, 'energy_zone');
-        
-        // ИСПРАВЛЕНИЕ: Ограничиваем частоту уведомлений об энергии
-        if (now - this.lastEnergyNotification > this.energyNotificationCooldown) {
-          eventBus.emit(GameEvents.NOTIFICATION, `⚡ +${amount} Energy`);
-          this.lastEnergyNotification = now;
-        }
-        
-      } else if (zoneType === 'bonus') {
-        this.gameState.energyManager.restoreEnergy(amount, 'bonus_zone');
-        
-        // Для бонусных зон показываем уведомление реже
-        if (now - this.lastEnergyNotification > this.energyNotificationCooldown * 1.5) {
-          eventBus.emit(GameEvents.NOTIFICATION, `🟡 Bonus: +${amount} Energy`);
-          this.lastEnergyNotification = now;
-        }
-      }
-      
-      // ИСПРАВЛЕНИЕ: Эмитируем событие без дополнительных уведомлений
-      eventBus.emit(GameEvents.ENERGY_ZONE_HIT, {
-        amount: amount,
-        zoneType: zoneType
-      });
-    }
-  }
-
-  handleBonusResources(amount) {
-    const resourcePool = getResourcesInGroup('TRADEABLE');
-    const randomResource = resourcePool[Math.floor(Math.random() * resourcePool.length)];
-    
-    this.addResource(randomResource, amount);
-    eventBus.emit(GameEvents.NOTIFICATION, `🟡 Bonus: +${amount} ${randomResource}`);
-    eventBus.emit(GameEvents.RESOURCE_GAINED, {
-      resource: randomResource,
-      amount: amount
-    });
-  }
-
-  handleEnergyConsumption(cost) {
-    if (this.gameState.energyManager) {
-      this.gameState.energyManager.consumeEnergy(cost);
-    }
+    return this.zoneTypes[zoneIndex] || ZONE_TYPES.INACTIVE;
   }
 
   // Нормализация угла
@@ -362,7 +376,7 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Обработка комбо только для целевой золотой зоны
+  // ИСПРАВЛЕНИЕ: Обработка комбо только для целевой зоны
   handleCombo(zone, normalizedAngle, now) {
     // Сохраняем угол для отладки
     this.gameState.combo.lastAngle = normalizedAngle;
@@ -379,37 +393,19 @@ export class FeatureManager extends CleanupMixin {
     const currentDeadline = this.gameState.combo.deadline || 0;
     
     if (!isComboFrozen) {
-      // ИСПРАВЛЕНИЕ: Проверяем попадание только в целевую золотую зону
-      if (zone.index === this.gameState.targetZone) {
-        // ПОПАДАНИЕ В ЦЕЛЕВУЮ ЗОНУ
-        const comboExpired = this.gameState.combo.count > 0 && safeNow > currentDeadline;
-        
-        if (comboExpired) {
-          console.log(`⏰ Combo expired on hit (was ${this.gameState.combo.count}), starting new combo`);
-          this.gameState.combo.count = 1;
-        } else {
-          this.gameState.combo.count++;
-        }
-        
-        console.log(`✅ Combo HIT! Zone ${zone.index}, Combo: ${this.gameState.combo.count}`);
-        
+      // Проверяем истечение комбо
+      const comboExpired = this.gameState.combo.count > 0 && safeNow > currentDeadline;
+      
+      if (comboExpired) {
+        console.log(`⏰ Combo expired on hit (was ${this.gameState.combo.count}), starting new combo`);
+        this.gameState.combo.count = 1;
       } else {
-        // ПРОМАХ ПО ЦЕЛЕВОЙ ЗОНЕ
-        console.log(`❌ Combo MISS! Clicked zone ${zone.index}, target was ${this.gameState.targetZone}`);
-        
-        // Проверяем защиту от промаха
-        if (this.canUseMissProtection()) {
-          this.useMissProtection();
-          eventBus.emit(GameEvents.MISS_PROTECTION_USED);
-          console.log(`🛡️ Miss protection used, combo preserved: ${this.gameState.combo.count}`);
-        } else {
-          // Сбрасываем комбо
-          this.gameState.combo.count = 1;
-          console.log(`💥 Combo reset to 1 due to miss`);
-        }
+        this.gameState.combo.count++;
       }
       
-      // Всегда обновляем deadline после любого клика
+      console.log(`✅ TARGET HIT! Combo: ${this.gameState.combo.count}`);
+      
+      // Обновляем deadline
       this.gameState.combo.deadline = safeNow + comboTimeout;
       
     } else {
@@ -429,7 +425,7 @@ export class FeatureManager extends CleanupMixin {
     const comboMultiplier = 1 + this.getSkillBonus('multiplier', 'combo');
     const effectiveCombo = Math.floor(this.gameState.combo.count * comboMultiplier);
     
-    // Всегда эмитируем событие изменения комбо
+    // Эмитируем событие изменения комбо
     eventBus.emit(GameEvents.COMBO_CHANGED, {
       count: this.gameState.combo.count,
       effective: effectiveCombo,
@@ -437,10 +433,10 @@ export class FeatureManager extends CleanupMixin {
       target: this.gameState.targetZone,
       deadline: this.gameState.combo.deadline,
       timeLeft: Math.max(0, this.gameState.combo.deadline - safeNow),
-      reason: 'click'
+      reason: 'target_hit'
     });
     
-    console.log(`📊 Final combo state: ${this.gameState.combo.count} (effective: ${effectiveCombo})`);
+    console.log(`📊 Combo state: ${this.gameState.combo.count} (effective: ${effectiveCombo})`);
     
     return effectiveCombo;
   }
@@ -454,11 +450,6 @@ export class FeatureManager extends CleanupMixin {
     }
     
     let goldGain = effectiveCombo * clickMultiplier;
-    
-    // Бонусный множитель для особых зон
-    if (zoneType.effects.goldMultiplier) {
-      goldGain *= zoneType.effects.goldMultiplier;
-    }
     
     // Golden Touch skill
     const goldMultiplier = 1 + this.getSkillBonus('multiplier', 'gold');
@@ -501,40 +492,41 @@ export class FeatureManager extends CleanupMixin {
     });
   }
 
-  refreshZoneTypes() {
-    console.log('🔄 Refreshing zone types...');
-    this.generateZoneTypes();
-    
-    // Обновляем типы в существующих зонах
-    this.zones.forEach((zone, index) => {
-      const newZoneType = this.zoneTypes[index] || ZONE_TYPES.GOLD;
-      zone.definition.zoneType = newZoneType;
-      zone.definition.type = newZoneType.id;
-    });
-    
-    // Принудительная перерисовка
-    if (this.gameState.gameLoop) {
-      this.gameState.gameLoop.forceRedraw();
+  // Обработка восстановления энергии с ограниченными уведомлениями
+  handleEnergyRestore(amount, zoneType) {
+    if (this.gameState.energyManager) {
+      const now = Date.now();
+      
+      // Используем правильные методы восстановления энергии
+      if (zoneType === 'energy') {
+        this.gameState.energyManager.restoreEnergy(amount, 'energy_zone');
+      } else if (zoneType === 'bonus') {
+        this.gameState.energyManager.restoreEnergy(amount, 'bonus_zone');
+      }
+      
+      // Эмитируем событие без дополнительных уведомлений
+      eventBus.emit(GameEvents.ENERGY_ZONE_HIT, {
+        amount: amount,
+        zoneType: zoneType
+      });
     }
   }
 
-  getZoneStatistics() {
-    const stats = {
-      total: this.zones.length,
-      types: {
-        gold: 0,
-        energy: 0,
-        bonus: 0
-      }
-    };
+  handleBonusResources(amount) {
+    const resourcePool = getResourcesInGroup('TRADEABLE');
+    const randomResource = resourcePool[Math.floor(Math.random() * resourcePool.length)];
     
-    this.zoneTypes.forEach(zoneType => {
-      if (stats.types[zoneType.id] !== undefined) {
-        stats.types[zoneType.id]++;
-      }
+    this.addResource(randomResource, amount);
+    eventBus.emit(GameEvents.RESOURCE_GAINED, {
+      resource: randomResource,
+      amount: amount
     });
-    
-    return stats;
+  }
+
+  handleEnergyConsumption(cost) {
+    if (this.gameState.energyManager) {
+      this.gameState.energyManager.consumeEnergy(cost);
+    }
   }
 
   // Star Power buff
@@ -597,39 +589,40 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Перемещение целевой зоны только после попадания в золотую зону
+  // ИСПРАВЛЕНИЕ: Перемещение целевой зоны с правильной логикой
   handleZoneShuffle(zone) {
-    // Перемещаем целевую зону только если попали в неё И это золотая зона
+    // Перемещаем целевую зону только если попали в неё
     if (zone.index === this.gameState.targetZone && 
         Math.random() * 100 < GAME_CONSTANTS.ZONE_SHUFFLE_CHANCE) {
       
       // Сохраняем текущую целевую зону как предыдущую
       this.gameState.previousTargetZone = this.gameState.targetZone;
       
+      // Выбираем новую целевую зону
+      let newTarget;
+      let attempts = 0;
+      const maxAttempts = ZONE_COUNT * 2;
+      
+      do {
+        newTarget = Math.floor(Math.random() * ZONE_COUNT);
+        attempts++;
+      } while (newTarget === this.gameState.targetZone && 
+               ZONE_COUNT > 1 && 
+               attempts < maxAttempts);
+      
       // Reverse Controls debuff
       if (this.gameState.debuffs && this.gameState.debuffs.includes('reverseControls')) {
-        this.gameState.targetZone = (this.gameState.targetZone - 1 + ZONE_COUNT) % ZONE_COUNT;
-        eventBus.emit(GameEvents.ZONES_SHUFFLED, this.gameState.targetZone);
+        newTarget = (this.gameState.targetZone - 1 + ZONE_COUNT) % ZONE_COUNT;
         eventBus.emit(GameEvents.TEMP_MESSAGE, '🙃 Reverse Controls: Zone moves backward');
-      } else {
-        // Обычное случайное движение
-        let newTarget;
-        let attempts = 0;
-        const maxAttempts = ZONE_COUNT * 2;
-        
-        do {
-          newTarget = Math.floor(Math.random() * ZONE_COUNT);
-          attempts++;
-        } while (newTarget === this.gameState.targetZone && 
-                 ZONE_COUNT > 1 && 
-                 attempts < maxAttempts);
-        
-        this.gameState.targetZone = newTarget;
-        eventBus.emit(GameEvents.ZONES_SHUFFLED, this.gameState.targetZone);
       }
       
-      // ИСПРАВЛЕНИЕ: Гарантируем что новая целевая зона тоже золотая
-      this.zoneTypes[this.gameState.targetZone] = ZONE_TYPES.GOLD;
+      // Обновляем целевую зону
+      this.gameState.targetZone = newTarget;
+      
+      // КРИТИЧЕСКИ ВАЖНО: Перемещаем красную зону на новое место
+      ZoneTypeManager.setTargetZone(this.zoneTypes, newTarget);
+      
+      eventBus.emit(GameEvents.ZONES_SHUFFLED, this.gameState.targetZone);
       
       // Обновляем типы зон при перемешивании (20% шанс)
       if (Math.random() < 0.2) {
@@ -687,6 +680,36 @@ export class FeatureManager extends CleanupMixin {
     if (this.buffManager && typeof this.buffManager.applyRandomDebuff === 'function') {
       this.buffManager.applyRandomDebuff();
     }
+  }
+
+  // ИСПРАВЛЕНИЕ: Обновить типы зон
+  refreshZoneTypes() {
+    console.log('🔄 Refreshing zone types...');
+    
+    // Сохраняем текущую целевую зону
+    const currentTarget = this.gameState.targetZone;
+    
+    // Генерируем новые типы зон
+    this.generateZoneTypes();
+    
+    // Убеждаемся что целевая зона осталась красной
+    ZoneTypeManager.setTargetZone(this.zoneTypes, currentTarget);
+    
+    // Обновляем типы в существующих зонах
+    this.zones.forEach((zone, index) => {
+      const newZoneType = this.zoneTypes[index] || ZONE_TYPES.INACTIVE;
+      zone.definition.zoneType = newZoneType;
+      zone.definition.type = newZoneType.id;
+    });
+    
+    // Принудительная перерисовка
+    if (this.gameState.gameLoop) {
+      this.gameState.gameLoop.forceRedraw();
+    }
+  }
+
+  getZoneStatistics() {
+    return ZoneTypeManager.getZoneStatistics(this.zoneTypes);
   }
 
   // ===== УТИЛИТЫ =====
@@ -790,7 +813,7 @@ export class FeatureManager extends CleanupMixin {
       zones: this.zones.map(zone => ({
         index: zone.index,
         isTarget: zone.index === this.gameState.targetZone,
-        zoneType: this.zoneTypes[zone.index]?.id || 'gold',
+        zoneType: this.zoneTypes[zone.index]?.id || 'inactive',
         angle: {
           start: zone.getStartAngle(),
           end: zone.getEndAngle(),
@@ -821,8 +844,8 @@ export class FeatureManager extends CleanupMixin {
       this.gameState.previousTargetZone = this.gameState.targetZone;
       this.gameState.targetZone = zoneIndex;
       
-      // Гарантируем что новая целевая зона золотая
-      this.zoneTypes[zoneIndex] = ZONE_TYPES.GOLD;
+      // Перемещаем красную зону на новое место
+      ZoneTypeManager.setTargetZone(this.zoneTypes, zoneIndex);
       
       eventBus.emit(GameEvents.ZONES_SHUFFLED, this.gameState.targetZone);
       return true;

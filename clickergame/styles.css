@@ -1,4 +1,4 @@
-/* styles.css - ИСПРАВЛЕННАЯ версия с боковым расположением комбо и энергии */
+/* styles.css - Минималистичная версия */
 
 /* Сброс отступов и флекс-контейнер */
 body, html {
@@ -9,42 +9,40 @@ body, html {
   min-height: 100vh;
   color: #333;
   overflow-y: scroll;
+  font-size: 14px; /* Уменьшаем базовый размер шрифта */
 }
 
 body::before {
   content: '';
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   z-index: -1;
 }
 
-/* Навигация сверху */
+/* Компактная навигация */
 #ui-top {
-  display: flex; gap: 1rem; margin: 1rem;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: flex; gap: 0.5rem; margin: 0.5rem;
+  flex-wrap: wrap; justify-content: center;
 }
 
 #ui-top button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
   background: #fff;
-  border: 2px solid #4CAF50;
-  border-radius: 8px;
+  border: 1px solid #4CAF50;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  min-width: 100px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  min-width: 80px;
   color: #333;
+  font-size: 12px; /* Компактные кнопки */
 }
 
 #ui-top button:hover {
   background: #4CAF50;
   color: white;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 #toggle-market {
@@ -63,122 +61,117 @@ body::before {
   background: #2196F3;
 }
 
-/* ИСПРАВЛЕНИЕ: Основная зона игры с горизонтальным расположением */
+/* ИСПРАВЛЕНИЕ: Компактная игровая зона с аккуратным расположением */
 #game-area {
   display: flex; 
   flex-direction: column;
   align-items: center; 
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.9);
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.95);
   padding: 1rem;
-  border-radius: 15px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 1;
   width: fit-content;
   margin: 0 auto;
 }
 
-/* ИСПРАВЛЕНИЕ: Контейнер для игрового колеса с боковыми индикаторами */
+/* ИСПРАВЛЕНИЕ: Горизонтальное расположение с колесом по центру */
 .game-wheel-container {
   display: flex;
-  align-items: center;
-  gap: 2rem;
+  align-items: flex-start;
+  gap: 1.5rem;
   width: 100%;
   justify-content: center;
   position: relative;
 }
 
-/* ИСПРАВЛЕНИЕ: Индикатор комбо слева от колеса (компактный) */
+/* ИСПРАВЛЕНИЕ: Компактный индикатор комбо слева */
 .combo-indicator {
   position: relative;
   background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
-  border: 3px solid #FF8C00;
-  border-radius: 20px;
-  padding: 12px 20px;
-  box-shadow: 
-    0 6px 15px rgba(255, 165, 0, 0.4),
-    inset 0 2px 8px rgba(255, 255, 255, 0.3);
+  border: 2px solid #FF8C00;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 3px 8px rgba(255, 165, 0, 0.3);
   text-align: center;
-  min-width: 120px;
-  max-width: 160px;
+  min-width: 90px;
+  max-width: 120px;
   animation: comboGlow 2s ease-in-out infinite alternate;
-  order: 1; /* Слева от колеса */
+  order: 1;
+  flex-shrink: 0;
 }
 
 .combo-indicator .combo-title {
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   font-weight: bold;
   color: #8B4513;
-  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-  margin-bottom: 3px;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+  margin-bottom: 2px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
 }
 
 .combo-indicator .combo-value {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 900;
   color: #B8860B;
-  text-shadow: 
-    0 2px 4px rgba(0, 0, 0, 0.3),
-    0 0 8px rgba(255, 215, 0, 0.8);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   line-height: 1;
   display: block;
 }
 
 .combo-indicator .combo-bonus {
-  font-size: 0.75rem;
+  font-size: 0.6rem;
   color: #8B4513;
   opacity: 0.8;
-  margin-top: 3px;
+  margin-top: 2px;
   font-style: italic;
-  line-height: 1.2;
-}
-
-/* ИСПРАВЛЕНИЕ: Энергетический дисплей справа от колеса (компактный) */
-.energy-display-container {
-  background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
-  border: 2px solid #3498DB;
-  border-radius: 15px;
-  padding: 12px 16px;
-  box-shadow: 
-    0 4px 12px rgba(52, 152, 219, 0.3),
-    inset 0 2px 8px rgba(255, 255, 255, 0.1);
-  text-align: center;
-  min-width: 120px;
-  max-width: 160px;
-  position: relative;
-  backdrop-filter: blur(5px);
-  order: 3; /* Справа от колеса */
+  line-height: 1.1;
 }
 
 /* Игровое колесо по центру */
 #gameCanvas {
   background: #fff; 
-  border: 3px solid #333; 
+  border: 2px solid #333; 
   border-radius: 50%;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
   display: block;
   flex-shrink: 0;
-  width: 500px !important;
-  height: 500px !important;
-  order: 2; /* По центру */
+  width: 400px !important; /* Уменьшаем размер колеса */
+  height: 400px !important;
+  order: 2;
 }
 
-/* Панели ресурсов - перемещаем выше и ниже колеса */
+/* ИСПРАВЛЕНИЕ: Компактный энергетический дисплей справа */
+.energy-display-container {
+  background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
+  border: 2px solid #3498DB;
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+  text-align: center;
+  min-width: 90px;
+  max-width: 120px;
+  position: relative;
+  backdrop-filter: blur(5px);
+  order: 3;
+  flex-shrink: 0;
+}
+
+/* ИСПРАВЛЕНИЕ: Ресурсы в аккуратные столбики */
 .resources-panel {
   display: flex; 
-  flex-direction: row; 
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 15px;
-  align-items: center;
+  flex-direction: column; /* Вертикальное расположение */
+  gap: 0.3rem; /* Маленькие отступы */
+  align-items: flex-start;
   width: 100%;
   background: rgba(255, 255, 255, 0.8);
-  padding: 10px 15px;
-  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
   font-weight: 500;
+  font-size: 0.8rem; /* Компактный текст */
   min-height: auto;
   overflow: visible;
 }
@@ -191,16 +184,18 @@ body::before {
   order: 4; /* Ниже колеса */
 }
 
-.resources-panel span {
+.resources-panel span, .resources-panel div {
   cursor: pointer;
   transition: color 0.2s ease;
-  padding: 5px 10px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.5);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
+  font-size: 0.75rem; /* Очень компактно */
+  line-height: 1.2;
 }
 
-.resources-panel span:hover {
+.resources-panel span:hover, .resources-panel div:hover {
   color: #4CAF50;
   background: rgba(76, 175, 80, 0.1);
 }
@@ -208,75 +203,26 @@ body::before {
 /* Анимация свечения для комбо */
 @keyframes comboGlow {
   0% {
-    box-shadow: 
-      0 6px 15px rgba(255, 165, 0, 0.4),
-      inset 0 2px 8px rgba(255, 255, 255, 0.3),
-      0 0 12px rgba(255, 215, 0, 0.3);
+    box-shadow: 0 3px 8px rgba(255, 165, 0, 0.3);
   }
   100% {
-    box-shadow: 
-      0 8px 20px rgba(255, 165, 0, 0.6),
-      inset 0 2px 8px rgba(255, 255, 255, 0.5),
-      0 0 20px rgba(255, 215, 0, 0.6);
-  }
-}
-
-/* Особые состояния комбо */
-.combo-indicator.combo-high {
-  background: linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%);
-  border-color: #FF4757;
-  animation: comboHighGlow 1s ease-in-out infinite alternate;
-}
-
-.combo-indicator.combo-perfect {
-  background: linear-gradient(135deg, #A8E6CF 0%, #88D8A3 100%);
-  border-color: #4ECDC4;
-  animation: comboPerfectGlow 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes comboHighGlow {
-  0% {
-    box-shadow: 
-      0 6px 15px rgba(255, 107, 107, 0.5),
-      inset 0 2px 8px rgba(255, 255, 255, 0.4),
-      0 0 15px rgba(255, 71, 87, 0.4);
-  }
-  100% {
-    box-shadow: 
-      0 8px 20px rgba(255, 107, 107, 0.7),
-      inset 0 2px 8px rgba(255, 255, 255, 0.6),
-      0 0 25px rgba(255, 71, 87, 0.7);
-  }
-}
-
-@keyframes comboPerfectGlow {
-  0% {
-    box-shadow: 
-      0 6px 15px rgba(168, 230, 207, 0.5),
-      inset 0 2px 8px rgba(255, 255, 255, 0.4),
-      0 0 15px rgba(78, 205, 196, 0.4);
-  }
-  100% {
-    box-shadow: 
-      0 8px 20px rgba(168, 230, 207, 0.7),
-      inset 0 2px 8px rgba(255, 255, 255, 0.6),
-      0 0 25px rgba(78, 205, 196, 0.7);
+    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.5);
   }
 }
 
 /* Компактный энергетический дисплей */
 .energy-bar-container {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .energy-bar-background {
   background: #1A252F;
-  border: 2px solid #34495E;
-  border-radius: 8px;
-  height: 16px;
+  border: 1px solid #34495E;
+  border-radius: 6px;
+  height: 12px;
   overflow: hidden;
   position: relative;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .energy-bar {
@@ -284,138 +230,50 @@ body::before {
   transition: all 0.3s ease;
   position: relative;
   background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
-  box-shadow: 
-    0 0 8px rgba(46, 204, 113, 0.5),
-    inset 0 2px 4px rgba(255, 255, 255, 0.2);
-}
-
-.energy-bar.energy-normal {
-  background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
-  box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
+  box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
 }
 
 .energy-bar.energy-warning {
   background: linear-gradient(90deg, #F39C12 0%, #E67E22 100%);
-  box-shadow: 0 0 8px rgba(243, 156, 18, 0.5);
 }
 
 .energy-bar.energy-critical {
   background: linear-gradient(90deg, #E74C3C 0%, #C0392B 100%);
-  box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
   animation: energyPulse 1s ease-in-out infinite alternate;
 }
 
 .energy-text {
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   font-weight: bold;
   color: #ECF0F1;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-  margin-bottom: 4px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  margin-bottom: 3px;
 }
 
 .energy-status {
-  font-size: 0.75rem;
-  margin-bottom: 8px;
+  font-size: 0.6rem;
+  margin-bottom: 6px;
   font-weight: 500;
 }
 
 .energy-status.ready {
   color: #2ECC71;
-  text-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
 }
 
 .energy-status.recharging {
   color: #F39C12;
-  text-shadow: 0 0 4px rgba(243, 156, 18, 0.5);
-}
-
-/* Предупреждения энергии */
-.energy-warning {
-  position: absolute;
-  top: -8px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
-  color: white;
-  padding: 3px 10px;
-  border-radius: 15px;
-  font-size: 0.7rem;
-  font-weight: bold;
-  border: 2px solid #C0392B;
-  box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
-  z-index: 10;
-}
-
-.energy-warning.hidden {
-  display: none;
-}
-
-/* Анимации */
-@keyframes energyPulse {
-  0% {
-    box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
-  }
-  100% {
-    box-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
-  }
-}
-
-.energy-warning.pulsing {
-  animation: warningPulse 1s ease-in-out infinite alternate;
-}
-
-@keyframes warningPulse {
-  0% {
-    transform: translateX(-50%) scale(1);
-    box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
-  }
-  100% {
-    transform: translateX(-50%) scale(1.05);
-    box-shadow: 0 4px 12px rgba(231, 76, 60, 0.7);
-  }
-}
-
-.energy-warning.warning-flash {
-  animation: warningFlash 0.5s ease-in-out 3;
-}
-
-@keyframes warningFlash {
-  0%, 100% {
-    opacity: 1;
-    background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
-  }
-  50% {
-    opacity: 0.7;
-    background: linear-gradient(135deg, #F39C12 0%, #E67E22 100%);
-  }
-}
-
-.energy-warning.critical-pulse {
-  animation: criticalPulse 0.3s ease-in-out infinite alternate;
-}
-
-@keyframes criticalPulse {
-  0% {
-    transform: translateX(-50%) scale(1);
-    background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
-  }
-  100% {
-    transform: translateX(-50%) scale(1.1);
-    background: linear-gradient(135deg, #FF6B6B 0%, #E74C3C 100%);
-    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.8);
-  }
 }
 
 /* Индикаторы эффектов */
 .effect-indicators {
   position: fixed;
-  top: 100px;
-  left: 20px;
+  top: 80px;
+  left: 15px;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
   z-index: 900;
-  max-width: 200px;
+  max-width: 150px;
   pointer-events: none;
 }
 
@@ -423,107 +281,105 @@ body::before {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  gap: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
   font-weight: bold;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
   cursor: help;
   position: relative;
-  transform: translateZ(0);
 }
 
 .effect-indicator:hover {
-  transform: translateX(5px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: translateX(3px);
 }
 
 .buff-indicator {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
-  border-left: 4px solid #2E7D32;
+  border-left: 3px solid #2E7D32;
 }
 
 .debuff-indicator {
   background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
   color: white;
-  border-left: 4px solid #b71c1c;
+  border-left: 3px solid #b71c1c;
 }
 
 .effect-icon {
-  font-size: 1.2rem;
-  min-width: 20px;
+  font-size: 0.9rem;
+  min-width: 15px;
 }
 
 .effect-name {
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Динамическая панель */
+/* ИСПРАВЛЕНИЕ: Компактные панели */
 .list-panel {
   width: 95%; 
   max-width: 1000px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #ddd;
-  border-radius: 15px;
-  padding: 1rem;
-  margin: 1rem auto;
+  border-radius: 12px;
+  padding: 0.75rem;
+  margin: 0.5rem auto;
   max-height: 400px;
   overflow-y: auto;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 2;
 }
 
 .list-panel h2 {
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.75rem 0;
   color: #333;
   text-align: center;
-  font-size: 1.5rem;
+  font-size: 1.1rem; /* Компактный заголовок */
+  font-weight: 600;
 }
 
 .hidden { display: none; }
 
-/* Секции категорий */
+/* Компактные секции категорий */
 .category-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 }
 
 .category-section h3 {
   color: #4CAF50;
-  border-bottom: 2px solid #4CAF50;
-  padding-bottom: 0.5rem;
-  margin-bottom: 1rem;
+  border-bottom: 1px solid #4CAF50;
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem; /* Меньший заголовок */
+  font-weight: 600;
 }
 
-/* Карточки элементов */
+/* ИСПРАВЛЕНИЕ: Компактные карточки */
 .item-card {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.5rem; /* Уменьшенный отступ */
+  margin-bottom: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+  font-size: 0.8rem; /* Компактный текст */
 }
 
 .item-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .market-card {
-  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
   border-color: #FF9800;
-}
-
-.market-card:hover {
-  background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
 }
 
 .buff-card {
@@ -531,17 +387,9 @@ body::before {
   border-color: #4CAF50;
 }
 
-.buff-card:hover {
-  background: linear-gradient(135deg, #c8e6c8 0%, #a8d6a8 100%);
-}
-
 .debuff-card {
   background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
   border-color: #f44336;
-}
-
-.debuff-card:hover {
-  background: linear-gradient(135deg, #ffcdd2 0%, #ef9a9a 100%);
 }
 
 .rules-card {
@@ -549,21 +397,21 @@ body::before {
   border-color: #2196F3;
 }
 
-/* Заголовок карточки */
+/* Компактный заголовок карточки */
 .item-header {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
+  gap: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .item-icon {
-  font-size: 2rem;
+  font-size: 1.2rem; /* Меньшая иконка */
 }
 
 .item-name {
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-size: 0.9rem; /* Компактное название */
+  font-weight: 600;
   color: #333;
   flex-grow: 1;
 }
@@ -571,106 +419,73 @@ body::before {
 .item-level {
   background: #4CAF50;
   color: white;
-  padding: 0.25rem 0.75rem;
-  border-radius: 15px;
-  font-size: 0.9rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  font-size: 0.7rem;
   font-weight: bold;
 }
 
-.rarity-common {
-  background: #9E9E9E;
-}
-
-.rarity-uncommon {
-  background: #4CAF50;
-}
-
-.rarity-rare {
-  background: #FF9800;
-}
-
-.rarity-epic {
-  background: #9C27B0;
-}
-
-.severity-mild {
-  background: #FF9800;
-}
-
-.severity-moderate {
-  background: #f44336;
-}
-
-.severity-severe {
-  background: #8E24AA;
-}
-
-/* Описание */
+/* Компактное описание */
 .item-description {
   color: #666;
   font-style: italic;
-  margin-bottom: 0.75rem;
-  line-height: 1.4;
+  margin-bottom: 0.4rem;
+  line-height: 1.3;
+  font-size: 0.75rem; /* Очень компактное описание */
+  max-height: 3rem; /* Ограничиваем высоту */
+  overflow: hidden;
 }
 
-.item-description ul {
-  margin: 0.5rem 0;
-  padding-left: 1.5rem;
-}
-
-.item-description li {
-  margin-bottom: 0.25rem;
-}
-
-/* Детали */
+/* Компактные детали */
 .item-details {
   background: rgba(255, 255, 255, 0.7);
-  padding: 0.5rem;
-  border-radius: 8px;
-  margin-bottom: 0.75rem;
-  font-size: 0.9rem;
+  padding: 0.3rem;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+  font-size: 0.7rem; /* Очень мелкий текст */
 }
 
 .item-details div {
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.15rem;
 }
 
 .item-details div:last-child {
   margin-bottom: 0;
 }
 
-/* Подвал карточки */
+/* Компактный подвал карточки */
 .item-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .price {
-  font-weight: bold;
+  font-weight: 600;
   color: #FF9800;
   background: rgba(255, 152, 0, 0.1);
-  padding: 0.25rem 0.5rem;
-  border-radius: 6px;
+  padding: 0.15rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
 }
 
 .buy-button {
   background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
   color: white;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
   cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  min-width: 100px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-width: 60px;
+  font-size: 0.7rem;
 }
 
 .buy-button:hover:not(.disabled) {
   background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .buy-button.disabled {
@@ -683,55 +498,144 @@ body::before {
   background: linear-gradient(135deg, #FF9800 0%, #f57c00 100%);
 }
 
-.market-card .buy-button:hover:not(.disabled) {
-  background: linear-gradient(135deg, #f57c00 0%, #FF9800 100%);
-}
-
 .max-level {
   background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
   color: #333;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 6px;
   font-weight: bold;
   text-align: center;
+  font-size: 0.7rem;
   width: 100%;
 }
 
-/* Грид для маркета */
+/* Компактный грид для маркета */
 .market-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
-/* Уведомления */
+/* Компактные уведомления */
 #notifications {
   position: fixed; 
-  top: 1rem; 
-  right: 1rem;
+  top: 0.5rem; 
+  right: 0.5rem;
   display: flex; 
   flex-direction: column; 
-  gap: 0.5rem;
+  gap: 0.3rem;
   z-index: 1000;
   pointer-events: none;
-  max-width: 300px;
+  max-width: 250px;
 }
 
 .notification {
   pointer-events: auto;
   background: linear-gradient(135deg, #333 0%, #555 100%);
   color: #fff;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   animation: slideIn 0.3s ease;
-  max-width: 300px;
+  max-width: 250px;
   word-wrap: break-word;
   position: relative;
-  transform: translateZ(0);
+  font-size: 0.75rem;
 }
 
+/* Компактные модальные окна */
+.modal {
+  position: fixed; 
+  top: 50%; 
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff; 
+  border: 1px solid #333; 
+  border-radius: 10px;
+  padding: 1rem; 
+  max-width: 90%; 
+  max-height: 80%;
+  overflow-y: auto; 
+  z-index: 2000;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  font-size: 0.8rem;
+}
+
+.modal h3 {
+  color: #4CAF50;
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.modal button {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  font-size: 0.75rem;
+}
+
+.modal button:hover {
+  background: #45a049;
+}
+
+/* Компактные кнопки управления */
+#controls-bottom {
+  display: flex; 
+  gap: 0.5rem; 
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+}
+
+#controls-bottom button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #333;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-size: 0.8rem;
+  min-width: 90px;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  color: #333333;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+#controls-bottom button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+}
+
+#load-button {
+  border-color: #2196F3 !important;
+  background: #2196F3 !important;
+  color: #ffffff !important;
+}
+
+#save-button {
+  border-color: #4CAF50 !important;
+  background: #4CAF50 !important;
+  color: #ffffff !important;
+}
+
+#reset-button {
+  border-color: #FF9800 !important;
+  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
+  color: #ffffff !important;
+}
+
+/* Анимации */
 @keyframes slideIn {
   from {
     transform: translateX(100%);
@@ -743,384 +647,80 @@ body::before {
   }
 }
 
-/* Всплывающие подсказки */
-.tooltip {
-  position: absolute; padding: 0.5rem 0.75rem;
-  background: #333; color: #fff;
-  border-radius: 6px; pointer-events: none;
-  font-size: 0.8rem; z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* Модальные окна */
-.modal {
-  position: fixed; 
-  top: 50%; 
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #fff; 
-  border: 2px solid #333; 
-  border-radius: 12px;
-  padding: 1.5rem; 
-  max-width: 90%; 
-  max-height: 80%;
-  overflow-y: auto; 
-  z-index: 2000;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-  backface-visibility: hidden;
-  transform-style: preserve-3d;
-}
-
-.modal.hidden { display: none; }
-.modal::backdrop { background: rgba(0,0,0,0.5); }
-
-.modal h3 {
-  color: #4CAF50;
-  margin-top: 0;
-}
-
-.modal button {
-  background: #4CAF50;
-  color: white;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.modal button:hover {
-  background: #45a049;
+@keyframes energyPulse {
+  0% {
+    box-shadow: 0 0 6px rgba(231, 76, 60, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.8);
+  }
 }
 
 /* Прокрутка */
 .list-panel::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .list-panel::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 .list-panel::-webkit-scrollbar-thumb {
   background: #4CAF50;
-  border-radius: 4px;
-}
-
-.list-panel::-webkit-scrollbar-thumb:hover {
-  background: #45a049;
-}
-
-/* Специальные уведомления для навыков */
-.skill-notification {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  border-left: 4px solid #2E7D32;
-  animation: skillPulse 0.6s ease;
-}
-
-.skill-notification-title {
-  font-weight: bold;
-  font-size: 1rem;
-  margin-bottom: 0.25rem;
-}
-
-.skill-notification-desc {
-  font-size: 0.85rem;
-  opacity: 0.9;
-}
-
-@keyframes skillPulse {
-  0% {
-    transform: translateX(100%) scale(0.8);
-    opacity: 0;
-  }
-  50% {
-    transform: translateX(0) scale(1.05);
-    opacity: 1;
-  }
-  100% {
-    transform: translateX(0) scale(1);
-    opacity: 1;
-  }
-}
-
-/* Анимации для индикаторов эффектов */
-.effect-indicator {
-  animation: effectAppear 0.5s ease-out;
-}
-
-@keyframes effectAppear {
-  from {
-    transform: translateX(-100%) scale(0.8);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0) scale(1);
-    opacity: 1;
-  }
-}
-
-/* Пульсация для активных эффектов */
-.buff-indicator {
-  animation: buffPulse 2s ease-in-out infinite alternate;
-}
-
-.debuff-indicator {
-  animation: debuffPulse 1.5s ease-in-out infinite alternate;
-}
-
-@keyframes buffPulse {
-  from {
-    box-shadow: 0 2px 6px rgba(76, 175, 80, 0.4);
-  }
-  to {
-    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.8);
-  }
-}
-
-@keyframes debuffPulse {
-  from {
-    box-shadow: 0 2px 6px rgba(244, 67, 54, 0.4);
-  }
-  to {
-    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.8);
-  }
-}
-
-/* Кнопки управления сохранением */
-#controls-bottom {
-  display: flex; 
-  gap: 1rem; 
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-  justify-content: center;
-  padding: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 15px;
-  backdrop-filter: blur(10px);
-}
-
-#controls-bottom button {
-  padding: 0.75rem 1.5rem;
-  border: 2px solid #333;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
-  font-size: 1rem;
-  min-width: 120px;
-  position: relative;
-  overflow: hidden;
-  background: #ffffff;
-  color: #333333;
-  text-shadow: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-#controls-bottom button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-#load-button {
-  border-color: #2196F3 !important;
-  background: #2196F3 !important;
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-}
-
-#load-button:hover {
-  background: #1976D2 !important;
-  border-color: #1565C0 !important;
-  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4) !important;
-  color: #ffffff !important;
-}
-
-#save-button {
-  border-color: #4CAF50 !important;
-  background: #4CAF50 !important;
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-}
-
-#save-button:hover {
-  background: #45a049 !important;
-  border-color: #388E3C !important;
-  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4) !important;
-  color: #ffffff !important;
-}
-
-#reset-button {
-  border-color: #FF9800 !important;
-  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
-  color: #ffffff !important;
-  position: relative;
-  font-weight: bold !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3) !important;
-}
-
-#reset-button::before {
-  content: '';
-  position: absolute;
-  left: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 1.2em;
-  color: #ffffff !important;
-}
-
-#reset-button:hover {
-  background: linear-gradient(135deg, #F57C00 0%, #FF9800 100%) !important;
-  box-shadow: 0 4px 8px rgba(255, 152, 0, 0.4) !important;
-  border-color: #F57C00 !important;
-  transform: translateY(-1px);
-}
-
-#reset-button:active {
-  background: linear-gradient(135deg, #E65100 0%, #F57C00 100%) !important;
-  transform: translateY(1px);
-  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.6) !important;
-}
-
-.zone-type-indicator {
-  position: absolute;
-  bottom: -40px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.zone-type-indicator .zone-legend {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.zone-type-indicator .zone-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
-  border: 1px solid #333;
-}
-
-.zone-color.gold { background: #FFD700; }
-.zone-color.energy { background: #00FF00; }
-.zone-color.bonus { background: #FF4500; }
-
-/* Анимации для комбо */
-.combo-increase {
-  animation: comboIncrease 0.6s ease-out;
-}
-
-.combo-decrease {
-  animation: comboDecrease 0.6s ease-out;
-}
-
-@keyframes comboIncrease {
-  0% { transform: scale(1); color: inherit; }
-  50% { transform: scale(1.2); color: #4CAF50; text-shadow: 0 0 10px #4CAF50; }
-  100% { transform: scale(1); color: inherit; }
-}
-
-@keyframes comboDecrease {
-  0% { transform: scale(1); color: inherit; }
-  50% { transform: scale(0.8); color: #f44336; text-shadow: 0 0 10px #f44336; }
-  100% { transform: scale(1); color: inherit; }
+  border-radius: 3px;
 }
 
 /* Адаптивность */
 @media (max-width: 768px) {
   #ui-top {
-    gap: 0.5rem;
+    gap: 0.3rem;
   }
   
   #ui-top button {
-    padding: 0.5rem 1rem;
-    min-width: 80px;
-    font-size: 0.9rem;
+    padding: 0.4rem 0.8rem;
+    min-width: 70px;
+    font-size: 11px;
   }
   
   #game-area {
     width: 95%;
-    max-width: 600px;
+    max-width: 500px;
     padding: 0.5rem;
   }
   
   .game-wheel-container {
     flex-direction: column;
-    gap: 1rem;
+    gap: 0.75rem;
   }
   
   #gameCanvas {
-    width: 350px !important;
-    height: 350px !important;
-    order: 1; /* Колесо в центре при мобильной версии */
+    width: 300px !important;
+    height: 300px !important;
+    order: 1;
   }
   
   .combo-indicator,
   .energy-display-container {
     order: unset;
-    min-width: 200px;
-    max-width: 300px;
+    min-width: 120px;
+    max-width: 200px;
     margin: 0 auto;
   }
   
   .resources-panel {
     width: 100%;
-    min-width: auto;
-    max-width: none;
-    min-height: auto;
     text-align: center;
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px;
-    padding: 8px 12px;
-  }
-  
-  .combo-indicator {
-    min-width: 150px;
-    padding: 10px 16px;
-  }
-  
-  .combo-indicator .combo-title {
-    font-size: 0.8rem;
-  }
-  
-  .combo-indicator .combo-value {
-    font-size: 1.8rem;
-  }
-  
-  .combo-indicator .combo-bonus {
-    font-size: 0.7rem;
-  }
-  
-  .energy-display-container {
-    min-width: 150px;
-    padding: 10px 14px;
-  }
-  
-  .energy-text {
-    font-size: 0.8rem;
-  }
-  
-  .energy-status {
-    font-size: 0.7rem;
-  }
-  
-  .energy-warning {
-    font-size: 0.65rem;
-    padding: 2px 8px;
+    gap: 0.25rem;
+    padding: 0.4rem 0.6rem;
   }
   
   .item-footer {
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.3rem;
   }
   
   .buy-button {
@@ -1132,28 +732,19 @@ body::before {
   }
   
   .effect-indicators {
-    left: 10px;
-    top: 80px;
-    max-width: 150px;
-  }
-  
-  .effect-name {
-    font-size: 0.7rem;
+    left: 8px;
+    top: 60px;
+    max-width: 120px;
   }
   
   #controls-bottom {
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 0.4rem;
   }
   
   #controls-bottom button {
     width: 100%;
     min-width: auto;
-    padding: 1rem;
-  }
-  
-  #reset-button::before {
-    left: 15px;
-    font-size: 1em;
+    padding: 0.6rem;
   }
 }

@@ -1,4 +1,4 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильным отображением типов зон и приятными цветами
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильным отображением секторов
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -246,28 +246,32 @@ export class GameLoop extends CleanupMixin {
     return angleChanged;
   }
 
-  // Рендеринг игровых элементов
+  // ИСПРАВЛЕНИЕ: Правильное рисование секторов
   render() {
     if (!this.managers.feature) return;
     
     this.clearCanvas();
     
     this.drawZones();
-    this.drawPreviewZone();
     this.drawReverseIndicator();
   }
 
-  // ИСПРАВЛЕННОЕ рисование зон с правильными приятными цветами
+  // ИСПРАВЛЕНИЕ: Новая система отображения зон с правильными цветами
   drawZones() {
     const featureManager = this.managers.feature;
-    if (!featureManager || !featureManager.zones || !featureManager.zoneTypes) return;
+    if (!featureManager || !featureManager.zones || !featureManager.zoneTypes) {
+      // Fallback: рисуем простые зоны
+      this.drawFallbackZones();
+      return;
+    }
     
     const zones = featureManager.zones;
     const zoneTypes = featureManager.zoneTypes;
+    const targetZone = this.gameState.targetZone || 0;
     
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
-    const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
+    const radius = this.canvas.width / 2 - 10; // Отступ от края
     const totalAngle = 2 * Math.PI;
     const stepAngle = totalAngle / zones.length;
     
@@ -281,63 +285,124 @@ export class GameLoop extends CleanupMixin {
       this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
       this.ctx.closePath();
       
-      // ИСПРАВЛЕНИЕ: Получаем правильный цвет зоны на основе типа
+      // ИСПРАВЛЕНИЕ: Правильные цвета зон
       const zoneType = zoneTypes[index] || ZONE_TYPES.GOLD;
-      this.ctx.fillStyle = this.getZoneColorByType(zoneType);
+      this.ctx.fillStyle = this.getZoneColor(zoneType, index === targetZone);
       this.ctx.fill();
       
       // Обводка зоны
-      this.ctx.strokeStyle = '#333';
-      this.ctx.lineWidth = 1;
+      this.ctx.strokeStyle = index === targetZone ? '#FF0000' : '#333333';
+      this.ctx.lineWidth = index === targetZone ? 3 : 1;
       this.ctx.stroke();
       
-      // ИСПРАВЛЕНИЕ: Убираем красную обводку целевой зоны, поскольку красная зона сама отвечает за комбо
+      // Подпись типа зоны
+      if (zoneType.id !== 'gold' || index === targetZone) {
+        this.drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneType, index === targetZone);
+      }
     });
   }
 
-  // ИСПРАВЛЕННОЕ получение цвета зоны по типу с приятными цветами
-  getZoneColorByType(zoneType) {
-    // Приятные цвета для глаз
+  // ИСПРАВЛЕНИЕ: Правильные цвета зон
+  getZoneColor(zoneType, isTarget) {
+    if (isTarget) {
+      return '#C41E3A'; // Красный для целевой зоны
+    }
+    
     switch (zoneType.id) {
       case 'gold':
-        return zoneType.color; // Используем цвет из конфига (красивый красный)
+        return '#E5E5E5'; // Серый для обычных зон
       case 'energy':
-        return zoneType.color; // Используем цвет из конфига (приятный зеленый)
+        return '#228B22'; // Зеленый для энергетических зон
       case 'bonus':
-        return zoneType.color; // Используем цвет из конфига (персиковый/золотистый)
+        return '#FFB347'; // Золотистый для бонусных зон
       default:
-        return '#E0E0E0'; // Светло-серый по умолчанию
+        return '#E5E5E5'; // Серый по умолчанию
     }
   }
 
-  // Рисование предварительного показа следующей зоны
-  drawPreviewZone() {
-    if (!this.managers.skill || !this.managers.skill.getSkillLevel('zonePreview')) return;
+  // Подпись зоны
+  drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneType, isTarget) {
+    const midAngle = (startAngle + endAngle) / 2;
+    const labelRadius = radius * 0.7;
+    const labelX = centerX + Math.cos(midAngle) * labelRadius;
+    const labelY = centerY + Math.sin(midAngle) * labelRadius;
     
-    const featureManager = this.managers.feature;
-    if (!featureManager || !featureManager.zones) return;
+    this.ctx.save();
+    this.ctx.font = 'bold 16px Arial';
+    this.ctx.textAlign = 'center';
+    this.ctx.textBaseline = 'middle';
+    this.ctx.fillStyle = '#FFFFFF';
+    this.ctx.strokeStyle = '#000000';
+    this.ctx.lineWidth = 2;
     
-    const zones = featureManager.zones;
+    let label = '';
+    if (isTarget) {
+      label = '🎯';
+    } else if (zoneType.id === 'energy') {
+      label = '⚡';
+    } else if (zoneType.id === 'bonus') {
+      label = '💰';
+    }
+    
+    if (label) {
+      this.ctx.strokeText(label, labelX, labelY);
+      this.ctx.fillText(label, labelX, labelY);
+    }
+    
+    this.ctx.restore();
+  }
+
+  // Fallback для отображения зон если менеджер недоступен
+  drawFallbackZones() {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
-    const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
-    const totalAngle = 2 * Math.PI;
-    const stepAngle = totalAngle / zones.length;
+    const radius = this.canvas.width / 2 - 10;
+    const zoneCount = 8; // Стандартное количество зон
+    const stepAngle = (2 * Math.PI) / zoneCount;
+    const targetZone = this.gameState.targetZone || 0;
     
-    const nextZone = (this.gameState.targetZone + 1) % zones.length;
-    const startAngle = nextZone * stepAngle + this.angle;
-    const endAngle = (nextZone + 1) * stepAngle + this.angle;
-    
-    this.ctx.beginPath();
-    this.ctx.moveTo(centerX, centerY);
-    this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
-    this.ctx.closePath();
-    
-    this.ctx.strokeStyle = '#FFD700'; // Золотой цвет для предпросмотра
-    this.ctx.lineWidth = GAME_CONSTANTS.PREVIEW_ZONE_BORDER_WIDTH;
-    this.ctx.setLineDash([10, 5]);
-    this.ctx.stroke();
-    this.ctx.setLineDash([]);
+    for (let i = 0; i < zoneCount; i++) {
+      const startAngle = i * stepAngle + this.angle;
+      const endAngle = (i + 1) * stepAngle + this.angle;
+      
+      this.ctx.beginPath();
+      this.ctx.moveTo(centerX, centerY);
+      this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      this.ctx.closePath();
+      
+      // Цвет зоны
+      if (i === targetZone) {
+        this.ctx.fillStyle = '#C41E3A'; // Красная целевая зона
+      } else {
+        this.ctx.fillStyle = '#E5E5E5'; // Серые остальные зоны
+      }
+      this.ctx.fill();
+      
+      // Обводка
+      this.ctx.strokeStyle = i === targetZone ? '#FF0000' : '#333333';
+      this.ctx.lineWidth = i === targetZone ? 3 : 1;
+      this.ctx.stroke();
+      
+      // Метка целевой зоны
+      if (i === targetZone) {
+        const midAngle = (startAngle + endAngle) / 2;
+        const labelRadius = radius * 0.7;
+        const labelX = centerX + Math.cos(midAngle) * labelRadius;
+        const labelY = centerY + Math.sin(midAngle) * labelRadius;
+        
+        this.ctx.save();
+        this.ctx.font = 'bold 20px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 2;
+        
+        this.ctx.strokeText('🎯', labelX, labelY);
+        this.ctx.fillText('🎯', labelX, labelY);
+        this.ctx.restore();
+      }
+    }
   }
 
   // Рисование индикатора обратного вращения

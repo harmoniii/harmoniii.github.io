@@ -1,4 +1,4 @@
-// ui/EnergyDisplay.js - ИСПРАВЛЕННАЯ версия с registerDOMElement
+// ui/EnergyDisplay.js - ИСПРАВЛЕННАЯ версия с простой инициализацией
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
@@ -14,7 +14,7 @@ export class EnergyDisplay extends CleanupMixin {
     this.energyStatus = null;
     this.warningElement = null;
     
-    // ИСПРАВЛЕНИЕ: Ограничение частоты уведомлений
+    // Ограничение частоты уведомлений
     this.lastNotificationTime = 0;
     this.notificationCooldown = 2000; // 2 секунды между уведомлениями
     
@@ -24,94 +24,55 @@ export class EnergyDisplay extends CleanupMixin {
     console.log('⚡ EnergyDisplay initialized');
   }
 
-  // ИСПРАВЛЕНИЕ: Инициализация с правильным размещением справа от колеса
+  // ИСПРАВЛЕНИЕ: Простая инициализация с поиском существующего элемента
   initializeEnergyDisplay() {
-    this.createEnergyContainer();
-    this.createEnergyBar();
-    this.createEnergyText();
-    this.createWarningIndicator();
+    this.findEnergyContainer();
+    this.findEnergyElements();
     
-    // Добавляем CSS стили если их нет
-    this.addEnergyStyles();
+    // Если элементы не найдены, обновляем из состояния игры
+    if (!this.energyBar || !this.energyText || !this.energyStatus) {
+      console.log('⚡ Energy display elements not found, will update from game state');
+    }
   }
 
-  // ИСПРАВЛЕНИЕ: Создание контейнера с правильным размещением
-  createEnergyContainer() {
+  // ИСПРАВЛЕНИЕ: Поиск существующего контейнера
+  findEnergyContainer() {
     this.container = document.getElementById('energy-display');
     
-    if (!this.container) {
-      this.container = document.createElement('div');
-      this.container.id = 'energy-display';
-      this.container.className = 'energy-display-container';
-      
-      // ИСПРАВЛЕНИЕ: Размещаем в game-wheel-container справа от колеса
-      const gameWheelContainer = document.querySelector('.game-wheel-container');
-      if (gameWheelContainer) {
-        gameWheelContainer.appendChild(this.container);
-        console.log('⚡ Energy display placed in game wheel container');
-      } else {
-        // Fallback: добавляем в game-area
-        const gameArea = document.getElementById('game-area');
-        if (gameArea) {
-          gameArea.appendChild(this.container);
-          console.log('⚡ Energy display placed in game area (fallback)');
-        } else {
-          // Final fallback: добавляем в body
-          document.body.appendChild(this.container);
-          console.log('⚡ Energy display placed in body (final fallback)');
-        }
+    if (this.container) {
+      console.log('⚡ Found existing energy display container');
+    } else {
+      // Ищем контейнер по классу
+      this.container = document.querySelector('.energy-display-container');
+      if (this.container) {
+        this.container.id = 'energy-display';
+        console.log('⚡ Found energy container by class, added ID');
       }
     }
     
-    // ИСПРАВЛЕНИЕ: Правильная регистрация DOM элемента
-    this.registerDOMElement(this.container);
+    if (this.container) {
+      this.registerDOMElement(this.container);
+    }
   }
 
-  // Создание полосы энергии
-  createEnergyBar() {
-    const barContainer = document.createElement('div');
-    barContainer.className = 'energy-bar-container';
+  // Поиск элементов энергии
+  findEnergyElements() {
+    if (!this.container) return;
     
-    this.energyBar = document.createElement('div');
-    this.energyBar.className = 'energy-bar energy-normal';
-    
-    const barBackground = document.createElement('div');
-    barBackground.className = 'energy-bar-background';
-    
-    barBackground.appendChild(this.energyBar);
-    barContainer.appendChild(barBackground);
-    this.container.appendChild(barContainer);
-  }
-
-  // Создание текста энергии
-  createEnergyText() {
-    this.energyText = document.createElement('div');
-    this.energyText.className = 'energy-text';
-    this.energyText.textContent = 'Energy: 100/100';
-    this.container.appendChild(this.energyText);
-    
-    this.energyStatus = document.createElement('div');
-    this.energyStatus.className = 'energy-status ready';
-    this.energyStatus.textContent = 'Ready to click';
-    this.container.appendChild(this.energyStatus);
-  }
-
-  // Создание индикатора предупреждения
-  createWarningIndicator() {
-    this.warningElement = document.createElement('div');
-    this.warningElement.className = 'energy-warning hidden';
-    this.warningElement.innerHTML = '⚡ Low Energy!';
-    this.container.appendChild(this.warningElement);
+    this.energyBar = this.container.querySelector('.energy-bar');
+    this.energyText = this.container.querySelector('.energy-text');
+    this.energyStatus = this.container.querySelector('.energy-status');
+    this.warningElement = this.container.querySelector('.energy-warning');
   }
 
   // Привязка событий
   bindEvents() {
-    // ИСПРАВЛЕНИЕ: Обновляем при изменении энергии с ограничением частоты
+    // Обновляем при изменении энергии
     eventBus.subscribe(GameEvents.ENERGY_CHANGED, (data) => {
       this.updateDisplay(data);
     });
 
-    // ИСПРАВЛЕНИЕ: Показываем предупреждения с ограничением частоты
+    // Показываем предупреждения с ограничением частоты
     eventBus.subscribe(GameEvents.ENERGY_INSUFFICIENT, (data) => {
       this.showInsufficientEnergyWarning(data);
     });
@@ -126,9 +87,9 @@ export class EnergyDisplay extends CleanupMixin {
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Обновление отображения без избыточных уведомлений
+  // ИСПРАВЛЕНИЕ: Обновление отображения
   updateDisplay(energyData) {
-    if (!this.isActive() || !this.container) return;
+    if (!this.isActive()) return;
     
     const { current, max, percentage, canClick, timeToNext } = energyData;
     
@@ -143,9 +104,6 @@ export class EnergyDisplay extends CleanupMixin {
     
     // Обновляем предупреждения
     this.updateWarnings(percentage);
-    
-    // ИСПРАВЛЕНИЕ: Обновляем класс контейнера для анимаций
-    this.updateContainerState(percentage);
   }
 
   // Обновление полосы энергии
@@ -176,7 +134,7 @@ export class EnergyDisplay extends CleanupMixin {
     
     this.energyText.textContent = `⚡ ${currentRounded}/${maxRounded}`;
     
-    // ИСПРАВЛЕНИЕ: Более компактное отображение времени
+    // Показываем время перезарядки если нужно
     if (!canClick && timeToNext > 0) {
       const seconds = Math.ceil(timeToNext / 1000);
       this.energyText.textContent += ` (${seconds}s)`;
@@ -187,29 +145,15 @@ export class EnergyDisplay extends CleanupMixin {
   updateEnergyStatus(energyData) {
     if (!this.energyStatus) return;
     
-    const { canClick, clickCost, timeToNext } = energyData;
+    const { canClick, timeToNext } = energyData;
     
     if (canClick) {
       this.energyStatus.textContent = `Ready!`;
       this.energyStatus.className = 'energy-status ready';
     } else {
       const secondsToNext = Math.ceil(timeToNext / 1000);
-      this.energyStatus.textContent = `Recharging... ${secondsToNext}s`;
+      this.energyStatus.textContent = `${secondsToNext}s`;
       this.energyStatus.className = 'energy-status recharging';
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Обновление состояния контейнера
-  updateContainerState(percentage) {
-    if (!this.container) return;
-    
-    // Убираем все классы состояния
-    this.container.classList.remove('low-energy', 'critical-energy');
-    
-    if (percentage <= ENERGY_CONSTANTS.CRITICAL_THRESHOLD) {
-      this.container.classList.add('critical-energy');
-    } else if (percentage <= ENERGY_CONSTANTS.WARNING_THRESHOLD) {
-      this.container.classList.add('low-energy');
     }
   }
 
@@ -227,7 +171,7 @@ export class EnergyDisplay extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Показать предупреждение с ограничением частоты
+  // Показать предупреждение с ограничением частоты
   showInsufficientEnergyWarning(data) {
     const now = Date.now();
     
@@ -243,7 +187,7 @@ export class EnergyDisplay extends CleanupMixin {
     const { current, required, timeToNext } = data;
     const seconds = Math.ceil(timeToNext / 1000);
     
-    this.warningElement.textContent = `⚡ Need ${required.toFixed(1)}! Wait ${seconds}s`;
+    this.warningElement.textContent = `⚡ ${seconds}s`;
     this.warningElement.classList.remove('hidden');
     this.warningElement.classList.add('warning-flash');
     
@@ -255,7 +199,7 @@ export class EnergyDisplay extends CleanupMixin {
     }, 2000);
   }
 
-  // ИСПРАВЛЕНИЕ: Показать критическое предупреждение с ограничением
+  // Показать критическое предупреждение с ограничением
   showCriticalEnergyWarning() {
     const now = Date.now();
     
@@ -285,232 +229,6 @@ export class EnergyDisplay extends CleanupMixin {
     } catch (error) {
       console.warn('⚠️ Error updating energy display from game state:', error);
     }
-  }
-
-  // ИСПРАВЛЕНИЕ: Упрощенные CSS стили для компактного отображения
-  addEnergyStyles() {
-    if (document.getElementById('energy-display-styles')) return;
-    
-    const style = document.createElement('style');
-    style.id = 'energy-display-styles';
-    style.textContent = `
-      /* ИСПРАВЛЕННЫЕ стили для компактного энергетического дисплея */
-      .energy-display-container {
-        background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
-        border: 2px solid #3498DB;
-        border-radius: 15px;
-        padding: 12px 16px;
-        box-shadow: 
-          0 4px 12px rgba(52, 152, 219, 0.3),
-          inset 0 2px 8px rgba(255, 255, 255, 0.1);
-        text-align: center;
-        min-width: 120px;
-        max-width: 160px;
-        position: relative;
-        backdrop-filter: blur(5px);
-        transition: all 0.3s ease;
-      }
-
-      /* Контейнер полосы энергии */
-      .energy-bar-container {
-        margin-bottom: 8px;
-      }
-
-      .energy-bar-background {
-        background: #1A252F;
-        border: 2px solid #34495E;
-        border-radius: 8px;
-        height: 16px;
-        overflow: hidden;
-        position: relative;
-        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-      }
-
-      /* Полоса энергии */
-      .energy-bar {
-        height: 100%;
-        transition: all 0.3s ease;
-        position: relative;
-        background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
-        box-shadow: 
-          0 0 8px rgba(46, 204, 113, 0.5),
-          inset 0 2px 4px rgba(255, 255, 255, 0.2);
-      }
-
-      .energy-bar.energy-normal {
-        background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
-        box-shadow: 0 0 8px rgba(46, 204, 113, 0.5);
-      }
-
-      .energy-bar.energy-warning {
-        background: linear-gradient(90deg, #F39C12 0%, #E67E22 100%);
-        box-shadow: 0 0 8px rgba(243, 156, 18, 0.5);
-      }
-
-      .energy-bar.energy-critical {
-        background: linear-gradient(90deg, #E74C3C 0%, #C0392B 100%);
-        box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
-        animation: energyPulse 1s ease-in-out infinite alternate;
-      }
-
-      /* Компактный текст энергии */
-      .energy-text {
-        font-size: 0.9rem;
-        font-weight: bold;
-        color: #ECF0F1;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        margin-bottom: 4px;
-      }
-
-      /* Компактный статус энергии */
-      .energy-status {
-        font-size: 0.75rem;
-        margin-bottom: 8px;
-        font-weight: 500;
-      }
-
-      .energy-status.ready {
-        color: #2ECC71;
-        text-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
-      }
-
-      .energy-status.recharging {
-        color: #F39C12;
-        text-shadow: 0 0 4px rgba(243, 156, 18, 0.5);
-      }
-
-      /* Предупреждения */
-      .energy-warning {
-        position: absolute;
-        top: -8px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
-        color: white;
-        padding: 3px 10px;
-        border-radius: 15px;
-        font-size: 0.7rem;
-        font-weight: bold;
-        border: 2px solid #C0392B;
-        box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
-        z-index: 10;
-      }
-
-      .energy-warning.hidden {
-        display: none;
-      }
-
-      /* Анимации */
-      @keyframes energyPulse {
-        0% {
-          box-shadow: 0 0 8px rgba(231, 76, 60, 0.5);
-        }
-        100% {
-          box-shadow: 0 0 15px rgba(231, 76, 60, 0.8);
-        }
-      }
-
-      .energy-warning.pulsing {
-        animation: warningPulse 1s ease-in-out infinite alternate;
-      }
-
-      @keyframes warningPulse {
-        0% {
-          transform: translateX(-50%) scale(1);
-          box-shadow: 0 3px 8px rgba(231, 76, 60, 0.4);
-        }
-        100% {
-          transform: translateX(-50%) scale(1.05);
-          box-shadow: 0 4px 12px rgba(231, 76, 60, 0.7);
-        }
-      }
-
-      .energy-warning.warning-flash {
-        animation: warningFlash 0.5s ease-in-out 3;
-      }
-
-      @keyframes warningFlash {
-        0%, 100% {
-          opacity: 1;
-          background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
-        }
-        50% {
-          opacity: 0.7;
-          background: linear-gradient(135deg, #F39C12 0%, #E67E22 100%);
-        }
-      }
-
-      .energy-warning.critical-pulse {
-        animation: criticalPulse 0.3s ease-in-out infinite alternate;
-      }
-
-      @keyframes criticalPulse {
-        0% {
-          transform: translateX(-50%) scale(1);
-          background: linear-gradient(135deg, #E74C3C 0%, #C0392B 100%);
-        }
-        100% {
-          transform: translateX(-50%) scale(1.1);
-          background: linear-gradient(135deg, #FF6B6B 0%, #E74C3C 100%);
-          box-shadow: 0 5px 15px rgba(231, 76, 60, 0.8);
-        }
-      }
-
-      /* Состояния контейнера */
-      .energy-display-container:hover {
-        transform: translateY(-2px);
-        box-shadow: 
-          0 6px 16px rgba(52, 152, 219, 0.4),
-          inset 0 2px 8px rgba(255, 255, 255, 0.15);
-      }
-
-      .energy-display-container.low-energy {
-        border-color: #F39C12;
-        box-shadow: 
-          0 4px 12px rgba(243, 156, 18, 0.3),
-          inset 0 2px 8px rgba(255, 255, 255, 0.1);
-      }
-
-      .energy-display-container.critical-energy {
-        border-color: #E74C3C;
-        animation: containerPulse 1.5s ease-in-out infinite alternate;
-      }
-
-      @keyframes containerPulse {
-        0% {
-          border-color: #E74C3C;
-          box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
-        }
-        100% {
-          border-color: #FF6B6B;
-          box-shadow: 0 6px 20px rgba(231, 76, 60, 0.6);
-        }
-      }
-
-      /* Адаптивность */
-      @media (max-width: 768px) {
-        .energy-display-container {
-          min-width: 100px;
-          max-width: 140px;
-          padding: 10px 14px;
-        }
-        
-        .energy-text {
-          font-size: 0.8rem;
-        }
-        
-        .energy-status {
-          font-size: 0.7rem;
-        }
-        
-        .energy-warning {
-          font-size: 0.65rem;
-          padding: 2px 8px;
-        }
-      }
-    `;
-    
-    document.head.appendChild(style);
   }
 
   // Принудительное обновление
