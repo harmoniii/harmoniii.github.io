@@ -124,6 +124,12 @@ export class GameCore extends CleanupMixin {
       this.gameState.managers = this.managers;
       this.gameState.featureMgr = this.managers.feature;
       
+      // НОВОЕ: Обеспечиваем синхронизацию зон после инициализации всех менеджеров
+      if (this.managers.feature && typeof this.managers.feature.forceZoneSync === 'function') {
+        this.managers.feature.forceZoneSync();
+        console.log('🎯 Zone synchronization forced after manager setup');
+      }
+      
       console.log('✅ Manager references set up successfully');
       
     } catch (error) {
@@ -306,6 +312,12 @@ export class GameCore extends CleanupMixin {
       if (this.gameLoop) {
         this.gameLoop.forceRedraw();
         console.log('✅ Game loop refreshed');
+      }
+
+      // НОВОЕ: Синхронизируем зоны после загрузки
+      if (this.managers.feature && typeof this.managers.feature.forceZoneSync === 'function') {
+        this.managers.feature.forceZoneSync();
+        console.log('✅ Zones synchronized');
       }
 
     } catch (error) {
@@ -556,6 +568,71 @@ export class GameCore extends CleanupMixin {
         }
       },
       
+      // НОВЫЕ: Функции отладки зон
+      zones: {
+        // Получить текущее состояние зон
+        getState: () => {
+          if (!this.managers.feature) return 'FeatureManager not available';
+          return this.managers.feature.getZonesDebugInfo();
+        },
+        
+        // Получить статистику зон
+        getStats: () => {
+          if (!this.managers.feature) return 'FeatureManager not available';
+          return this.managers.feature.getZoneStatistics();
+        },
+        
+        // Принудительно синхронизировать зоны
+        sync: () => {
+          if (!this.managers.feature) return 'FeatureManager not available';
+          this.managers.feature.forceZoneSync();
+          return 'Zones synchronized';
+        },
+        
+        // Установить целевую зону
+        setTarget: (zoneIndex) => {
+          if (!this.managers.feature) return 'FeatureManager not available';
+          const result = this.managers.feature.setTargetZone(zoneIndex);
+          return result ? `Target zone set to ${zoneIndex}` : 'Failed to set target zone';
+        },
+        
+        // Получить информацию о зонах
+        getInfo: () => {
+          if (!this.managers.feature) return 'FeatureManager not available';
+          return this.managers.feature.getZoneInfo();
+        },
+        
+        // Сравнить состояние GameLoop и FeatureManager
+        compare: () => {
+          const gameLoopTarget = this.gameState.targetZone;
+          const featureManagerState = this.managers.feature ? this.managers.feature.getZonesDebugInfo() : null;
+          
+          return {
+            gameStateTarget: gameLoopTarget,
+            featureManagerTarget: featureManagerState?.targetZone,
+            synchronized: gameLoopTarget === featureManagerState?.targetZone,
+            zoneTypes: featureManagerState?.zoneTypes || 'not available'
+          };
+        },
+        
+        // Исправить рассинхронизацию
+        fix: () => {
+          console.log('🔧 Fixing zone synchronization...');
+          
+          // Принудительно синхронизируем зоны
+          if (this.managers.feature) {
+            this.managers.feature.forceZoneSync();
+          }
+          
+          // Принудительно перерисовываем
+          if (this.gameLoop) {
+            this.gameLoop.forceRedraw();
+          }
+          
+          return 'Zone synchronization fixed';
+        }
+      },
+      
       // Существующие функции...
       forceComboReset: () => {
         if (this.managers.feature && typeof this.managers.feature.forceResetCombo === 'function') {
@@ -615,6 +692,18 @@ export class GameCore extends CleanupMixin {
     
     if (this.cleanupManager && typeof this.cleanupManager.setDebugMode === 'function') {
       this.cleanupManager.setDebugMode(true);
+    }
+
+    // Функция для автоматической проверки синхронизации зон (только в debug режиме)
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      setInterval(() => {
+        const comparison = window.gameDebug?.zones?.compare();
+        if (comparison && !comparison.synchronized) {
+          console.warn('⚠️ Zone desynchronization detected:', comparison);
+          console.log('🔧 Auto-fixing...');
+          window.gameDebug.zones.fix();
+        }
+      }, 5000);
     }
   }
 
