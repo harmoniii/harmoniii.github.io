@@ -62,9 +62,11 @@ export class FeatureManager extends CleanupMixin {
     }, 100);
   }
 
-  // НОВЫЙ МЕТОД: Создание правильных типов зон
+  // ИСПРАВЛЕНИЕ: Создание правильных типов зон с корректной логикой
   createCorrectZoneTypes() {
     const targetZone = this.gameState.targetZone || 0;
+    
+    console.log(`🔧 Creating zone types with target: ${targetZone}`);
     
     // Инициализируем массив типов зон
     this.zoneTypes = new Array(ZONE_COUNT);
@@ -81,10 +83,11 @@ export class FeatureManager extends CleanupMixin {
     // 3. Добавляем специальные зоны (energy, bonus) случайным образом
     this.addSpecialZones(targetZone);
     
-    console.log(`🔧 Created zone types - Target: ${targetZone} is GOLD, others are varied`);
+    console.log(`🔧 Created zone types - Target: ${targetZone} is GOLD`);
+    this.logZoneTypes();
   }
 
-  // НОВЫЙ МЕТОД: Добавление специальных зон
+  // ИСПРАВЛЕНИЕ: Добавление специальных зон с улучшенной логикой
   addSpecialZones(excludeTargetZone) {
     const availableIndices = [];
     
@@ -102,11 +105,11 @@ export class FeatureManager extends CleanupMixin {
     const maxSpecialZones = availableIndices.length;
     const energyZoneCount = Math.min(
       maxSpecialZones,
-      Math.floor(maxSpecialZones * 0.25 * energyPercentage) // 25% базовый шанс * energyPercentage
+      Math.max(1, Math.floor(maxSpecialZones * 0.25 * energyPercentage)) // Минимум 1 энергетическая зона
     );
     const bonusZoneCount = Math.min(
       maxSpecialZones - energyZoneCount,
-      Math.floor(maxSpecialZones * 0.15) // 15% шанс для бонусных зон
+      Math.max(1, Math.floor(maxSpecialZones * 0.15)) // Минимум 1 бонусная зона
     );
     
     // Добавляем энергетические зоны
@@ -380,7 +383,7 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // НОВЫЙ МЕТОД: Синхронизация типов зон после перемещения
+  // ИСПРАВЛЕНИЕ: Синхронизация типов зон после перемещения
   synchronizeZoneTypesAfterShuffle(newTargetZone) {
     console.log(`🔄 Synchronizing zone types for new target: ${newTargetZone}`);
     
@@ -405,8 +408,8 @@ export class FeatureManager extends CleanupMixin {
       }
     });
     
-    console.log(`✅ Zone types synchronized. Target: ${newTargetZone}, Types:`, 
-      this.zoneTypes.map((zt, i) => `${i}:${zt.id}`).join(', '));
+    console.log(`✅ Zone types synchronized. Target: ${newTargetZone}`);
+    this.logZoneTypes();
   }
 
   // НОВЫЙ МЕТОД: Обновление специальных зон
@@ -876,6 +879,12 @@ export class FeatureManager extends CleanupMixin {
     this.synchronizeZoneTypesAfterShuffle(currentTarget);
     
     eventBus.emit(GameEvents.ZONES_SHUFFLED, currentTarget);
+  }
+
+  // НОВЫЙ МЕТОД: Логирование типов зон для отладки
+  logZoneTypes() {
+    const typeString = this.zoneTypes.map((zt, i) => `${i}:${zt.id}`).join(', ');
+    console.log(`🎯 Zone types: ${typeString}`);
   }
 
   // Получить отладочную информацию о зонах
