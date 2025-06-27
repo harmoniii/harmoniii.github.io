@@ -36,6 +36,7 @@ export class FeatureManager extends CleanupMixin {
         this.gameState.targetZone < 0 || 
         this.gameState.targetZone >= ZONE_COUNT) {
       this.gameState.targetZone = 0;
+      console.log('🎯 Reset target zone to 0');
     }
     
     if (typeof this.gameState.previousTargetZone !== 'number') {
@@ -53,6 +54,12 @@ export class FeatureManager extends CleanupMixin {
     
     console.log(`🎯 Zones initialized - Target: ${this.gameState.targetZone}, Types:`, 
       this.zoneTypes.map((zt, i) => `${i}:${zt.id}`).join(', '));
+    
+    // НОВОЕ: Принудительно эмитируем событие обновления зон для синхронизации
+    this.createTimeout(() => {
+      console.log(`🔄 Force emitting zone shuffle after initialization`);
+      eventBus.emit(GameEvents.ZONES_SHUFFLED, this.gameState.targetZone);
+    }, 100);
   }
 
   // НОВЫЙ МЕТОД: Создание правильных типов зон
@@ -216,6 +223,8 @@ export class FeatureManager extends CleanupMixin {
 
     // КРИТИЧНО: Получаем тип зоны из нашего синхронизированного массива
     const zoneType = this.zoneTypes[clickedZone.index] || ZONE_TYPES.INACTIVE;
+    
+    console.log(`🖱️ Click on zone ${clickedZone.index}, type: ${zoneType.id}, target: ${this.gameState.targetZone}`);
     
     // ИСПРАВЛЕНИЕ: Логика обработки разных типов зон
     if (clickedZone.index === this.gameState.targetZone) {
@@ -420,8 +429,6 @@ export class FeatureManager extends CleanupMixin {
     this.addSpecialZones(excludeTargetZone);
   }
 
-  // Остальные методы без изменений...
-  
   // ИСПРАВЛЕНИЕ: Сброс комбо
   resetCombo(reason = 'unknown') {
     if (this.gameState.combo && this.gameState.combo.count > 0) {
@@ -845,6 +852,20 @@ export class FeatureManager extends CleanupMixin {
       deadline: 0,
       reason: 'force_reset'
     });
+  }
+
+  // НОВЫЙ МЕТОД: Принудительная полная переинициализация зон
+  forceZoneReset() {
+    console.log('🔄 Force resetting zones completely...');
+    
+    // Сбрасываем целевую зону на 0
+    this.gameState.targetZone = 0;
+    this.gameState.previousTargetZone = 0;
+    
+    // Полностью переинициализируем зоны
+    this.initializeZones();
+    
+    console.log('✅ Zones reset complete');
   }
 
   // Принудительная синхронизация зон (для отладки)
