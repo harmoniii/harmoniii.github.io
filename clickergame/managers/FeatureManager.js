@@ -1,197 +1,63 @@
-// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с проверками null
-import { CleanupMixin } from '../core/CleanupManager.js';
-import { eventBus, GameEvents } from '../core/GameEvents.js';
-import { ZoneManager } from './ZoneManager.js';
-import { GAME_CONSTANTS } from '../config/GameConstants.js';
-import { RESOURCE_GROUPS, getResourcesInGroup } from '../config/ResourceConfig.js';
-
-export class FeatureManager extends CleanupMixin {
-  constructor(gameState, buffManager = null) {
-    super();
+/**
+   * Обновление статистики кликов
+   */
+  updateClickStats(angle) {
+    this.clickStats.totalClicks++;
+    this.clickStats.lastClickTime = Date.now();
     
-    this.gameState = gameState;
-    this.buffManager = buffManager;
-    
-    // ИСПРАВЛЕНИЕ: Безопасная инициализация ZoneManager
-    try {
-      this.zoneManager = new ZoneManager(gameState);
-      this.cleanupManager.registerComponent(this.zoneManager, 'ZoneManager');
-      console.log('✅ ZoneManager initialized successfully');
-    } catch (error) {
-      console.error('❌ Failed to initialize ZoneManager:', error);
-      this.zoneManager = null;
-    }
-    
-    this.comboCheckInterval = null;
-    
-    // Ограничение на частоту уведомлений об энергии
-    this.lastEnergyNotification = 0;
-    this.energyNotificationCooldown = 2000;
-    
-    this.bindEvents();
-    this.startComboTimer();
-    
-    console.log('🎯 FeatureManager initialized with ZoneManager integration');
-  }
-
-  // Запуск таймера проверки комбо
-  startComboTimer() {
-    if (this.comboCheckInterval) {
-      this.cleanupManager.clearInterval(this.comboCheckInterval);
-    }
-    
-    this.comboCheckInterval = this.createInterval(() => {
-      this.checkComboTimeout();
-    }, 1000, 'combo-timeout-check');
-    
-    console.log('⏰ Combo timeout checker started');
-  }
-
-  // Проверка таймаута комбо
-  checkComboTimeout() {
-    if (!this.gameState.combo || this.gameState.combo.count === 0) {
-      return;
-    }
-    
-    const now = Date.now();
-    const deadline = this.gameState.combo.deadline || 0;
-    
-    if (now > deadline && this.gameState.combo.count > 0) {
-      console.log(`⏰ Combo timeout detected! Count was ${this.gameState.combo.count}, resetting to 0`);
-      
-      const oldCombo = this.gameState.combo.count;
-      
-      this.gameState.combo.count = 0;
-      this.gameState.combo.deadline = 0;
-      this.gameState.combo.lastZone = null;
-      this.gameState.combo.lastAngle = null;
-      
-      eventBus.emit(GameEvents.COMBO_CHANGED, {
-        count: 0,
-        effective: 0,
-        zone: null,
-        target: this.gameState.targetZone,
-        deadline: 0,
-        reason: 'timeout',
-        previousCount: oldCombo
-      });
-      
-      eventBus.emit(GameEvents.NOTIFICATION, `⏰ Combo expired! (was ${oldCombo})`);
+    // Ограничиваем историю точности
+    if (this.clickStats.accuracyHistory.length > 100) {
+      this.clickStats.accuracyHistory.shift();
     }
   }
 
-  // Привязка событий
-  bindEvents() {
-    eventBus.subscribe(GameEvents.CLICK, (data) => {
-      this.handleClick(data.data || data);
-    });
-    
-    console.log('🎯 Event handlers bound');
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасный обработчик кликов с проверками null
-  handleClick(angle) {
-    if (!this.isActive()) {
-      console.warn('⚠️ FeatureManager not active, ignoring click');
-      return;
-    }
-    
-    // ИСПРАВЛЕНИЕ: Проверяем наличие ZoneManager
-    if (!this.zoneManager) {
-      console.error('❌ ZoneManager not available, cannot process click');
-      return;
-    }
-    
-    const now = Date.now();
-    
-    // Проверяем блокировку (Zone Lock debuff)
-    if (now < (this.gameState.blockedUntil || 0)) {
-      eventBus.emit(GameEvents.NOTIFICATION, '🔒 Zone is locked!');
-      return;
-    }
-
-    // ИСПРАВЛЕНИЕ: Безопасная нормализация угла
-    const normalizedAngle = this.normalizeAngle(angle);
-    if (normalizedAngle === null) {
-      console.warn('⚠️ Invalid angle provided to handleClick:', angle);
-      return;
-    }
-    
-    // ИСПРАВЛЕНИЕ: Безопасное использование ZoneManager для поиска зоны
-    let clickedZone = null;
-    try {
-      clickedZone = this.zoneManager.findZoneByAngle(normalizedAngle);
-    } catch (error) {
-      console.error('❌ Error finding zone by angle:', error);
-      return;
-    }
-    
-    // ИСПРАВЛЕНИЕ: Проверяем результат поиска зоны
-    if (!clickedZone) {
-      console.warn('⚠️ No zone found for angle:', normalizedAngle);
-      return;
-    }
-
-    console.log(`🖱️ Click on zone ${clickedZone.index}, target: ${this.gameState.targetZone}`);
-    
-    // ИСПРАВЛЕНИЕ: Безопасное получение типа зоны и обработка клика
-    let zoneType = null;
-    let clickResult = null;
-    
-    try {
-      zoneType = this.zoneManager.getZoneType(clickedZone.index);
-      clickResult = this.zoneManager.handleZoneClick(clickedZone, normalizedAngle);
-    } catch (error) {
-      console.error('❌ Error processing zone click:', error);
-      return;
-    }
-    
-    // ИСПРАВЛЕНИЕ: Проверяем результат обработки клика
-    if (!clickResult) {
-      console.warn('⚠️ Zone click processing returned null result');
-      return;
-    }
-    
-    // Обрабатываем клик в зависимости от типа зоны
-    this.processZoneClick(clickResult, now);
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная обработка кликов по зонам
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка кликов по зонам
+   */
   processZoneClick(clickResult, now) {
-    // ИСПРАВЛЕНИЕ: Валидируем входные параметры
+    // Валидируем входные параметры
     if (!clickResult || typeof clickResult !== 'object') {
       console.warn('⚠️ Invalid click result provided to processZoneClick');
       return;
     }
     
-    const { zoneIndex, zoneType, isTarget, effects } = clickResult;
+    const { zoneIndex, zoneType, isTarget, effects, accuracy } = clickResult;
     
-    // ИСПРАВЛЕНИЕ: Проверяем обязательные поля
+    // Валидируем обязательные поля
     if (typeof zoneIndex !== 'number' || !zoneType) {
       console.warn('⚠️ Invalid click result structure:', clickResult);
       return;
     }
     
+    // Добавляем точность в статистику
+    if (typeof accuracy === 'number') {
+      this.clickStats.accuracyHistory.push(accuracy);
+      this.clickStats.averageAccuracy = this.clickStats.accuracyHistory.reduce((a, b) => a + b, 0) / this.clickStats.accuracyHistory.length;
+    }
+    
     if (isTarget) {
       // Клик по целевой зоне
       this.handleTargetZoneHit(clickResult, now);
+      this.clickStats.hitClicks++;
     } else {
       // Клик по специальной зоне
       this.handleSpecialZoneHit(clickResult, now);
+      this.clickStats.missClicks++;
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка попадания в целевую зону
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка попадания в целевую зону
+   */
   handleTargetZoneHit(clickResult, now) {
-    // ИСПРАВЛЕНИЕ: Валидируем clickResult
     if (!clickResult || !clickResult.effects) {
       console.warn('⚠️ Invalid click result for target zone hit');
       return;
     }
     
-    const { zoneIndex, effects } = clickResult;
+    const { zoneIndex, effects, accuracy = 0.5 } = clickResult;
     
-    console.log(`🎯 HIT TARGET ZONE ${zoneIndex}!`);
+    console.log(`🎯 HIT TARGET ZONE ${zoneIndex}! Accuracy: ${accuracy.toFixed(3)}`);
     
     // Проверяем энергию
     if (!this.checkEnergyForClick(effects.energyCost || 1)) {
@@ -210,11 +76,11 @@ export class FeatureManager extends CleanupMixin {
       }
     }
 
-    // Обрабатываем комбо
-    const effectiveCombo = this.handleCombo(clickResult, now);
+    // Обрабатываем комбо с учетом точности
+    const effectiveCombo = this.handleCombo(clickResult, now, accuracy);
     
-    // Обрабатываем получение золота
-    this.handleGoldGain(clickResult, effectiveCombo);
+    // Обрабатываем получение золота с бонусом за точность
+    this.handleGoldGain(clickResult, effectiveCombo, accuracy);
     
     // Тратим энергию
     this.handleEnergyConsumption(effects.energyCost || 1);
@@ -230,45 +96,52 @@ export class FeatureManager extends CleanupMixin {
       zone: zoneIndex,
       combo: effectiveCombo,
       angle: clickResult.angle,
-      isTarget: true
+      accuracy: accuracy,
+      isTarget: true,
+      timestamp: now
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка попадания в специальные зоны
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка попадания в специальные зоны
+   */
   handleSpecialZoneHit(clickResult, now) {
-    // ИСПРАВЛЕНИЕ: Валидируем clickResult
     if (!clickResult || !clickResult.zoneType || !clickResult.effects) {
       console.warn('⚠️ Invalid click result for special zone hit');
       return;
     }
     
-    const { zoneIndex, zoneType, effects } = clickResult;
+    const { zoneIndex, zoneType, effects, accuracy = 0.5 } = clickResult;
     
-    console.log(`⚡ HIT SPECIAL ZONE ${zoneIndex} (${zoneType.id})`);
+    console.log(`⚡ HIT SPECIAL ZONE ${zoneIndex} (${zoneType.id}) - Accuracy: ${accuracy.toFixed(3)}`);
     
-    // ИСПРАВЛЕНИЕ: Безопасная обработка различных типов зон
     try {
       switch (zoneType.id) {
         case 'energy':
-          this.handleEnergyRestore(effects.energyRestore || 3, 'energy_zone');
-          eventBus.emit(GameEvents.NOTIFICATION, `⚡ Energy zone: +${effects.energyRestore || 3} Energy`);
+          const energyRestore = Math.floor((effects.energyRestore || 3) * (1 + accuracy * 0.5));
+          this.handleEnergyRestore(energyRestore, 'energy_zone');
+          eventBus.emit(GameEvents.NOTIFICATION, `⚡ Energy zone: +${energyRestore} Energy (${(accuracy * 100).toFixed(1)}% accuracy)`);
           
           eventBus.emit(GameEvents.ENERGY_ZONE_HIT, {
-            amount: effects.energyRestore || 3,
+            amount: energyRestore,
+            accuracy: accuracy,
             zoneType: 'energy'
           });
           break;
           
         case 'bonus':
-          this.handleEnergyRestore(effects.energyRestore || 2, 'bonus_zone');
-          this.handleBonusResources(effects.resourceAmount || 2);
-          eventBus.emit(GameEvents.NOTIFICATION, `💰 Bonus zone: resources + energy!`);
+          const energyBonus = Math.floor((effects.energyRestore || 2) * (1 + accuracy * 0.3));
+          const resourceBonus = Math.floor((effects.resourceAmount || 2) * (1 + accuracy * 0.5));
+          
+          this.handleEnergyRestore(energyBonus, 'bonus_zone');
+          this.handleBonusResources(resourceBonus);
+          eventBus.emit(GameEvents.NOTIFICATION, `💰 Bonus zone: +${resourceBonus} resources + ${energyBonus} energy!`);
           break;
           
         case 'inactive':
         default:
           eventBus.emit(GameEvents.NOTIFICATION, '⚫ Inactive zone - no effect');
-          this.resetCombo('missed target');
+          this.resetCombo('hit inactive zone');
           break;
       }
     } catch (error) {
@@ -276,17 +149,21 @@ export class FeatureManager extends CleanupMixin {
       eventBus.emit(GameEvents.NOTIFICATION, '❌ Error processing zone effect');
     }
     
-    // Эмитируем событие промаха
+    // Эмитируем событие промаха (попадание в не-целевую зону)
     eventBus.emit(GameEvents.ZONE_MISS, {
       zone: zoneIndex,
       target: this.gameState.targetZone,
-      angle: clickResult.angle || 0
+      angle: clickResult.angle || 0,
+      accuracy: accuracy,
+      zoneType: zoneType.id,
+      timestamp: now
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное перемещение целевой зоны
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасное перемещение целевой зоны с использованием событий
+   */
   handleZoneShuffle(clickResult) {
-    // ИСПРАВЛЕНИЕ: Валидируем входные данные
     if (!clickResult || typeof clickResult.zoneIndex !== 'number') {
       console.warn('⚠️ Invalid click result for zone shuffle');
       return;
@@ -299,27 +176,22 @@ export class FeatureManager extends CleanupMixin {
       
       // Reverse Controls debuff
       if (this.gameState.debuffs && this.gameState.debuffs.includes('reverseControls')) {
-        // ИСПРАВЛЕНИЕ: Безопасное вычисление нового таргета для обратного направления
         const newTarget = (this.gameState.targetZone - 1 + 8) % 8; // 8 = ZONE_COUNT
         
-        // ИСПРАВЛЕНИЕ: Проверяем наличие ZoneManager перед вызовом
         if (this.zoneManager && typeof this.zoneManager.setTargetZone === 'function') {
-          this.zoneManager.setTargetZone(newTarget);
-        } else {
-          console.warn('⚠️ ZoneManager not available for reverse controls');
+          const success = this.zoneManager.setTargetZone(newTarget);
+          if (success) {
+            eventBus.emit(GameEvents.TEMP_MESSAGE, '🙃 Reverse Controls: Zone moves backward');
+          }
         }
-        
-        eventBus.emit(GameEvents.TEMP_MESSAGE, '🙃 Reverse Controls: Zone moves backward');
       } else {
-        // ИСПРАВЛЕНИЕ: Безопасное использование ZoneManager для перемешивания
+        // Обычное перемешивание
         if (this.zoneManager && typeof this.zoneManager.shuffleZones === 'function') {
           try {
             this.zoneManager.shuffleZones();
           } catch (error) {
             console.error('❌ Error shuffling zones:', error);
           }
-        } else {
-          console.warn('⚠️ ZoneManager not available for zone shuffling');
         }
       }
     }
@@ -348,12 +220,12 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная проверка энергии для клика
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная проверка энергии для клика
+   */
   checkEnergyForClick(energyCost) {
-    // ИСПРАВЛЕНИЕ: Валидируем energyCost
     const cost = (typeof energyCost === 'number' && !isNaN(energyCost)) ? energyCost : 1;
     
-    // ИСПРАВЛЕНИЕ: Безопасная проверка наличия energyManager
     if (!this.gameState.energyManager) {
       console.warn('⚠️ Energy manager not available, allowing click');
       return true;
@@ -378,22 +250,6 @@ export class FeatureManager extends CleanupMixin {
     return true;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная нормализация угла
-  normalizeAngle(angle) {
-    // ИСПРАВЛЕНИЕ: Валидируем входной параметр
-    if (typeof angle !== 'number' || isNaN(angle)) {
-      console.warn('⚠️ Invalid angle provided:', angle);
-      return null;
-    }
-    
-    try {
-      return ((angle % (2 * Math.PI)) + (2 * Math.PI)) % (2 * Math.PI);
-    } catch (error) {
-      console.error('❌ Error normalizing angle:', error);
-      return null;
-    }
-  }
-
   // Проверка активности Ghost Click
   isGhostClickActive() {
     return this.gameState.debuffs && 
@@ -406,9 +262,10 @@ export class FeatureManager extends CleanupMixin {
            this.gameState.debuffs.includes('heavyClick');
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка Heavy Click debuff
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка Heavy Click debuff
+   */
   handleHeavyClick(clickResult) {
-    // ИСПРАВЛЕНИЕ: Валидируем clickResult
     if (!clickResult || typeof clickResult.zoneIndex !== 'number') {
       console.warn('⚠️ Invalid click result for heavy click handling');
       return false;
@@ -418,7 +275,6 @@ export class FeatureManager extends CleanupMixin {
     const required = GAME_CONSTANTS.HEAVY_CLICK_REQUIRED;
     const zoneKey = `zone_${zoneIndex}`;
     
-    // ИСПРАВЛЕНИЕ: Безопасная инициализация состояний эффектов
     if (!this.gameState.effectStates) {
       this.gameState.effectStates = {};
     }
@@ -451,9 +307,10 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка комбо
-  handleCombo(clickResult, now) {
-    // ИСПРАВЛЕНИЕ: Валидируем входные параметры
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка комбо с бонусом за точность
+   */
+  handleCombo(clickResult, now, accuracy = 0.5) {
     if (!clickResult || typeof now !== 'number') {
       console.warn('⚠️ Invalid parameters for combo handling');
       return 0;
@@ -488,7 +345,13 @@ export class FeatureManager extends CleanupMixin {
         this.gameState.combo.count++;
       }
       
-      console.log(`✅ TARGET HIT! Combo: ${this.gameState.combo.count}`);
+      // Бонус к комбо за высокую точность
+      if (accuracy > 0.9) {
+        this.gameState.combo.count += 1; // Дополнительный бонус за идеальное попадание
+        console.log(`🎯 Perfect accuracy bonus! Combo: ${this.gameState.combo.count}`);
+      }
+      
+      console.log(`✅ TARGET HIT! Combo: ${this.gameState.combo.count} (accuracy: ${(accuracy * 100).toFixed(1)}%)`);
       
       // Обновляем deadline
       this.gameState.combo.deadline = safeNow + comboTimeout;
@@ -518,6 +381,7 @@ export class FeatureManager extends CleanupMixin {
       target: this.gameState.targetZone,
       deadline: this.gameState.combo.deadline,
       timeLeft: Math.max(0, this.gameState.combo.deadline - safeNow),
+      accuracy: accuracy,
       reason: 'target_hit'
     });
     
@@ -526,9 +390,10 @@ export class FeatureManager extends CleanupMixin {
     return effectiveCombo;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка получения золота
-  handleGoldGain(clickResult, effectiveCombo) {
-    // ИСПРАВЛЕНИЕ: Валидируем входные параметры
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка получения золота с бонусом за точность
+   */
+  handleGoldGain(clickResult, effectiveCombo, accuracy = 0.5) {
     if (typeof effectiveCombo !== 'number' || isNaN(effectiveCombo)) {
       console.warn('⚠️ Invalid effective combo for gold gain');
       effectiveCombo = 1;
@@ -542,6 +407,10 @@ export class FeatureManager extends CleanupMixin {
     }
     
     let goldGain = Math.max(1, effectiveCombo * clickMultiplier);
+    
+    // Бонус за точность (до 50% дополнительного золота за идеальное попадание)
+    const accuracyBonus = 1 + (accuracy * 0.5);
+    goldGain = Math.floor(goldGain * accuracyBonus);
     
     // Golden Touch skill
     const goldMultiplier = 1 + this.getSkillBonus('multiplier', 'gold');
@@ -570,7 +439,7 @@ export class FeatureManager extends CleanupMixin {
     // Обрабатываем специальные эффекты
     this.handleStarPower();
     this.handleSlotMachine();
-    this.handleResourceFinder(effectiveCombo);
+    this.handleResourceFinder(effectiveCombo, accuracy);
     
     eventBus.emit(GameEvents.RESOURCE_CHANGED, { 
       resource: 'gold', 
@@ -580,24 +449,22 @@ export class FeatureManager extends CleanupMixin {
     // Эмитируем событие получения ресурса для достижений
     eventBus.emit(GameEvents.RESOURCE_GAINED, {
       resource: 'gold',
-      amount: goldGain
+      amount: goldGain,
+      accuracy: accuracy
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка восстановления энергии
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка восстановления энергии
+   */
   handleEnergyRestore(amount, zoneType) {
-    // ИСПРАВЛЕНИЕ: Валидируем параметры
     const restoreAmount = (typeof amount === 'number' && !isNaN(amount)) ? Math.max(0, amount) : 0;
     const sourceType = (typeof zoneType === 'string') ? zoneType : 'unknown';
     
     if (this.gameState.energyManager && typeof this.gameState.energyManager.restoreEnergy === 'function') {
       try {
-        const now = Date.now();
-        
-        // Используем правильные методы восстановления энергии
         this.gameState.energyManager.restoreEnergy(restoreAmount, sourceType);
         
-        // Эмитируем событие без дополнительных уведомлений
         eventBus.emit(GameEvents.ENERGY_ZONE_HIT, {
           amount: restoreAmount,
           zoneType: sourceType
@@ -610,9 +477,10 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка бонусных ресурсов
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка бонусных ресурсов
+   */
   handleBonusResources(amount) {
-    // ИСПРАВЛЕНИЕ: Валидируем количество
     const bonusAmount = (typeof amount === 'number' && !isNaN(amount)) ? Math.max(1, amount) : 2;
     
     try {
@@ -634,9 +502,10 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная обработка потребления энергии
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная обработка потребления энергии
+   */
   handleEnergyConsumption(cost) {
-    // ИСПРАВЛЕНИЕ: Валидируем стоимость
     const energyCost = (typeof cost === 'number' && !isNaN(cost)) ? Math.max(0, cost) : 1;
     
     if (this.gameState.energyManager && typeof this.gameState.energyManager.consumeEnergy === 'function') {
@@ -710,14 +579,18 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная Resource Finder skill
-  handleResourceFinder(effectiveCombo) {
-    // ИСПРАВЛЕНИЕ: Валидируем effectiveCombo
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная Resource Finder skill с бонусом за точность
+   */
+  handleResourceFinder(effectiveCombo, accuracy = 0.5) {
     const safeCombo = (typeof effectiveCombo === 'number' && !isNaN(effectiveCombo)) ? 
                      Math.max(1, effectiveCombo) : 1;
     
     try {
-      const bonusChance = this.getSkillBonus('chance', 'bonus_resource');
+      let bonusChance = this.getSkillBonus('chance', 'bonus_resource');
+      
+      // Бонус к шансу за высокую точность
+      bonusChance += accuracy * 0.1; // До 10% дополнительного шанса
       
       if (Math.random() < bonusChance) {
         const resourcePool = getResourcesInGroup('TRADEABLE');
@@ -727,13 +600,14 @@ export class FeatureManager extends CleanupMixin {
         }
         
         const randomResource = resourcePool[Math.floor(Math.random() * resourcePool.length)];
-        const bonusAmount = Math.max(1, Math.floor(safeCombo * 0.5));
+        const bonusAmount = Math.max(1, Math.floor(safeCombo * 0.5 * (1 + accuracy * 0.5)));
         
         this.addResource(randomResource, bonusAmount);
         
         eventBus.emit(GameEvents.BONUS_RESOURCE_FOUND, {
           resource: randomResource,
-          amount: bonusAmount
+          amount: bonusAmount,
+          accuracy: accuracy
         });
       }
     } catch (error) {
@@ -778,7 +652,9 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасный вызов случайного баффа
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасный вызов случайного баффа
+   */
   triggerRandomBuff() {
     if (this.buffManager && typeof this.buffManager.applyRandomBuff === 'function') {
       try {
@@ -791,7 +667,9 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасный вызов случайного дебаффа
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасный вызов случайного дебаффа
+   */
   triggerRandomDebuff() {
     if (this.buffManager && typeof this.buffManager.applyRandomDebuff === 'function') {
       try {
@@ -806,7 +684,9 @@ export class FeatureManager extends CleanupMixin {
 
   // ===== УТИЛИТЫ =====
 
-  // ИСПРАВЛЕНИЕ: Безопасное получение бонуса от навыков
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасное получение бонуса от навыков
+   */
   getSkillBonus(type, target = null) {
     try {
       if (this.gameState.skillManager && 
@@ -819,9 +699,10 @@ export class FeatureManager extends CleanupMixin {
     return 0;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное добавление ресурса
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасное добавление ресурса
+   */
   addResource(resourceName, amount) {
-    // ИСПРАВЛЕНИЕ: Валидируем параметры
     if (typeof resourceName !== 'string' || !resourceName.trim()) {
       console.warn('⚠️ Invalid resource name for addResource:', resourceName);
       return false;
@@ -852,78 +733,95 @@ export class FeatureManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное удаление баффа
-  removeBuff(buffId) {
+  /**
+   * ИСПРАВ// managers/FeatureManager.js - ИСПРАВЛЕННАЯ версия с точным определением попадания
+import { CleanupMixin } from '../core/CleanupManager.js';
+import { eventBus, GameEvents } from '../core/GameEvents.js';
+import { ZoneManager } from './ZoneManager.js';
+import { AngleManager } from '../utils/AngleManager.js';
+import { ZoneEventQueue } from '../core/ZoneEventQueue.js';
+import { GAME_CONSTANTS } from '../config/GameConstants.js';
+import { RESOURCE_GROUPS, getResourcesInGroup } from '../config/ResourceConfig.js';
+
+export class FeatureManager extends CleanupMixin {
+  constructor(gameState, buffManager = null) {
+    super();
+    
+    this.gameState = gameState;
+    this.buffManager = buffManager;
+    
+    // Инициализация ZoneManager с проверками
+    this.zoneManager = null;
+    this.initializeZoneManager();
+    
+    this.comboCheckInterval = null;
+    
+    // Ограничение на частоту уведомлений об энергии
+    this.lastEnergyNotification = 0;
+    this.energyNotificationCooldown = 2000;
+    
+    // Статистика кликов для отладки
+    this.clickStats = {
+      totalClicks: 0,
+      hitClicks: 0,
+      missClicks: 0,
+      lastClickTime: 0,
+      averageAccuracy: 0,
+      accuracyHistory: []
+    };
+    
+    this.bindEvents();
+    this.startComboTimer();
+    
+    console.log('🎯 FeatureManager initialized with enhanced hit detection');
+  }
+
+  /**
+   * ИСПРАВЛЕНИЕ: Безопасная инициализация ZoneManager
+   */
+  initializeZoneManager() {
     try {
-      if (this.gameState.buffs && Array.isArray(this.gameState.buffs)) {
-        this.gameState.buffs = this.gameState.buffs.filter(id => id !== buffId);
-      }
+      console.log('🎯 Initializing ZoneManager...');
+      
+      this.zoneManager = new ZoneManager(this.gameState);
+      this.cleanupManager.registerComponent(this.zoneManager, 'ZoneManager');
+      
+      console.log('✅ ZoneManager initialized successfully');
+      return true;
+      
     } catch (error) {
-      console.error('❌ Error removing buff:', error);
+      console.error('❌ Failed to initialize ZoneManager:', error);
+      this.zoneManager = null;
+      return false;
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Методы для совместимости с ZoneManager с проверками
-  
-  // Получить зоны для рендеринга (для GameLoop)
-  getZonesForRendering() {
-    if (this.zoneManager && typeof this.zoneManager.getZonesForRendering === 'function') {
-      try {
-        return this.zoneManager.getZonesForRendering();
-      } catch (error) {
-        console.error('❌ Error getting zones for rendering:', error);
-        return [];
-      }
-    } else {
-      console.warn('⚠️ ZoneManager not available for getZonesForRendering');
-      return [];
+  // Запуск таймера проверки комбо
+  startComboTimer() {
+    if (this.comboCheckInterval) {
+      this.cleanupManager.clearInterval(this.comboCheckInterval);
     }
-  }
-
-  // Получить информацию о зонах
-  getZoneInfo() {
-    if (this.zoneManager && typeof this.zoneManager.getDebugInfo === 'function') {
-      try {
-        return this.zoneManager.getDebugInfo();
-      } catch (error) {
-        console.error('❌ Error getting zone info:', error);
-        return { error: error.message };
-      }
-    } else {
-      console.warn('⚠️ ZoneManager not available for getZoneInfo');
-      return { error: 'ZoneManager not available' };
-    }
-  }
-
-  // Получить отладочную информацию о зонах
-  getZonesDebugInfo() {
-    return this.getZoneInfo();
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасный принудительный сброс зон
-  forceZoneReset() {
-    console.log('🔄 Force resetting zones...');
     
-    if (this.zoneManager && typeof this.zoneManager.reset === 'function') {
-      try {
-        this.zoneManager.reset();
-        console.log('✅ Zones reset successfully');
-      } catch (error) {
-        console.error('❌ Error resetting zones:', error);
-      }
-    } else {
-      console.warn('⚠️ ZoneManager not available for force reset');
-    }
+    this.comboCheckInterval = this.createInterval(() => {
+      this.checkComboTimeout();
+    }, 1000, 'combo-timeout-check');
+    
+    console.log('⏰ Combo timeout checker started');
   }
 
-  // Принудительный сброс комбо (для отладки)
-  forceResetCombo() {
-    console.log('🔄 Force resetting combo...');
+  // Проверка таймаута комбо
+  checkComboTimeout() {
+    if (!this.gameState.combo || this.gameState.combo.count === 0) {
+      return;
+    }
     
-    try {
-      if (!this.gameState.combo) {
-        this.gameState.combo = {};
-      }
+    const now = Date.now();
+    const deadline = this.gameState.combo.deadline || 0;
+    
+    if (now > deadline && this.gameState.combo.count > 0) {
+      console.log(`⏰ Combo timeout detected! Count was ${this.gameState.combo.count}, resetting to 0`);
+      
+      const oldCombo = this.gameState.combo.count;
       
       this.gameState.combo.count = 0;
       this.gameState.combo.deadline = 0;
@@ -936,337 +834,183 @@ export class FeatureManager extends CleanupMixin {
         zone: null,
         target: this.gameState.targetZone,
         deadline: 0,
-        reason: 'force_reset'
+        reason: 'timeout',
+        previousCount: oldCombo
       });
       
-      console.log('✅ Combo reset successfully');
-    } catch (error) {
-      console.error('❌ Error resetting combo:', error);
+      eventBus.emit(GameEvents.NOTIFICATION, `⏰ Combo expired! (was ${oldCombo})`);
     }
   }
 
-  // Получить время до истечения комбо
-  getComboTimeLeft() {
-    try {
-      if (!this.gameState.combo || this.gameState.combo.count === 0) {
-        return 0;
-      }
-      
-      const now = Date.now();
-      const deadline = this.gameState.combo.deadline || 0;
-      return Math.max(0, deadline - now);
-    } catch (error) {
-      console.error('❌ Error getting combo time left:', error);
-      return 0;
-    }
+  // Привязка событий
+  bindEvents() {
+    eventBus.subscribe(GameEvents.CLICK, (data) => {
+      this.handleClick(data.data || data);
+    });
+    
+    console.log('🎯 Event handlers bound');
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная статистика кликов
-  getClickStats() {
-    try {
-      return {
-        currentCombo: this.gameState.combo?.count || 0,
-        comboDeadline: this.gameState.combo?.deadline || 0,
-        comboTimeLeft: this.getComboTimeLeft(),
-        lastClickedZone: this.gameState.combo?.lastZone,
-        blockedUntil: this.gameState.blockedUntil || 0,
-        activeEffects: {
-          buffs: this.gameState.buffs?.length || 0,
-          debuffs: this.gameState.debuffs?.length || 0
-        },
-        zoneStatistics: this.getZoneStatistics(),
-        zoneManagerAvailable: !!this.zoneManager
-      };
-    } catch (error) {
-      console.error('❌ Error getting click stats:', error);
-      return {
-        currentCombo: 0,
-        error: error.message
-      };
+  /**
+   * ИСПРАВЛЕНИЕ: Точная обработка кликов с улучшенным определением попадания
+   */
+  handleClick(angle) {
+    if (!this.isActive()) {
+      console.warn('⚠️ FeatureManager not active, ignoring click');
+      return;
     }
+    
+    // Валидация угла
+    const normalizedAngle = AngleManager.normalize(angle);
+    if (!AngleManager.isValidAngle(normalizedAngle)) {
+      console.warn('⚠️ Invalid angle provided to handleClick:', angle);
+      return;
+    }
+    
+    const now = Date.now();
+    
+    // Проверяем блокировку (Zone Lock debuff)
+    if (now < (this.gameState.blockedUntil || 0)) {
+      eventBus.emit(GameEvents.NOTIFICATION, '🔒 Zone is locked!');
+      return;
+    }
+
+    // Обновляем статистику кликов
+    this.updateClickStats(normalizedAngle);
+    
+    // ИСПРАВЛЕНИЕ: Точное определение зоны с fallback
+    const clickResult = this.determineClickZone(normalizedAngle);
+    
+    if (!clickResult) {
+      console.warn('⚠️ Could not determine click zone for angle:', normalizedAngle);
+      this.handleClickMiss(normalizedAngle, now);
+      return;
+    }
+
+    console.log(`🖱️ Click processed: zone ${clickResult.zoneIndex}, target: ${this.gameState.targetZone}, accuracy: ${clickResult.accuracy?.toFixed(3) || 'N/A'}`);
+    
+    // Обрабатываем клик в зависимости от типа зоны
+    this.processZoneClick(clickResult, now);
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная установка целевой зоны
-  setTargetZone(zoneIndex) {
-    if (this.zoneManager && typeof this.zoneManager.setTargetZone === 'function') {
+  /**
+   * ИСПРАВЛЕНИЕ: Точное определение зоны клика с множественными методами
+   */
+  determineClickZone(angle) {
+    let clickResult = null;
+    
+    // Метод 1: Используем ZoneManager если доступен
+    if (this.zoneManager && typeof this.zoneManager.findZoneByAngle === 'function') {
       try {
-        return this.zoneManager.setTargetZone(zoneIndex);
-      } catch (error) {
-        console.error('❌ Error setting target zone:', error);
-        return false;
-      }
-    } else {
-      console.warn('⚠️ ZoneManager not available for setTargetZone');
-      return false;
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная статистика зон
-  getZoneStatistics() {
-    if (this.zoneManager && typeof this.zoneManager.getZoneStatistics === 'function') {
-      try {
-        return this.zoneManager.getZoneStatistics();
-      } catch (error) {
-        console.error('❌ Error getting zone statistics:', error);
-        return { error: error.message };
-      }
-    } else {
-      console.warn('⚠️ ZoneManager not available for getZoneStatistics');
-      return { error: 'ZoneManager not available' };
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная проверка состояния ZoneManager
-  isZoneManagerReady() {
-    return !!(this.zoneManager && 
-             typeof this.zoneManager.getZonesForRendering === 'function' &&
-             typeof this.zoneManager.findZoneByAngle === 'function');
-  }
-
-  // ИСПРАВЛЕНИЕ: Получить отладочную информацию о FeatureManager
-  getFeatureManagerDebugInfo() {
-    return {
-      zoneManagerAvailable: !!this.zoneManager,
-      zoneManagerReady: this.isZoneManagerReady(),
-      buffManagerAvailable: !!this.buffManager,
-      gameStateReady: !!(this.gameState && this.gameState.combo),
-      comboCheckInterval: !!this.comboCheckInterval,
-      lastEnergyNotification: this.lastEnergyNotification,
-      currentCombo: this.gameState.combo?.count || 0,
-      targetZone: this.gameState.targetZone || 0,
-      activeBuffs: this.gameState.buffs?.length || 0,
-      activeDebuffs: this.gameState.debuffs?.length || 0,
-      isActive: this.isActive()
-    };
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная валидация состояния
-  validateState() {
-    const validation = {
-      isValid: true,
-      errors: [],
-      warnings: []
-    };
-
-    // Проверяем основные компоненты
-    if (!this.gameState) {
-      validation.errors.push('GameState is null');
-      validation.isValid = false;
-    }
-
-    if (!this.zoneManager) {
-      validation.errors.push('ZoneManager is null');
-      validation.isValid = false;
-    }
-
-    if (!this.buffManager) {
-      validation.warnings.push('BuffManager is null');
-    }
-
-    // Проверяем состояние комбо
-    if (this.gameState && !this.gameState.combo) {
-      validation.warnings.push('Combo state not initialized');
-    }
-
-    // Проверяем состояние эффектов
-    if (this.gameState && !this.gameState.effectStates) {
-      validation.warnings.push('Effect states not initialized');
-    }
-
-    // Проверяем ZoneManager готовность
-    if (this.zoneManager && !this.isZoneManagerReady()) {
-      validation.errors.push('ZoneManager not ready');
-      validation.isValid = false;
-    }
-
-    return validation;
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная инициализация состояний
-  initializeStates() {
-    console.log('🔧 Initializing FeatureManager states...');
-
-    try {
-      // Инициализируем состояние комбо
-      if (!this.gameState.combo) {
-        this.gameState.combo = {
-          count: 0,
-          deadline: 0,
-          lastZone: null,
-          lastAngle: null
-        };
-      }
-
-      // Инициализируем состояния эффектов
-      if (!this.gameState.effectStates) {
-        this.gameState.effectStates = {
-          starPowerClicks: 0,
-          shieldBlocks: 0,
-          heavyClickRequired: {},
-          reverseDirection: 1,
-          frozenCombo: false
-        };
-      }
-
-      // Инициализируем массивы эффектов
-      if (!this.gameState.buffs) {
-        this.gameState.buffs = [];
-      }
-
-      if (!this.gameState.debuffs) {
-        this.gameState.debuffs = [];
-      }
-
-      // Проверяем ZoneManager
-      if (!this.zoneManager) {
-        console.warn('⚠️ ZoneManager not available, attempting to recreate...');
-        try {
-          this.zoneManager = new ZoneManager(this.gameState);
-          this.cleanupManager.registerComponent(this.zoneManager, 'ZoneManager');
-          console.log('✅ ZoneManager recreated successfully');
-        } catch (error) {
-          console.error('❌ Failed to recreate ZoneManager:', error);
+        const foundZone = this.zoneManager.findZoneByAngle(angle);
+        if (foundZone) {
+          clickResult = this.zoneManager.handleZoneClick(foundZone, angle);
         }
+      } catch (error) {
+        console.warn('⚠️ Error using ZoneManager for zone detection:', error);
       }
-
-      console.log('✅ FeatureManager states initialized');
-      return true;
-
-    } catch (error) {
-      console.error('❌ Error initializing FeatureManager states:', error);
-      return false;
     }
+    
+    // Метод 2: Fallback с математическим вычислением
+    if (!clickResult) {
+      console.log('🔄 Using fallback zone detection');
+      clickResult = this.calculateZoneFromAngle(angle);
+    }
+    
+    // Метод 3: Аварийный fallback
+    if (!clickResult) {
+      console.warn('⚠️ All zone detection methods failed, using emergency fallback');
+      clickResult = this.createEmergencyClickResult(angle);
+    }
+    
+    return clickResult;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное принудительное обновление
-  forceUpdate() {
-    console.log('🔄 Force updating FeatureManager...');
-
+  /**
+   * Математическое вычисление зоны по углу
+   */
+  calculateZoneFromAngle(angle) {
     try {
-      // Валидируем состояние
-      const validation = this.validateState();
-      if (!validation.isValid) {
-        console.log('🔧 State validation failed, reinitializing...');
-        this.initializeStates();
+      const zoneCount = 8; // ZONE_COUNT
+      const stepAngle = (2 * Math.PI) / zoneCount;
+      
+      // Вычисляем индекс зоны
+      const zoneIndex = Math.floor(angle / stepAngle) % zoneCount;
+      
+      // Получаем тип зоны
+      const isTarget = zoneIndex === (this.gameState.targetZone || 0);
+      let zoneType = { id: 'inactive', effects: { energyCost: 0 } };
+      
+      if (isTarget) {
+        zoneType = { 
+          id: 'target', 
+          effects: { 
+            givesGold: true, 
+            givesCombo: true, 
+            energyCost: 1 
+          } 
+        };
       }
-
-      // Обновляем ZoneManager если доступен
-      if (this.zoneManager && typeof this.zoneManager.forceUpdate === 'function') {
-        this.zoneManager.forceUpdate();
-      }
-
-      // Сбрасываем комбо до безопасного состояния
-      this.forceResetCombo();
-
-      console.log('✅ FeatureManager force update completed');
-      return true;
-
-    } catch (error) {
-      console.error('❌ Error during FeatureManager force update:', error);
-      return false;
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасное восстановление после ошибки
-  recoverFromError(error) {
-    console.log('🔧 Attempting to recover FeatureManager from error:', error.message);
-
-    try {
-      // Останавливаем все таймеры
-      if (this.comboCheckInterval) {
-        this.cleanupManager.clearInterval(this.comboCheckInterval);
-        this.comboCheckInterval = null;
-      }
-
-      // Переинициализируем состояния
-      this.initializeStates();
-
-      // Перезапускаем таймеры
-      this.startComboTimer();
-
-      // Принудительно обновляем все
-      this.forceUpdate();
-
-      console.log('✅ FeatureManager recovery completed');
-      return true;
-
-    } catch (recoveryError) {
-      console.error('❌ Failed to recover FeatureManager:', recoveryError);
-      return false;
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная очистка и сброс
-  resetToDefaults() {
-    console.log('🔄 Resetting FeatureManager to defaults...');
-
-    try {
-      // Сбрасываем состояние комбо
-      this.gameState.combo = {
-        count: 0,
-        deadline: 0,
-        lastZone: null,
-        lastAngle: null
+      
+      // Вычисляем точность
+      const zoneStartAngle = zoneIndex * stepAngle;
+      const zoneEndAngle = (zoneIndex + 1) * stepAngle;
+      const zoneCenterAngle = zoneStartAngle + (stepAngle / 2);
+      
+      const distanceToCenter = AngleManager.getAngleDistance(angle, zoneCenterAngle);
+      const maxDistance = stepAngle / 2;
+      const accuracy = Math.max(0, 1 - (distanceToCenter / maxDistance));
+      
+      return {
+        zoneIndex,
+        zoneType,
+        angle,
+        isTarget,
+        effects: { ...zoneType.effects },
+        accuracy,
+        method: 'mathematical'
       };
-
-      // Сбрасываем эффекты
-      this.gameState.buffs = [];
-      this.gameState.debuffs = [];
-      this.gameState.effectStates = {
-        starPowerClicks: 0,
-        shieldBlocks: 0,
-        heavyClickRequired: {},
-        reverseDirection: 1,
-        frozenCombo: false
-      };
-
-      // Сбрасываем блокировки
-      this.gameState.blockedUntil = 0;
-
-      // Сбрасываем целевую зону
-      this.gameState.targetZone = 0;
-      this.gameState.previousTargetZone = 0;
-
-      // Сбрасываем ZoneManager
-      if (this.zoneManager && typeof this.zoneManager.reset === 'function') {
-        this.zoneManager.reset();
-      }
-
-      // Эмитируем события обновления
-      eventBus.emit(GameEvents.COMBO_CHANGED, {
-        count: 0,
-        effective: 0,
-        zone: null,
-        target: 0,
-        deadline: 0,
-        reason: 'reset'
-      });
-
-      console.log('✅ FeatureManager reset to defaults completed');
-      return true;
-
+      
     } catch (error) {
-      console.error('❌ Error resetting FeatureManager:', error);
-      return false;
+      console.error('❌ Error in mathematical zone calculation:', error);
+      return null;
     }
   }
 
-  // Деструктор
-  destroy() {
-    console.log('🧹 FeatureManager cleanup started');
+  /**
+   * Создание аварийного результата клика
+   */
+  createEmergencyClickResult(angle) {
+    console.warn('🆘 Creating emergency click result');
     
-    // Останавливаем таймеры
-    if (this.comboCheckInterval) {
-      this.cleanupManager.clearInterval(this.comboCheckInterval);
-      this.comboCheckInterval = null;
-    }
-    
-    // Очищаем ссылки
-    this.zoneManager = null;
-    this.buffManager = null;
-    
-    super.destroy();
-    
-    console.log('✅ FeatureManager destroyed');
+    return {
+      zoneIndex: 0,
+      zoneType: { id: 'inactive', effects: { energyCost: 0 } },
+      angle,
+      isTarget: false,
+      effects: { energyCost: 0 },
+      accuracy: 0.5,
+      method: 'emergency'
+    };
   }
-}
+
+  /**
+   * Обработка промаха
+   */
+  handleClickMiss(angle, now) {
+    console.log(`❌ Click miss at angle ${angle.toFixed(3)}`);
+    
+    this.clickStats.missClicks++;
+    
+    // Сбрасываем комбо при промахе
+    this.resetCombo('click_miss');
+    
+    // Эмитируем событие промаха
+    eventBus.emit(GameEvents.ZONE_MISS, {
+      angle,
+      target: this.gameState.targetZone,
+      timestamp: now,
+      reason: 'no_zone_found'
+    });
+    
+    eventBus.emit(GameEvents.NOTIFICATION, '❌ Click missed!');

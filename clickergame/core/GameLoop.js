@@ -1,6 +1,7 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильными fallback зонами
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильной отрисовкой зон
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
+import { AngleManager } from '../utils/AngleManager.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
 import { ZONE_COUNT } from '../config/ResourceConfig.js';
 
@@ -32,6 +33,9 @@ export class GameLoop extends CleanupMixin {
     // Оптимизация рендеринга
     this.needsRedraw = true;
     this.lastAngle = 0;
+    this.lastTargetZone = -1;
+    this.zonesCache = null;
+    this.zonesCacheValid = false;
     
     // Принудительная перерисовка каждые несколько кадров
     this.forceRedrawCounter = 0;
@@ -68,23 +72,17 @@ export class GameLoop extends CleanupMixin {
       } else {
         this.targetFPS = 60;
         this.needsRedraw = true;
+        this.invalidateZonesCache();
       }
       this.frameTime = 1000 / this.targetFPS;
     });
   }
 
-  // Настройка событий canvas
+  // ИСПРАВЛЕНИЕ: Настройка событий canvas с использованием AngleManager
   setupCanvasEvents() {
-    const getClickAngle = (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left - this.canvas.width / 2;
-      const y = e.clientY - rect.top - this.canvas.height / 2;
-      return Math.atan2(y, x) - this.angle;
-    };
-
     const clickHandler = (e) => {
       e.preventDefault();
-      const clickAngle = getClickAngle(e);
+      const clickAngle = AngleManager.getClickAngle(e, this.canvas, this.angle);
       eventBus.emit(GameEvents.CLICK, clickAngle);
       this.needsRedraw = true;
     };
@@ -92,7 +90,7 @@ export class GameLoop extends CleanupMixin {
     const touchHandler = (e) => {
       e.preventDefault();
       if (e.touches && e.touches.length > 0) {
-        const clickAngle = getClickAngle(e.touches[0]);
+        const clickAngle = AngleManager.getClickAngle(e, this.canvas, this.angle);
         eventBus.emit(GameEvents.CLICK, clickAngle);
         this.needsRedraw = true;
       }
@@ -131,18 +129,22 @@ export class GameLoop extends CleanupMixin {
       this.needsRedraw = true;
     });
     
-    // Принудительная перерисовка при изменении зон
-    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, (newTargetZone) => {
+    // ИСПРАВЛЕНИЕ: Принудительная перерисовка при изменении зон
+    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, (data) => {
+      const newTargetZone = data.newTargetZone || data;
       console.log(`🎯 GameLoop: Zones shuffled, new target: ${newTargetZone}`);
+      
+      this.invalidateZonesCache();
       this.gameState.targetZone = newTargetZone;
+      this.lastTargetZone = newTargetZone;
       this.needsRedraw = true;
       
       // Принудительная перерисовка в следующих нескольких кадрах
-      this.forceRedrawCounter = 0; // Сбрасываем счетчик
+      this.forceRedrawCounter = 0;
       
-      // Дополнительные принудительные перерисовки
+      // Дополнительные принудительные перерисовки для синхронизации
       for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
+        this.createTimeout(() => {
           this.needsRedraw = true;
         }, i * 50);
       }
@@ -204,6 +206,7 @@ export class GameLoop extends CleanupMixin {
       this.updateRotationDirection();
       
       const angleChanged = this.updateRotation();
+      const targetChanged = this.checkTargetZoneChange();
       
       // Принудительная перерисовка для синхронизации зон
       this.forceRedrawCounter++;
@@ -212,9 +215,10 @@ export class GameLoop extends CleanupMixin {
       if (shouldForceRedraw) {
         this.forceRedrawCounter = 0;
         this.needsRedraw = true;
+        this.invalidateZonesCache();
       }
       
-      if (this.needsRedraw || angleChanged || shouldForceRedraw) {
+      if (this.needsRedraw || angleChanged || targetChanged || shouldForceRedraw) {
         this.render();
         this.needsRedraw = false;
       }
@@ -226,6 +230,23 @@ export class GameLoop extends CleanupMixin {
     }
     
     this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
+  }
+
+  // Проверка изменения целевой зоны
+  checkTargetZoneChange() {
+    const currentTarget = this.gameState.targetZone || 0;
+    if (this.lastTargetZone !== currentTarget) {
+      this.lastTargetZone = currentTarget;
+      this.invalidateZonesCache();
+      return true;
+    }
+    return false;
+  }
+
+  // Инвалидация кеша зон
+  invalidateZonesCache() {
+    this.zonesCacheValid = false;
+    this.zonesCache = null;
   }
 
   // Счетчик FPS
@@ -265,113 +286,126 @@ export class GameLoop extends CleanupMixin {
     
     const angleChanged = Math.abs(newAngle - this.lastAngle) > 0.001;
     
-    this.angle = newAngle;
+    this.angle = AngleManager.normalize(newAngle);
     this.lastAngle = this.angle;
-    
-    if (this.angle > 2 * Math.PI) {
-      this.angle -= 2 * Math.PI;
-    } else if (this.angle < 0) {
-      this.angle += 2 * Math.PI;
-    }
     
     return angleChanged;
   }
 
-  // ИСПРАВЛЕНИЕ: Рендеринг с безопасным получением зон
+  // ИСПРАВЛЕНИЕ: Рендеринг с надежным получением зон
   render() {
     this.clearCanvas();
     this.drawZones();
     this.drawReverseIndicator();
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное рисование зон с правильным fallback
+  // ИСПРАВЛЕНИЕ: Безопасное рисование зон с кешированием
   drawZones() {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     const radius = this.canvas.width / 2 - 10;
     
-    // ИСПРАВЛЕНИЕ: Безопасное получение зон с проверками
-    let zonesData = [];
+    // Получаем зоны с кешированием
+    let zonesData = this.getZonesData();
     
-    try {
-      // Пытаемся получить зоны из FeatureManager/ZoneManager
-      if (this.managers.feature && 
-          typeof this.managers.feature.getZonesForRendering === 'function') {
-        
-        zonesData = this.managers.feature.getZonesForRendering();
-        
-        // ИСПРАВЛЕНИЕ: Проверяем валидность полученных зон
-        if (!Array.isArray(zonesData) || zonesData.length === 0) {
-          console.warn('⚠️ Invalid zones data from FeatureManager, using fallback');
-          zonesData = this.createFallbackZones();
-        }
-      } else {
-        console.warn('⚠️ FeatureManager not available, using fallback rendering');
-        zonesData = this.createFallbackZones();
-      }
-    } catch (error) {
-      console.error('❌ Error getting zones for rendering:', error);
-      zonesData = this.createFallbackZones();
-    }
-    
-    // ИСПРАВЛЕНИЕ: Дополнительная валидация зон перед рендерингом
-    if (!Array.isArray(zonesData) || zonesData.length === 0) {
-      console.error('❌ No valid zones available for rendering');
-      return;
+    if (!zonesData || zonesData.length === 0) {
+      console.warn('⚠️ No zones data available, using emergency zones');
+      zonesData = this.createEmergencyZones();
     }
     
     // Рисуем каждую зону
     zonesData.forEach((zoneData, index) => {
-      try {
-        const { isTarget, color, startAngle, endAngle } = zoneData;
-        
-        // ИСПРАВЛЕНИЕ: Валидируем данные зоны
-        if (typeof startAngle !== 'number' || typeof endAngle !== 'number') {
-          console.warn(`⚠️ Invalid zone angles for zone ${index}:`, zoneData);
-          return;
-        }
-        
-        const adjustedStartAngle = startAngle + this.angle;
-        const adjustedEndAngle = endAngle + this.angle;
-        
-        // Основная заливка зоны
-        this.ctx.beginPath();
-        this.ctx.moveTo(centerX, centerY);
-        this.ctx.arc(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle);
-        this.ctx.closePath();
-        
-        // ИСПРАВЛЕНИЕ: Используем цвет из ZoneManager с fallback
-        this.ctx.fillStyle = color || '#E5E5E5';
-        this.ctx.fill();
-        
-        // Обводка зоны
-        this.ctx.strokeStyle = isTarget ? '#FF0000' : '#333333';
-        this.ctx.lineWidth = isTarget ? 4 : 1;
-        this.ctx.stroke();
-        
-        // Подпись зоны
-        this.drawZoneLabel(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle, 
-                          index, zoneData.type, isTarget);
-        
-      } catch (error) {
-        console.warn(`⚠️ Error rendering zone ${index}:`, error);
-      }
+      this.drawSingleZone(zoneData, centerX, centerY, radius);
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Правильное создание fallback зон с использованием ZONE_COUNT
-  createFallbackZones() {
-    console.log('🎯 Creating fallback zones...');
+  // Получение данных зон с кешированием
+  getZonesData() {
+    // Проверяем кеш
+    if (this.zonesCacheValid && this.zonesCache) {
+      return this.zonesCache;
+    }
     
-    // ИСПРАВЛЕНИЕ: Используем ZONE_COUNT вместо жестко заданного значения
+    try {
+      // Пытаемся получить зоны из ZoneManager
+      if (this.managers.feature && 
+          this.managers.feature.zoneManager &&
+          typeof this.managers.feature.zoneManager.getZonesForRendering === 'function') {
+        
+        const zones = this.managers.feature.zoneManager.getZonesForRendering();
+        
+        if (Array.isArray(zones) && zones.length > 0) {
+          // Валидируем полученные зоны
+          const validatedZones = this.validateZonesData(zones);
+          
+          // Кешируем результат
+          this.zonesCache = validatedZones;
+          this.zonesCacheValid = true;
+          
+          return validatedZones;
+        }
+      }
+      
+      // Пытаемся получить зоны из FeatureManager напрямую
+      if (this.managers.feature && 
+          typeof this.managers.feature.getZonesForRendering === 'function') {
+        
+        const zones = this.managers.feature.getZonesForRendering();
+        
+        if (Array.isArray(zones) && zones.length > 0) {
+          const validatedZones = this.validateZonesData(zones);
+          this.zonesCache = validatedZones;
+          this.zonesCacheValid = true;
+          return validatedZones;
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ Error getting zones data:', error);
+    }
+    
+    // Возвращаем null если ничего не получилось
+    return null;
+  }
+
+  // Валидация данных зон
+  validateZonesData(zones) {
+    if (!Array.isArray(zones)) {
+      console.warn('⚠️ Zones data is not an array');
+      return [];
+    }
+    
+    return zones.filter((zone, index) => {
+      if (!zone) {
+        console.warn(`⚠️ Zone ${index} is null/undefined`);
+        return false;
+      }
+      
+      if (typeof zone.startAngle !== 'number' || typeof zone.endAngle !== 'number') {
+        console.warn(`⚠️ Zone ${index} has invalid angles:`, zone);
+        return false;
+      }
+      
+      if (!AngleManager.isValidAngle(zone.startAngle) || !AngleManager.isValidAngle(zone.endAngle)) {
+        console.warn(`⚠️ Zone ${index} has invalid angle values:`, zone);
+        return false;
+      }
+      
+      return true;
+    });
+  }
+
+  // Создание аварийных зон
+  createEmergencyZones() {
+    console.log('🆘 Creating emergency zones for rendering');
+    
     const zoneCount = ZONE_COUNT;
     const stepAngle = (2 * Math.PI) / zoneCount;
     const targetZone = this.gameState.targetZone || 0;
     
-    // ИСПРАВЛЕНИЕ: Валидируем targetZone
     const validTargetZone = (targetZone >= 0 && targetZone < zoneCount) ? targetZone : 0;
     
-    const fallbackZones = Array.from({ length: zoneCount }, (_, i) => {
+    const emergencyZones = Array.from({ length: zoneCount }, (_, i) => {
       const isTarget = (i === validTargetZone);
       let color = '#E5E5E5'; // Серый по умолчанию
       let type = { id: 'inactive' };
@@ -387,12 +421,51 @@ export class GameLoop extends CleanupMixin {
         isTarget,
         color,
         startAngle: i * stepAngle,
-        endAngle: (i + 1) * stepAngle
+        endAngle: (i + 1) * stepAngle,
+        centerAngle: (i + 0.5) * stepAngle
       };
     });
     
-    console.log(`✅ Created ${zoneCount} fallback zones with target at ${validTargetZone}`);
-    return fallbackZones;
+    console.log(`🆘 Created ${zoneCount} emergency zones with target at ${validTargetZone}`);
+    return emergencyZones;
+  }
+
+  // Рисование одной зоны
+  drawSingleZone(zoneData, centerX, centerY, radius) {
+    try {
+      const { isTarget, color, startAngle, endAngle, index, type } = zoneData;
+      
+      // Валидируем данные зоны
+      if (typeof startAngle !== 'number' || typeof endAngle !== 'number') {
+        console.warn(`⚠️ Invalid zone angles for zone ${index}:`, zoneData);
+        return;
+      }
+      
+      const adjustedStartAngle = startAngle + this.angle;
+      const adjustedEndAngle = endAngle + this.angle;
+      
+      // Основная заливка зоны
+      this.ctx.beginPath();
+      this.ctx.moveTo(centerX, centerY);
+      this.ctx.arc(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle);
+      this.ctx.closePath();
+      
+      // Используем цвет из данных зоны с fallback
+      this.ctx.fillStyle = color || '#E5E5E5';
+      this.ctx.fill();
+      
+      // Обводка зоны
+      this.ctx.strokeStyle = isTarget ? '#FF0000' : '#333333';
+      this.ctx.lineWidth = isTarget ? 4 : 1;
+      this.ctx.stroke();
+      
+      // Подпись зоны
+      this.drawZoneLabel(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle, 
+                        index, type, isTarget);
+      
+    } catch (error) {
+      console.warn(`⚠️ Error rendering zone ${zoneData.index}:`, error);
+    }
   }
 
   // ИСПРАВЛЕНИЕ: Безопасное рисование подписей зон
@@ -411,7 +484,7 @@ export class GameLoop extends CleanupMixin {
       this.ctx.strokeStyle = '#000000';
       this.ctx.lineWidth = 3;
       
-      // ИСПРАВЛЕНИЕ: Безопасное получение иконки зоны
+      // Получаем иконку зоны
       let label = this.getZoneIcon(zoneType, isTarget);
       
       if (label) {
@@ -511,19 +584,20 @@ export class GameLoop extends CleanupMixin {
     console.log('🔄 GameLoop: Force redraw requested');
     
     this.needsRedraw = true;
+    this.invalidateZonesCache();
     
     // Принудительно рендерим несколько раз для гарантии
     if (this.running) {
       this.render();
       
-      setTimeout(() => {
+      this.createTimeout(() => {
         if (this.running) {
           this.needsRedraw = true;
           this.render();
         }
       }, 16); // Один кадр при 60 FPS
       
-      setTimeout(() => {
+      this.createTimeout(() => {
         if (this.running) {
           this.needsRedraw = true;
           this.render();
@@ -578,8 +652,11 @@ export class GameLoop extends CleanupMixin {
       },
       forceRedrawCounter: this.forceRedrawCounter,
       targetZone: this.gameState.targetZone,
-      zonesAvailable: !!(this.managers.feature && 
-                        typeof this.managers.feature.getZonesForRendering === 'function'),
+      lastTargetZone: this.lastTargetZone,
+      zonesCacheValid: this.zonesCacheValid,
+      zonesManagerAvailable: !!(this.managers.feature && 
+                              this.managers.feature.zoneManager &&
+                              typeof this.managers.feature.zoneManager.getZonesForRendering === 'function'),
       zoneCount: ZONE_COUNT
     };
   }
@@ -590,6 +667,7 @@ export class GameLoop extends CleanupMixin {
       this.canvas.width = width;
       this.canvas.height = height;
       this.needsRedraw = true;
+      this.invalidateZonesCache();
       console.log(`🖼️ Canvas resized to ${width}x${height}`);
     }
   }
@@ -604,27 +682,30 @@ export class GameLoop extends CleanupMixin {
   // Проверить наличие ZoneManager
   hasZoneManager() {
     return !!(this.managers.feature && 
-             typeof this.managers.feature.getZonesForRendering === 'function');
+             this.managers.feature.zoneManager &&
+             typeof this.managers.feature.zoneManager.getZonesForRendering === 'function');
   }
 
   // ИСПРАВЛЕНИЕ: Безопасная информация о зонах для отладки
   getZoneRenderInfo() {
     try {
       if (this.hasZoneManager()) {
-        const zones = this.managers.feature.getZonesForRendering();
+        const zones = this.managers.feature.zoneManager.getZonesForRendering();
         return {
           available: true,
           zones: zones,
-          debugInfo: this.managers.feature.getZonesDebugInfo ? 
-                    this.managers.feature.getZonesDebugInfo() : 'No debug info',
-          zoneCount: zones ? zones.length : 0
+          debugInfo: this.managers.feature.zoneManager.getDebugInfo ? 
+                    this.managers.feature.zoneManager.getDebugInfo() : 'No debug info',
+          zoneCount: zones ? zones.length : 0,
+          cacheValid: this.zonesCacheValid
         };
       } else {
         return {
           available: false,
           fallbackUsed: true,
           targetZone: this.gameState.targetZone,
-          zoneCount: ZONE_COUNT
+          zoneCount: ZONE_COUNT,
+          cacheValid: this.zonesCacheValid
         };
       }
     } catch (error) {
@@ -634,7 +715,8 @@ export class GameLoop extends CleanupMixin {
         error: error.message,
         fallbackUsed: true,
         targetZone: this.gameState.targetZone,
-        zoneCount: ZONE_COUNT
+        zoneCount: ZONE_COUNT,
+        cacheValid: false
       };
     }
   }
@@ -646,6 +728,7 @@ export class GameLoop extends CleanupMixin {
       zonesAvailable: this.hasZoneManager(),
       gameStateReady: !!(this.gameState && typeof this.gameState.targetZone === 'number'),
       managersReady: !!(this.managers && this.managers.feature),
+      cacheValid: this.zonesCacheValid,
       errors: []
     };
     
@@ -674,7 +757,9 @@ export class GameLoop extends CleanupMixin {
       running: this.running,
       redrawsPerformed: this.forceRedrawCounter,
       lastFrameTime: this.lastFrameTime,
-      animationId: this.animationId
+      animationId: this.animationId,
+      cacheHits: this.zonesCacheValid ? 1 : 0,
+      cacheMisses: this.zonesCacheValid ? 0 : 1
     };
   }
 
@@ -683,6 +768,7 @@ export class GameLoop extends CleanupMixin {
     console.log('🧹 Destroying GameLoop...');
     
     this.stop();
+    this.invalidateZonesCache();
     super.destroy();
     
     console.log('✅ GameLoop destroyed');
