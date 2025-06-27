@@ -202,3 +202,284 @@ export class EffectIndicators extends CleanupMixin {
           this.createTimeout(() => {
             indicator.style.boxShadow = '';
           }, 200);
+        }, 200);
+      }
+    }, 10);
+  }
+
+  // ИСПРАВЛЕНИЕ: Анимация удаления эффекта
+  animateEffectRemoved(effectId) {
+    const indicator = this.container.querySelector(`[data-effect-id="${effectId}"]`);
+    
+    if (indicator) {
+      // Анимация исчезновения
+      indicator.style.transition = 'all 0.3s ease-in';
+      indicator.style.opacity = '0';
+      indicator.style.transform = 'translateX(-100%) scale(0.5)';
+      
+      // Удаляем элемент после анимации
+      this.createTimeout(() => {
+        if (indicator && indicator.parentNode) {
+          indicator.parentNode.removeChild(indicator);
+        }
+      }, 300);
+    }
+  }
+
+  // Извлечь иконку из названия эффекта
+  extractIcon(name) {
+    if (!name || typeof name !== 'string') return '?';
+    
+    // Ищем эмодзи в начале строки
+    const emojiMatch = name.match(/^(\p{Emoji})/u);
+    if (emojiMatch) {
+      return emojiMatch[1];
+    }
+    
+    // Ищем эмодзи в любом месте строки
+    const anyEmojiMatch = name.match(/(\p{Emoji})/u);
+    if (anyEmojiMatch) {
+      return anyEmojiMatch[1];
+    }
+    
+    // Возвращаем первый символ или знак вопроса
+    return name.charAt(0) || '?';
+  }
+
+  // Извлечь название без иконки
+  extractName(name) {
+    if (!name || typeof name !== 'string') return 'Unknown';
+    
+    // Удаляем эмодзи и лишние пробелы
+    return name.replace(/\p{Emoji}/gu, '').trim() || 'Unknown';
+  }
+
+  // Создать подсказку для эффекта
+  createEffectTooltip(effectDef) {
+    if (!effectDef) return 'Unknown effect';
+    
+    let tooltip = effectDef.name;
+    
+    if (effectDef.description) {
+      tooltip += `\n${effectDef.description}`;
+    }
+    
+    if (effectDef.duration) {
+      tooltip += `\nDuration: ${effectDef.duration} seconds`;
+    } else {
+      tooltip += '\nInstant effect';
+    }
+    
+    if (effectDef.rarity) {
+      tooltip += `\nRarity: ${effectDef.rarity}`;
+    }
+    
+    if (effectDef.severity) {
+      tooltip += `\nSeverity: ${effectDef.severity}`;
+    }
+    
+    return tooltip;
+  }
+
+  // Принудительное обновление всех индикаторов
+  forceUpdate() {
+    this.clearContainer();
+    this.currentIndicators.clear();
+    
+    // Небольшая задержка перед созданием новых индикаторов
+    this.createTimeout(() => {
+      this.update();
+    }, 100);
+  }
+
+  // Проверить наличие активных эффектов
+  hasActiveEffects() {
+    const buffs = this.gameState.buffs || [];
+    const debuffs = this.gameState.debuffs || [];
+    return buffs.length > 0 || debuffs.length > 0;
+  }
+
+  // Получить количество активных эффектов
+  getActiveEffectCount() {
+    const buffs = this.gameState.buffs || [];
+    const debuffs = this.gameState.debuffs || [];
+    return {
+      buffs: buffs.length,
+      debuffs: debuffs.length,
+      total: buffs.length + debuffs.length
+    };
+  }
+
+  // Получить список активных эффектов
+  getActiveEffects() {
+    const buffs = this.gameState.buffs || [];
+    const debuffs = this.gameState.debuffs || [];
+    
+    return {
+      buffs: buffs.map(id => ({
+        id,
+        definition: this.findBuffDefinition(id),
+        type: 'buff'
+      })).filter(effect => effect.definition),
+      
+      debuffs: debuffs.map(id => ({
+        id,
+        definition: this.findDebuffDefinition(id),
+        type: 'debuff'
+      })).filter(effect => effect.definition)
+    };
+  }
+
+  // Получить отладочную информацию
+  getDebugInfo() {
+    const activeEffects = this.getActiveEffects();
+    const indicatorElements = this.container ? 
+      this.container.querySelectorAll('.effect-indicator').length : 0;
+    
+    return {
+      containerExists: !!this.container,
+      indicatorElements,
+      currentIndicators: Array.from(this.currentIndicators),
+      activeBuffs: activeEffects.buffs.map(b => b.id),
+      activeDebuffs: activeEffects.debuffs.map(d => d.id),
+      lastUpdateTime: this.lastUpdateTime,
+      updateInterval: Date.now() - this.lastUpdateTime
+    };
+  }
+
+  // Принудительная очистка (для отладки)
+  forceCleanup() {
+    console.log('🧹 Force cleaning effect indicators...');
+    
+    this.clearContainer();
+    this.currentIndicators.clear();
+    this.lastUpdateTime = 0;
+    
+    console.log('✅ Effect indicators force cleaned');
+  }
+
+  // Установить видимость контейнера
+  setVisible(visible) {
+    if (!this.container) return;
+    
+    if (visible) {
+      this.container.style.display = 'flex';
+      this.container.classList.remove('hidden');
+    } else {
+      this.container.style.display = 'none';
+      this.container.classList.add('hidden');
+    }
+  }
+
+  // Получить позицию контейнера
+  getPosition() {
+    if (!this.container) return null;
+    
+    const rect = this.container.getBoundingClientRect();
+    return {
+      top: rect.top,
+      left: rect.left,
+      bottom: rect.bottom,
+      right: rect.right,
+      width: rect.width,
+      height: rect.height
+    };
+  }
+
+  // Установить позицию контейнера
+  setPosition(top, left) {
+    if (!this.container) return;
+    
+    this.container.style.position = 'fixed';
+    this.container.style.top = `${top}px`;
+    this.container.style.left = `${left}px`;
+  }
+
+  // Добавить CSS стили если их нет
+  addRequiredStyles() {
+    if (document.getElementById('effect-indicators-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'effect-indicators-styles';
+    style.textContent = `
+      .effect-indicators {
+        position: fixed;
+        top: 100px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        z-index: 900;
+        max-width: 200px;
+        pointer-events: none;
+      }
+      
+      .effect-indicator {
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        cursor: help;
+        position: relative;
+        transform: translateZ(0);
+      }
+      
+      .effect-indicator:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      
+      .buff-indicator {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        border-left: 4px solid #2E7D32;
+      }
+      
+      .debuff-indicator {
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        color: white;
+        border-left: 4px solid #b71c1c;
+      }
+      
+      .effect-icon {
+        font-size: 1.2rem;
+        min-width: 20px;
+      }
+      
+      .effect-name {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+
+  // Инициализация с проверкой стилей
+  initialize() {
+    this.addRequiredStyles();
+    this.initializeContainer();
+    this.update();
+  }
+
+  // Деструктор
+  destroy() {
+    console.log('🧹 EffectIndicators cleanup started');
+    
+    // Очищаем все индикаторы
+    this.clearContainer();
+    
+    // Вызываем родительский деструктор
+    super.destroy();
+    
+    console.log('✅ EffectIndicators destroyed');
+  }
+}
