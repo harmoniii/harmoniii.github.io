@@ -15,14 +15,14 @@
     <button id="info-button">📚 Info</button>
   </div>
 
-  <!-- ИСПРАВЛЕНИЕ: Игровая зона с правильным расположением -->
+  <!-- ИСПРАВЛЕНИЕ: Игровая зона с правильным расположением ресурсов по бокам -->
   <div id="game-area">
-    <!-- Ресурсы сверху от колеса в аккуратном столбике -->
-    <div id="resources-left" class="resources-panel"></div>
-
-    <!-- Контейнер для комбо, колеса и энергии -->
+    <!-- Контейнер для всех элементов в одну линию -->
     <div class="game-wheel-container">
-      <!-- Комбо слева -->
+      <!-- Ресурсы слева -->
+      <div id="resources-left" class="resources-left"></div>
+      
+      <!-- Комбо слева от колеса -->
       <div class="combo-indicator" id="combo-indicator">
         <div class="combo-title">COMBO</div>
         <div class="combo-value" id="combo-value">0</div>
@@ -32,7 +32,7 @@
       <!-- Игровое колесо по центру -->
       <canvas id="gameCanvas" width="400" height="400"></canvas>
 
-      <!-- Энергия справа -->
+      <!-- Энергия справа от колеса -->
       <div class="energy-display-container" id="energy-display">
         <div class="energy-bar-container">
           <div class="energy-bar-background">
@@ -43,10 +43,10 @@
         <div class="energy-status ready">Ready!</div>
         <div class="energy-warning hidden">⚡ Low!</div>
       </div>
+      
+      <!-- Ресурсы справа -->
+      <div id="resources-right" class="resources-right"></div>
     </div>
-
-    <!-- Ресурсы снизу от колеса в аккуратном столбике -->
-    <div id="resources-right" class="resources-panel"></div>
   </div>
 
   <!-- Панель, которая меняется в зависимости от кнопки -->
@@ -57,7 +57,7 @@
     <button id="load-button">📁 Load</button>
     <button id="save-button">💾 Save</button>
     <button id="reset-button">🔄 Reset</button>
-    <button disabled>Alpha 3.5.2</button>
+    <button disabled>Alpha 3.5.3</button>
   </div>
 
   <!-- Уведомления и модалки -->
