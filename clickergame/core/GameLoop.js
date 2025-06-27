@@ -1,4 +1,4 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с упрощенной механикой зон
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с интеграцией ZoneManager
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -13,7 +13,7 @@ export class GameLoop extends CleanupMixin {
     this.canvas = null;
     this.ctx = null;
     this.angle = 0;
-    this.running = false; // ИСПРАВЛЕНИЕ: Используем свойство running вместо isRunning
+    this.running = false;
     this.animationId = null;
     
     // FPS контроль
@@ -166,7 +166,7 @@ export class GameLoop extends CleanupMixin {
     if (this.running) return;
     
     console.log('🔄 Starting game loop...');
-    this.running = true; // ИСПРАВЛЕНИЕ: Используем свойство running
+    this.running = true;
     this.lastFrameTime = performance.now();
     this.gameLoop(this.lastFrameTime);
   }
@@ -176,7 +176,7 @@ export class GameLoop extends CleanupMixin {
     if (!this.running) return;
     
     console.log('⏹️ Stopping game loop...');
-    this.running = false; // ИСПРАВЛЕНИЕ: Используем свойство running
+    this.running = false;
     
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
@@ -276,55 +276,45 @@ export class GameLoop extends CleanupMixin {
     return angleChanged;
   }
 
-  // ИСПРАВЛЕНИЕ: Упрощенное рисование с базовой логикой зон
+  // ИСПРАВЛЕНИЕ: Рендеринг с использованием ZoneManager
   render() {
     this.clearCanvas();
     this.drawZones();
     this.drawReverseIndicator();
   }
 
-  // УПРОЩЕННОЕ: Рисование зон с базовой логикой
+  // ИСПРАВЛЕНИЕ: Рисование зон с использованием ZoneManager
   drawZones() {
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
     const radius = this.canvas.width / 2 - 10;
-    const zoneCount = 8; // Фиксированное количество зон
-    const stepAngle = (2 * Math.PI) / zoneCount;
     
-    // Получаем целевую зону
-    const targetZone = this.gameState.targetZone || 0;
+    // ИСПРАВЛЕНИЕ: Получаем зоны из FeatureManager/ZoneManager
+    let zonesData = [];
+    
+    if (this.managers.feature && typeof this.managers.feature.getZonesForRendering === 'function') {
+      zonesData = this.managers.feature.getZonesForRendering();
+    } else {
+      // Fallback: создаем базовые зоны если ZoneManager недоступен
+      console.warn('⚠️ ZoneManager not available, using fallback rendering');
+      zonesData = this.createFallbackZones();
+    }
     
     // Рисуем каждую зону
-    for (let i = 0; i < zoneCount; i++) {
-      const startAngle = i * stepAngle + this.angle;
-      const endAngle = (i + 1) * stepAngle + this.angle;
+    zonesData.forEach(zoneData => {
+      const { index, type, isTarget, color, startAngle, endAngle } = zoneData;
+      
+      const adjustedStartAngle = startAngle + this.angle;
+      const adjustedEndAngle = endAngle + this.angle;
       
       // Основная заливка зоны
       this.ctx.beginPath();
       this.ctx.moveTo(centerX, centerY);
-      this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+      this.ctx.arc(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle);
       this.ctx.closePath();
       
-      // УПРОЩЕННАЯ ЛОГИКА: Определение цвета зоны
-      let zoneColor;
-      let isTarget = (i === targetZone);
-      
-      if (isTarget) {
-        // Целевая зона ВСЕГДА красная
-        zoneColor = '#C41E3A';
-      } else {
-        // Случайно генерируем специальные зоны
-        const random = Math.random();
-        if (random < 0.2) {
-          zoneColor = '#228B22'; // Зеленый (энергия)
-        } else if (random < 0.35) {
-          zoneColor = '#FFB347'; // Золотистый (бонус)
-        } else {
-          zoneColor = '#E5E5E5'; // Серый (неактивная)
-        }
-      }
-      
-      this.ctx.fillStyle = zoneColor;
+      // ИСПРАВЛЕНИЕ: Используем цвет из ZoneManager
+      this.ctx.fillStyle = color;
       this.ctx.fill();
       
       // Обводка зоны
@@ -333,12 +323,39 @@ export class GameLoop extends CleanupMixin {
       this.ctx.stroke();
       
       // Подпись зоны
-      this.drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, i, isTarget, zoneColor);
-    }
+      this.drawZoneLabel(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle, index, type, isTarget);
+    });
   }
 
-  // Рисование подписей зон
-  drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneIndex, isTarget, zoneColor) {
+  // ИСПРАВЛЕНИЕ: Создание fallback зон если ZoneManager недоступен
+  createFallbackZones() {
+    const zoneCount = 8;
+    const stepAngle = (2 * Math.PI) / zoneCount;
+    const targetZone = this.gameState.targetZone || 0;
+    
+    return Array.from({ length: zoneCount }, (_, i) => {
+      const isTarget = (i === targetZone);
+      let color = '#E5E5E5'; // Серый по умолчанию
+      let type = { id: 'inactive' };
+      
+      if (isTarget) {
+        color = '#C41E3A'; // Красный для целевой
+        type = { id: 'target' };
+      }
+      
+      return {
+        index: i,
+        type,
+        isTarget,
+        color,
+        startAngle: i * stepAngle,
+        endAngle: (i + 1) * stepAngle
+      };
+    });
+  }
+
+  // ИСПРАВЛЕНИЕ: Рисование подписей зон с правильными иконками
+  drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneIndex, zoneType, isTarget) {
     const midAngle = (startAngle + endAngle) / 2;
     const labelRadius = radius * 0.7;
     const labelX = centerX + Math.cos(midAngle) * labelRadius;
@@ -352,18 +369,8 @@ export class GameLoop extends CleanupMixin {
     this.ctx.strokeStyle = '#000000';
     this.ctx.lineWidth = 3;
     
-    let label = '';
-    if (isTarget) {
-      label = '🎯'; // Целевая зона ВСЕГДА получает иконку цели
-    } else {
-      // Определяем тип зоны для иконки по цвету
-      if (zoneColor === '#228B22') {
-        label = '⚡'; // Энергия
-      } else if (zoneColor === '#FFB347') {
-        label = '💰'; // Бонус
-      }
-      // Серые зоны остаются без иконки
-    }
+    // ИСПРАВЛЕНИЕ: Получаем иконку на основе типа зоны из ZoneManager
+    let label = this.getZoneIcon(zoneType, isTarget);
     
     if (label) {
       this.ctx.strokeText(label, labelX, labelY);
@@ -382,6 +389,27 @@ export class GameLoop extends CleanupMixin {
     }
     
     this.ctx.restore();
+  }
+
+  // ИСПРАВЛЕНИЕ: Получение иконки зоны на основе типа
+  getZoneIcon(zoneType, isTarget) {
+    if (isTarget || (zoneType && zoneType.id === 'target')) {
+      return '🎯';
+    }
+    
+    if (!zoneType || !zoneType.id) {
+      return '';
+    }
+    
+    switch (zoneType.id) {
+      case 'energy':
+        return '⚡';
+      case 'bonus':
+        return '💰';
+      case 'inactive':
+      default:
+        return '';
+    }
   }
 
   // Рисование индикатора обратного вращения
@@ -473,7 +501,7 @@ export class GameLoop extends CleanupMixin {
     return this.ctx;
   }
 
-  // ИСПРАВЛЕНИЕ: Добавляем метод isRunning для совместимости
+  // Метод isRunning для совместимости
   isRunning() {
     return this.running;
   }
@@ -498,7 +526,8 @@ export class GameLoop extends CleanupMixin {
         height: this.canvas?.height || 0
       },
       forceRedrawCounter: this.forceRedrawCounter,
-      targetZone: this.gameState.targetZone
+      targetZone: this.gameState.targetZone,
+      zonesAvailable: !!(this.managers.feature && typeof this.managers.feature.getZonesForRendering === 'function')
     };
   }
 
@@ -517,6 +546,28 @@ export class GameLoop extends CleanupMixin {
     this.updateRotationDirection();
     this.needsRedraw = true;
     console.log(`🔄 Force updated rotation direction: ${this.rotationDirection}`);
+  }
+
+  // Проверить наличие ZoneManager
+  hasZoneManager() {
+    return !!(this.managers.feature && typeof this.managers.feature.getZonesForRendering === 'function');
+  }
+
+  // Получить информацию о зонах для отладки
+  getZoneRenderInfo() {
+    if (this.hasZoneManager()) {
+      return {
+        available: true,
+        zones: this.managers.feature.getZonesForRendering(),
+        debugInfo: this.managers.feature.getZonesDebugInfo()
+      };
+    } else {
+      return {
+        available: false,
+        fallbackUsed: true,
+        targetZone: this.gameState.targetZone
+      };
+    }
   }
 
   // Деструктор
