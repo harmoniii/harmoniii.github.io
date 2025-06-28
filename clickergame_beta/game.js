@@ -8,7 +8,7 @@ let gameCore = null;
 // Основная функция инициализации
 async function main() {
   try {
-    console.log('🚀 Starting Advanced Clicker v1.0.8...');
+    console.log('🚀 Starting Clicker...');
     
     // Устанавливаем обработчики ошибок
     setupErrorHandlers();
