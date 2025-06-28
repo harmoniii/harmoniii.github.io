@@ -1,4 +1,4 @@
-// managers/GridFeatureManager.js - FeatureManager для сетки 3x3
+// managers/GridFeatureManager.js - ИСПРАВЛЕНО: обновление поля после всех кликов
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -90,12 +90,15 @@ export class GridFeatureManager extends CleanupMixin {
 
     console.log(`🖱️ Click: cell ${clickResult.cellIndex}, target: ${this.gridManager.getTargetCell()}, accuracy: ${clickResult.accuracy?.toFixed(3)}`);
     
-    // Обрабатываем результат клика
+    // ИСПРАВЛЕНИЕ: Обрабатываем результат и ВСЕГДА перемешиваем после любого успешного клика
     if (clickResult.isTarget) {
       this.handleTargetCellHit(clickResult, now);
     } else {
       this.handleSpecialCellHit(clickResult, now);
     }
+    
+    // ИСПРАВЛЕНИЕ: Перемешиваем сетку после ЛЮБОГО попадания в клетку
+    this.handleCellShuffle();
   }
 
   // Обработка промаха
@@ -141,9 +144,6 @@ export class GridFeatureManager extends CleanupMixin {
     
     // Тратим энергию
     this.handleEnergyConsumption(effects.energyCost || 1);
-    
-    // Перемещаем целевую клетку
-    this.handleCellShuffle();
     
     // Обрабатываем появление эффектов
     this.handleEffectChance();
@@ -217,6 +217,7 @@ export class GridFeatureManager extends CleanupMixin {
     if (Math.random() * 100 < GAME_CONSTANTS.ZONE_SHUFFLE_CHANCE) {
       if (this.gridManager) {
         this.gridManager.shuffleCells();
+        console.log('🔄 Grid shuffled after click');
       }
     }
   }
@@ -332,11 +333,6 @@ export class GridFeatureManager extends CleanupMixin {
       } else {
         this.gameState.combo.count++;
       }
-      
-    //   // Бонус за точность
-    //   if (accuracy > 0.9) {
-    //     this.gameState.combo.count += 1;
-    //   }
       
       this.gameState.combo.deadline = now + comboTimeout;
     }
