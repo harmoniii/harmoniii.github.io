@@ -1,4 +1,4 @@
-// managers/EnergyManager.js - Упрощенная система энергии
+// managers/EnergyManager.js - ИСПРАВЛЕНО: правильное сохранение/загрузка энергии
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 
@@ -318,17 +318,27 @@ export class EnergyManager extends CleanupMixin {
         };
     }
 
+    // ИСПРАВЛЕНИЕ: Правильная загрузка данных энергии без перезаписи
     loadSaveData(data) {
         if (data && typeof data === 'object') {
+            console.log('⚡ Loading energy data:', data);
+            
+            // Загружаем энергию с валидацией
             this.gameState.energy = {
-                current: Math.max(0, data.current || ENERGY_CONSTANTS.INITIAL_ENERGY),
-                max: Math.max(ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, data.max || ENERGY_CONSTANTS.INITIAL_MAX_ENERGY),
+                current: Math.max(0, Math.floor(data.current || ENERGY_CONSTANTS.INITIAL_ENERGY)),
+                max: Math.max(ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, Math.floor(data.max || ENERGY_CONSTANTS.INITIAL_MAX_ENERGY)),
                 lastRegenTime: data.lastRegenTime || Date.now(),
                 totalConsumed: Math.max(0, data.totalConsumed || 0),
                 totalRegenerated: Math.max(0, data.totalRegenerated || 0)
             };
             
-            this.validateEnergyValues();
+            // ИСПРАВЛЕНИЕ: НЕ вызываем validateEnergyValues, которая сбрасывает значения
+            // Вместо этого делаем только базовую валидацию
+            this.gameState.energy.current = Math.min(this.gameState.energy.current, this.getEffectiveMaxEnergy());
+            
+            console.log('✅ Energy loaded:', this.gameState.energy);
+            
+            // Уведомляем об изменении энергии
             this.forceUpdate();
         }
     }
