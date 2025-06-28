@@ -1,4 +1,4 @@
-// game.js - ИСПРАВЛЕННАЯ версия с правильной инициализацией
+// game.js - Исправленная версия с правильной инициализацией
 import { GameCore } from './core/GameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
 
@@ -24,13 +24,7 @@ async function main() {
     window.eventBus = eventBus;
     window.GameEvents = GameEvents;
     
-    // НОВОЕ: Автоматически включаем режим отладки в консоли
-    if (gameCore && typeof gameCore.enableDebugMode === 'function') {
-      gameCore.enableDebugMode();
-    }
-    
     console.log('✅ Game started successfully');
-    console.log('🐛 Debug mode enabled! Use window.gameDebug for debugging');
     
   } catch (error) {
     console.error('💀 Critical error in main:', error);
@@ -81,165 +75,78 @@ function setupModernPageHandlers() {
         console.warn('⚠️ Error during final save:', error);
       }
     } else {
-      console.log('⚠️ GameCore not available or destroyed, skipping final save');
+      console.log('ℹ️ Skipping final save - gameCore not available or destroyed');
     }
   };
-
-  // Обработчик beforeunload для автосохранения
-  window.addEventListener('beforeunload', handlePageUnload);
   
-  // Обработчик unload для очистки
-  window.addEventListener('unload', () => {
-    if (gameCore && typeof gameCore.destroy === 'function') {
+  window.addEventListener('beforeunload', (e) => {
+    handlePageUnload();
+  });
+  
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden && 
+        gameCore && 
+        typeof gameCore.autoSave === 'function' && 
+        gameCore.isDestroyed !== true) {
       try {
-        gameCore.destroy();
-        console.log('🧹 GameCore destroyed on page unload');
+        gameCore.autoSave();
+        console.log('💾 Auto-save on page hide');
       } catch (error) {
-        console.error('💀 Error destroying GameCore:', error);
+        console.warn('⚠️ Error saving on visibility change:', error);
       }
     }
   });
-
-  // Обработчик потери фокуса для автосохранения
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      handlePageUnload();
-    }
-  });
+  
+  // Современные API для управления жизненным циклом страницы
+  if ('onfreeze' in window) {
+    window.addEventListener('freeze', handlePageUnload);
+  }
+  
+  if ('onpagehide' in window) {
+    window.addEventListener('pagehide', handlePageUnload);
+  }
 }
 
-// Обработка критических ошибок
 function handleCriticalError(error) {
-  console.error('💀 Critical error details:', {
-    message: error.message,
-    stack: error.stack,
-    timestamp: new Date().toISOString()
-  });
-
   const errorMessage = `Game initialization failed: ${error.message}`;
   
-  // Показываем ошибку пользователю
   const errorDiv = document.createElement('div');
   errorDiv.style.cssText = `
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: linear-gradient(135deg, #ff4444, #cc0000);
+    background: #ff4444;
     color: white;
-    padding: 30px;
-    border-radius: 15px;
+    padding: 20px;
+    border-radius: 10px;
     z-index: 10000;
     text-align: center;
-    font-family: 'Segoe UI', Arial, sans-serif;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    max-width: 400px;
-    width: 90%;
+    font-family: Arial, sans-serif;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
   `;
   
   errorDiv.innerHTML = `
-    <h2>💀 Critical Error</h2>
-    <p style="margin: 15px 0; line-height: 1.4;">${errorMessage}</p>
-    <div style="margin-top: 20px;">
-      <button onclick="location.reload()" style="
-        background: white;
-        color: #ff4444;
-        border: none;
-        padding: 12px 24px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: bold;
-        margin: 5px;
-        font-size: 16px;
-      ">🔄 Reload Game</button>
-      <button onclick="this.parentElement.parentElement.remove()" style="
-        background: transparent;
-        color: white;
-        border: 2px solid white;
-        padding: 10px 20px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: bold;
-        margin: 5px;
-        font-size: 16px;
-      ">✖️ Close</button>
-    </div>
-    <p style="font-size: 12px; opacity: 0.8; margin-top: 15px;">
-      If this error persists, try clearing your browser cache.
-    </p>
+    <h3>💀 Game Initialization Error</h3>
+    <p>${errorMessage}</p>
+    <button onclick="location.reload()" style="
+      background: white;
+      color: #ff4444;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-top: 10px;
+    ">🔄 Reload Page</button>
   `;
   
   document.body.appendChild(errorDiv);
-  
-  // Автоматически удаляем через 30 секунд
-  setTimeout(() => {
-    if (document.body.contains(errorDiv)) {
-      document.body.removeChild(errorDiv);
-    }
-  }, 30000);
 }
 
-// Функция для отладки состояния игры
-function getGameDebugInfo() {
-  if (!gameCore) {
-    return 'Game not initialized';
-  }
-  
-  try {
-    return {
-      gameState: gameCore.getGameState(),
-      managers: gameCore.getManagers(),
-      stats: gameCore.getGameStats(),
-      isActive: gameCore.isGameActive(),
-      cleanupStats: gameCore.cleanupManager ? gameCore.cleanupManager.getStats() : null
-    };
-  } catch (error) {
-    return `Debug info error: ${error.message}`;
-  }
-}
-
-// Функция для принудительного сохранения (для отладки)
-function forceSave() {
-  if (gameCore && typeof gameCore.autoSave === 'function') {
-    try {
-      const result = gameCore.autoSave();
-      console.log('🔧 Force save result:', result);
-      return result;
-    } catch (error) {
-      console.error('🔧 Force save error:', error);
-      return false;
-    }
-  }
-  return 'GameCore not available';
-}
-
-// Функция для принудительной очистки (для отладки)
-function forceCleanup() {
-  if (gameCore && typeof gameCore.destroy === 'function') {
-    try {
-      gameCore.destroy();
-      console.log('🔧 Force cleanup completed');
-      return true;
-    } catch (error) {
-      console.error('🔧 Force cleanup error:', error);
-      return false;
-    }
-  }
-  return 'GameCore not available';
-}
-
-// Экспортируем функции для глобального доступа
-window.getGameDebugInfo = getGameDebugInfo;
-window.forceSave = forceSave;
-window.forceCleanup = forceCleanup;
-
-// Запускаем игру после загрузки DOM
+// КРИТИЧЕСКИ ВАЖНО: Запуск игры!
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', main);
 } else {
-  // DOM уже загружен
   main();
 }
-
-// Экспортируем основные функции (если используется как модуль)
-export { main, getGameDebugInfo, forceSave, forceCleanup };

@@ -31,11 +31,8 @@ export class EffectIndicators extends CleanupMixin {
     this.container.className = 'effect-indicators';
     document.body.appendChild(this.container);
     
-    this.onDestroy(() => {
-      if (document.body.contains(this.container)) {
-        document.body.removeChild(this.container);
-      }
-    });
+    // ИСПРАВЛЕНИЕ: Правильная регистрация DOM элемента
+    this.registerDOMElement(this.container);
   }
 
   // ИСПРАВЛЕНИЕ: Обновить индикаторы с правильной синхронизацией
@@ -205,26 +202,67 @@ export class EffectIndicators extends CleanupMixin {
           this.createTimeout(() => {
             indicator.style.boxShadow = '';
           }, 200);
-        }, 400);
+        }, 200);
       }
-    }, 50);
+    }, 10);
+  }
+
+  // ИСПРАВЛЕНИЕ: Анимация удаления эффекта
+  animateEffectRemoved(effectId) {
+    const indicator = this.container.querySelector(`[data-effect-id="${effectId}"]`);
+    
+    if (indicator) {
+      // Анимация исчезновения
+      indicator.style.transition = 'all 0.3s ease-in';
+      indicator.style.opacity = '0';
+      indicator.style.transform = 'translateX(-100%) scale(0.5)';
+      
+      // Удаляем элемент после анимации
+      this.createTimeout(() => {
+        if (indicator && indicator.parentNode) {
+          indicator.parentNode.removeChild(indicator);
+        }
+      }, 300);
+    }
   }
 
   // Извлечь иконку из названия эффекта
-  extractIcon(effectName) {
-    const parts = effectName.split(' ');
-    return parts[0] || '❓';
+  extractIcon(name) {
+    if (!name || typeof name !== 'string') return '?';
+    
+    // Ищем эмодзи в начале строки
+    const emojiMatch = name.match(/^(\p{Emoji})/u);
+    if (emojiMatch) {
+      return emojiMatch[1];
+    }
+    
+    // Ищем эмодзи в любом месте строки
+    const anyEmojiMatch = name.match(/(\p{Emoji})/u);
+    if (anyEmojiMatch) {
+      return anyEmojiMatch[1];
+    }
+    
+    // Возвращаем первый символ или знак вопроса
+    return name.charAt(0) || '?';
   }
 
   // Извлечь название без иконки
-  extractName(effectName) {
-    const parts = effectName.split(' ');
-    return parts.slice(1).join(' ') || effectName;
+  extractName(name) {
+    if (!name || typeof name !== 'string') return 'Unknown';
+    
+    // Удаляем эмодзи и лишние пробелы
+    return name.replace(/\p{Emoji}/gu, '').trim() || 'Unknown';
   }
 
   // Создать подсказку для эффекта
   createEffectTooltip(effectDef) {
-    let tooltip = `${effectDef.name}\n${effectDef.description}`;
+    if (!effectDef) return 'Unknown effect';
+    
+    let tooltip = effectDef.name;
+    
+    if (effectDef.description) {
+      tooltip += `\n${effectDef.description}`;
+    }
     
     if (effectDef.duration) {
       tooltip += `\nDuration: ${effectDef.duration} seconds`;
@@ -243,244 +281,201 @@ export class EffectIndicators extends CleanupMixin {
     return tooltip;
   }
 
-  // Анимировать добавление эффекта
-  animateEffectAdded(effectId, isPositive = true) {
-    if (!this.container) return;
+  // Принудительное обновление всех индикаторов
+  forceUpdate() {
+    this.clearContainer();
+    this.currentIndicators.clear();
     
-    // ИСПРАВЛЕНИЕ: Проверяем, не существует ли уже индикатор
-    if (this.hasIndicator(effectId)) {
-      console.log(`Indicator for ${effectId} already exists, skipping animation`);
-      return;
-    }
-    
-    // Создаем временный индикатор для анимации
-    const tempIndicator = document.createElement('div');
-    tempIndicator.className = `effect-indicator ${isPositive ? 'buff' : 'debuff'}-indicator effect-adding`;
-    tempIndicator.style.cssText = `
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) scale(2);
-      z-index: 10000;
-      opacity: 0.8;
-      pointer-events: none;
-    `;
-    
-    const effectDef = isPositive ? 
-      this.findBuffDefinition(effectId) : 
-      this.findDebuffDefinition(effectId);
-    
-    if (effectDef) {
-      const icon = this.extractIcon(effectDef.name);
-      tempIndicator.innerHTML = `<span class="effect-icon">${icon}</span>`;
-      
-      document.body.appendChild(tempIndicator);
-      
-      // Анимация перемещения к контейнеру
-      this.createTimeout(() => {
-        const containerRect = this.container.getBoundingClientRect();
-        tempIndicator.style.transition = 'all 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        tempIndicator.style.top = `${containerRect.top + 20}px`;
-        tempIndicator.style.left = `${containerRect.left + 20}px`;
-        tempIndicator.style.transform = 'scale(1)';
-        tempIndicator.style.opacity = '0';
-        
-        this.createTimeout(() => {
-          if (document.body.contains(tempIndicator)) {
-            document.body.removeChild(tempIndicator);
-          }
-          // Обновляем основные индикаторы после анимации
-          this.update();
-        }, 800);
-      }, 100);
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Улучшенная анимация удаления
-  animateEffectRemoved(effectId) {
-    if (!this.container) return;
-    
-    const indicator = this.container.querySelector(`[data-effect-id="${effectId}"]`);
-    if (!indicator) {
-      console.log(`Indicator for ${effectId} not found for removal`);
-      return;
-    }
-    
-    console.log(`🎬 Animating removal of effect: ${effectId}`);
-    
-    // Анимация исчезновения
-    indicator.style.transition = 'all 0.4s cubic-bezier(0.55, 0.055, 0.675, 0.19)';
-    indicator.style.opacity = '0';
-    indicator.style.transform = 'translateX(-100%) scale(0.5)';
-    indicator.style.filter = 'blur(2px)';
-    
-    // Удаляем из DOM после анимации
+    // Небольшая задержка перед созданием новых индикаторов
     this.createTimeout(() => {
-      if (indicator.parentNode) {
-        indicator.parentNode.removeChild(indicator);
-        console.log(`🗑️ Removed indicator for ${effectId} from DOM`);
-      }
-    }, 400);
+      this.update();
+    }, 100);
   }
 
-  // ИСПРАВЛЕНИЕ: Показать специальные состояния с проверками
-  showSpecialStates() {
-    if (!this.gameState.effectStates) return;
-    
-    const specialStates = [];
-    const states = this.gameState.effectStates;
-    
-    if (states.starPowerClicks > 0) {
-      specialStates.push({
-        icon: '⭐',
-        name: 'Star Power',
-        detail: `${states.starPowerClicks} clicks left`,
-        id: 'special-star-power'
-      });
-    }
-    
-    if (states.shieldBlocks > 0) {
-      specialStates.push({
-        icon: '🛡️',
-        name: 'Shield',
-        detail: `${states.shieldBlocks} blocks left`,
-        id: 'special-shield'
-      });
-    }
-    
-    if (states.frozenCombo) {
-      specialStates.push({
-        icon: '❄️',
-        name: 'Frozen Combo',
-        detail: 'Combo cannot grow',
-        id: 'special-frozen'
-      });
-    }
-    
-    // Удаляем старые специальные индикаторы
-    const oldSpecialIndicators = this.container.querySelectorAll('.special-indicator');
-    oldSpecialIndicators.forEach(indicator => {
-      const id = indicator.getAttribute('data-effect-id');
-      if (!specialStates.find(s => s.id === id)) {
-        this.animateEffectRemoved(id);
-      }
-    });
-    
-    // Добавляем новые специальные индикаторы
-    specialStates.forEach(state => {
-      if (!this.hasIndicator(state.id)) {
-        const indicator = this.createSpecialStateIndicator(state);
-        this.container.appendChild(indicator);
-      }
-    });
-  }
-
-  // Создать индикатор специального состояния
-  createSpecialStateIndicator(state) {
-    const indicator = document.createElement('div');
-    indicator.className = 'effect-indicator special-indicator';
-    indicator.setAttribute('data-effect-id', state.id);
-    
-    indicator.innerHTML = `
-      <span class="effect-icon">${state.icon}</span>
-      <span class="effect-name">${state.name}</span>
-    `;
-    
-    indicator.title = `${state.name}\n${state.detail}`;
-    
-    // Анимация появления
-    this.animateIndicatorAppearance(indicator, 'special');
-    
-    return indicator;
+  // Проверить наличие активных эффектов
+  hasActiveEffects() {
+    const buffs = this.gameState.buffs || [];
+    const debuffs = this.gameState.debuffs || [];
+    return buffs.length > 0 || debuffs.length > 0;
   }
 
   // Получить количество активных эффектов
   getActiveEffectCount() {
-    const buffCount = this.gameState.buffs ? this.gameState.buffs.length : 0;
-    const debuffCount = this.gameState.debuffs ? this.gameState.debuffs.length : 0;
-    return buffCount + debuffCount;
-  }
-
-  // Проверить, есть ли активные эффекты
-  hasActiveEffects() {
-    return this.getActiveEffectCount() > 0;
+    const buffs = this.gameState.buffs || [];
+    const debuffs = this.gameState.debuffs || [];
+    return {
+      buffs: buffs.length,
+      debuffs: debuffs.length,
+      total: buffs.length + debuffs.length
+    };
   }
 
   // Получить список активных эффектов
   getActiveEffects() {
-    const effects = [];
+    const buffs = this.gameState.buffs || [];
+    const debuffs = this.gameState.debuffs || [];
     
-    if (this.gameState.buffs) {
-      this.gameState.buffs.forEach(buffId => {
-        const def = this.findBuffDefinition(buffId);
-        if (def) {
-          effects.push({ ...def, type: 'buff' });
-        }
-      });
-    }
-    
-    if (this.gameState.debuffs) {
-      this.gameState.debuffs.forEach(debuffId => {
-        const def = this.findDebuffDefinition(debuffId);
-        if (def) {
-          effects.push({ ...def, type: 'debuff' });
-        }
-      });
-    }
-    
-    return effects;
-  }
-
-  // ИСПРАВЛЕНИЕ: Принудительная очистка всех индикаторов
-  forceCleanup() {
-    console.log('🧹 Force cleaning all effect indicators...');
-    
-    if (this.container) {
-      const indicators = this.container.querySelectorAll('.effect-indicator');
-      console.log(`Found ${indicators.length} indicators to clean`);
+    return {
+      buffs: buffs.map(id => ({
+        id,
+        definition: this.findBuffDefinition(id),
+        type: 'buff'
+      })).filter(effect => effect.definition),
       
-      indicators.forEach((indicator, index) => {
-        const effectId = indicator.getAttribute('data-effect-id');
-        console.log(`Cleaning indicator ${index}: ${effectId}`);
-        
-        // Немедленное удаление без анимации
-        this.createTimeout(() => {
-          if (indicator.parentNode) {
-            indicator.parentNode.removeChild(indicator);
-          }
-        }, index * 50); // Небольшая задержка для каждого индикатора
-      });
-    }
-    
-    this.currentIndicators.clear();
+      debuffs: debuffs.map(id => ({
+        id,
+        definition: this.findDebuffDefinition(id),
+        type: 'debuff'
+      })).filter(effect => effect.definition)
+    };
   }
 
-  // ИСПРАВЛЕНИЕ: Получить отладочную информацию
+  // Получить отладочную информацию
   getDebugInfo() {
-    const indicators = this.container ? 
-      Array.from(this.container.querySelectorAll('.effect-indicator')).map(el => ({
-        id: el.getAttribute('data-effect-id'),
-        class: el.className,
-        text: el.textContent
-      })) : [];
+    const activeEffects = this.getActiveEffects();
+    const indicatorElements = this.container ? 
+      this.container.querySelectorAll('.effect-indicator').length : 0;
     
     return {
       containerExists: !!this.container,
-      indicatorCount: indicators.length,
-      indicators,
-      gameStateBuffs: this.gameState.buffs || [],
-      gameStateDebuffs: this.gameState.debuffs || [],
+      indicatorElements,
       currentIndicators: Array.from(this.currentIndicators),
-      lastUpdateTime: this.lastUpdateTime
+      activeBuffs: activeEffects.buffs.map(b => b.id),
+      activeDebuffs: activeEffects.debuffs.map(d => d.id),
+      lastUpdateTime: this.lastUpdateTime,
+      updateInterval: Date.now() - this.lastUpdateTime
     };
+  }
+
+  // Принудительная очистка (для отладки)
+  forceCleanup() {
+    console.log('🧹 Force cleaning effect indicators...');
+    
+    this.clearContainer();
+    this.currentIndicators.clear();
+    this.lastUpdateTime = 0;
+    
+    console.log('✅ Effect indicators force cleaned');
+  }
+
+  // Установить видимость контейнера
+  setVisible(visible) {
+    if (!this.container) return;
+    
+    if (visible) {
+      this.container.style.display = 'flex';
+      this.container.classList.remove('hidden');
+    } else {
+      this.container.style.display = 'none';
+      this.container.classList.add('hidden');
+    }
+  }
+
+  // Получить позицию контейнера
+  getPosition() {
+    if (!this.container) return null;
+    
+    const rect = this.container.getBoundingClientRect();
+    return {
+      top: rect.top,
+      left: rect.left,
+      bottom: rect.bottom,
+      right: rect.right,
+      width: rect.width,
+      height: rect.height
+    };
+  }
+
+  // Установить позицию контейнера
+  setPosition(top, left) {
+    if (!this.container) return;
+    
+    this.container.style.position = 'fixed';
+    this.container.style.top = `${top}px`;
+    this.container.style.left = `${left}px`;
+  }
+
+  // Добавить CSS стили если их нет
+  addRequiredStyles() {
+    if (document.getElementById('effect-indicators-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'effect-indicators-styles';
+    style.textContent = `
+      .effect-indicators {
+        position: fixed;
+        top: 100px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        z-index: 900;
+        max-width: 200px;
+        pointer-events: none;
+      }
+      
+      .effect-indicator {
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: bold;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        transition: all 0.3s ease;
+        cursor: help;
+        position: relative;
+        transform: translateZ(0);
+      }
+      
+      .effect-indicator:hover {
+        transform: translateX(5px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      
+      .buff-indicator {
+        background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+        color: white;
+        border-left: 4px solid #2E7D32;
+      }
+      
+      .debuff-indicator {
+        background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        color: white;
+        border-left: 4px solid #b71c1c;
+      }
+      
+      .effect-icon {
+        font-size: 1.2rem;
+        min-width: 20px;
+      }
+      
+      .effect-name {
+        font-size: 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    `;
+    
+    document.head.appendChild(style);
+  }
+
+  // Инициализация с проверкой стилей
+  initialize() {
+    this.addRequiredStyles();
+    this.initializeContainer();
+    this.update();
   }
 
   // Деструктор
   destroy() {
     console.log('🧹 EffectIndicators cleanup started');
     
-    // Принудительная очистка
-    this.forceCleanup();
+    // Очищаем все индикаторы
+    this.clearContainer();
     
     // Вызываем родительский деструктор
     super.destroy();

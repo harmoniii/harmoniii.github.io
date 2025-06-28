@@ -1,4 +1,4 @@
-// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия
+// ui/SaveLoadManager.js - ИСПРАВЛЕННАЯ версия с правильной инициализацией зон
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 
@@ -227,6 +227,12 @@ export class SaveLoadManager extends CleanupMixin {
         console.log('✅ Skill generation restarted');
       }
 
+      // НОВОЕ: Принудительно переинициализируем зоны после загрузки
+      if (this.gameState.featureManager) {
+        this.gameState.featureManager.forceZoneReset();
+        console.log('✅ Zones reset after load');
+      }
+
       // Обновляем UI
       if (this.gameState.managers && this.gameState.managers.ui) {
         this.gameState.managers.ui.forceUpdate();
@@ -239,7 +245,7 @@ export class SaveLoadManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕННЫЙ СБРОС ИГРЫ - корректно сбрасывает все
+  // ИСПРАВЛЕННЫЙ СБРОС ИГРЫ - корректно сбрасывает все и переинициализирует зоны
   performReset() {
     const confirmed = confirm(`🔄 RESET GAME
 
@@ -291,6 +297,14 @@ Are you sure?`);
 
       // Применяем пустые данные
       this.applySaveData(emptyData);
+      
+      // НОВОЕ: Дополнительно принудительно переинициализируем зоны после сброса
+      this.createTimeout(() => {
+        if (this.gameState.featureManager) {
+          console.log('🎯 Force reinitializing zones after reset...');
+          this.gameState.featureManager.forceZoneReset();
+        }
+      }, 500);
       
       eventBus.emit(GameEvents.NOTIFICATION, '🔄 Game reset successfully!');
       

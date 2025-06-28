@@ -1,9 +1,7 @@
-// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с правильной отрисовкой зон
+// core/GameLoop.js - ИСПРАВЛЕННАЯ версия с плавным рендерингом и FPS контролем
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
-import { AngleManager } from '../utils/AngleManager.js';
 import { UI_CONFIG, GAME_CONSTANTS } from '../config/GameConstants.js';
-import { ZONE_COUNT } from '../config/ResourceConfig.js';
 
 export class GameLoop extends CleanupMixin {
   constructor(gameState, managers) {
@@ -15,10 +13,10 @@ export class GameLoop extends CleanupMixin {
     this.canvas = null;
     this.ctx = null;
     this.angle = 0;
-    this.running = false;
+    this.isRunning = false;
     this.animationId = null;
     
-    // FPS контроль
+    // ИСПРАВЛЕНИЕ: Добавляем FPS контроль
     this.targetFPS = 60;
     this.frameTime = 1000 / this.targetFPS;
     this.lastFrameTime = 0;
@@ -30,16 +28,9 @@ export class GameLoop extends CleanupMixin {
     // Переменная для направления вращения
     this.rotationDirection = 1; // 1 = обычное, -1 = обратное
     
-    // Оптимизация рендеринга
+    // ИСПРАВЛЕНИЕ: Добавляем флаг для оптимизации рендеринга
     this.needsRedraw = true;
     this.lastAngle = 0;
-    this.lastTargetZone = -1;
-    this.zonesCache = null;
-    this.zonesCacheValid = false;
-    
-    // Принудительная перерисовка каждые несколько кадров
-    this.forceRedrawCounter = 0;
-    this.forceRedrawInterval = 30; // Каждые 30 кадров
     
     this.initializeCanvas();
     this.bindEvents();
@@ -64,35 +55,43 @@ export class GameLoop extends CleanupMixin {
     this.setupCanvasEvents();
   }
 
-  // Обработка видимости вкладки для оптимизации
+  // ИСПРАВЛЕНИЕ: Добавляем обработку видимости вкладки для оптимизации
   setupVisibilityHandling() {
     this.addEventListener(document, 'visibilitychange', () => {
       if (document.hidden) {
-        this.targetFPS = 30;
+        this.targetFPS = 30; // Снижаем FPS когда вкладка неактивна
       } else {
-        this.targetFPS = 60;
-        this.needsRedraw = true;
-        this.invalidateZonesCache();
+        this.targetFPS = 60; // Восстанавливаем полный FPS
+        this.needsRedraw = true; // Принудительная перерисовка при возврате
       }
       this.frameTime = 1000 / this.targetFPS;
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Настройка событий canvas с использованием AngleManager
+  // Настройка событий canvas
   setupCanvasEvents() {
+    const getClickAngle = (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left - this.canvas.width / 2;
+      const y = e.clientY - rect.top - this.canvas.height / 2;
+      return Math.atan2(y, x) - this.angle;
+    };
+
+    // Обработчик кликов мыши
     const clickHandler = (e) => {
       e.preventDefault();
-      const clickAngle = AngleManager.getClickAngle(e, this.canvas, this.angle);
+      const clickAngle = getClickAngle(e);
       eventBus.emit(GameEvents.CLICK, clickAngle);
-      this.needsRedraw = true;
+      this.needsRedraw = true; // Перерисовываем после клика
     };
     
+    // Обработчик касаний
     const touchHandler = (e) => {
       e.preventDefault();
       if (e.touches && e.touches.length > 0) {
-        const clickAngle = AngleManager.getClickAngle(e, this.canvas, this.angle);
+        const clickAngle = getClickAngle(e.touches[0]);
         eventBus.emit(GameEvents.CLICK, clickAngle);
-        this.needsRedraw = true;
+        this.needsRedraw = true; // Перерисовываем после касания
       }
     };
 
@@ -103,10 +102,12 @@ export class GameLoop extends CleanupMixin {
 
   // Привязка событий
   bindEvents() {
+    // Обновление поворота для автокликера
     eventBus.subscribe(GameEvents.CLICK, () => {
       this.gameState.currentRotation = this.angle;
     });
     
+    // Слушаем изменения дебаффов для Reverse Controls
     eventBus.subscribe(GameEvents.DEBUFF_APPLIED, (data) => {
       if (data.id === 'reverseControls') {
         this.updateRotationDirection();
@@ -121,6 +122,7 @@ export class GameLoop extends CleanupMixin {
       }
     });
 
+    // ИСПРАВЛЕНИЕ: Перерисовываем при изменении эффектов
     eventBus.subscribe(GameEvents.BUFF_APPLIED, () => {
       this.needsRedraw = true;
     });
@@ -129,29 +131,7 @@ export class GameLoop extends CleanupMixin {
       this.needsRedraw = true;
     });
     
-    // ИСПРАВЛЕНИЕ: Принудительная перерисовка при изменении зон
-    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, (data) => {
-      const newTargetZone = data.newTargetZone || data;
-      console.log(`🎯 GameLoop: Zones shuffled, new target: ${newTargetZone}`);
-      
-      this.invalidateZonesCache();
-      this.gameState.targetZone = newTargetZone;
-      this.lastTargetZone = newTargetZone;
-      this.needsRedraw = true;
-      
-      // Принудительная перерисовка в следующих нескольких кадрах
-      this.forceRedrawCounter = 0;
-      
-      // Дополнительные принудительные перерисовки для синхронизации
-      for (let i = 0; i < 5; i++) {
-        this.createTimeout(() => {
-          this.needsRedraw = true;
-        }, i * 50);
-      }
-    });
-    
-    // Принудительная перерисовка при изменении комбо
-    eventBus.subscribe(GameEvents.COMBO_CHANGED, () => {
+    eventBus.subscribe(GameEvents.ZONES_SHUFFLED, () => {
       this.needsRedraw = true;
     });
   }
@@ -166,20 +146,20 @@ export class GameLoop extends CleanupMixin {
 
   // Запуск игрового цикла
   start() {
-    if (this.running) return;
+    if (this.isRunning) return;
     
     console.log('🔄 Starting game loop...');
-    this.running = true;
+    this.isRunning = true;
     this.lastFrameTime = performance.now();
     this.gameLoop(this.lastFrameTime);
   }
 
   // Остановка игрового цикла
   stop() {
-    if (!this.running) return;
+    if (!this.isRunning) return;
     
     console.log('⏹️ Stopping game loop...');
-    this.running = false;
+    this.isRunning = false;
     
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
@@ -187,69 +167,49 @@ export class GameLoop extends CleanupMixin {
     }
   }
 
-  // Основной игровой цикл с FPS контролем
+  // ИСПРАВЛЕНИЕ: Основной игровой цикл с FPS контролем
   gameLoop(currentTime) {
-    if (!this.running) return;
+    if (!this.isRunning) return;
     
     try {
+      // FPS throttling
       const elapsed = currentTime - this.lastFrameTime;
       
       if (elapsed < this.frameTime) {
+        // Слишком рано для следующего кадра
         this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
         return;
       }
       
+      // Рассчитываем deltaTime и FPS
       this.deltaTime = elapsed;
       this.lastFrameTime = currentTime;
       this.updateFPSCounter(currentTime);
       
+      // Обновляем направление вращения
       this.updateRotationDirection();
       
+      // Обновляем угол поворота
       const angleChanged = this.updateRotation();
-      const targetChanged = this.checkTargetZoneChange();
       
-      // Принудительная перерисовка для синхронизации зон
-      this.forceRedrawCounter++;
-      const shouldForceRedraw = this.forceRedrawCounter >= this.forceRedrawInterval;
-      
-      if (shouldForceRedraw) {
-        this.forceRedrawCounter = 0;
-        this.needsRedraw = true;
-        this.invalidateZonesCache();
-      }
-      
-      if (this.needsRedraw || angleChanged || targetChanged || shouldForceRedraw) {
+      // ИСПРАВЛЕНИЕ: Рендерим только при необходимости
+      if (this.needsRedraw || angleChanged) {
         this.render();
         this.needsRedraw = false;
       }
       
+      // Обновляем состояние в gameState
       this.gameState.currentRotation = this.angle;
       
     } catch (error) {
       console.warn('⚠️ Error in game loop:', error);
     }
     
+    // Планируем следующий кадр
     this.animationId = requestAnimationFrame((time) => this.gameLoop(time));
   }
 
-  // Проверка изменения целевой зоны
-  checkTargetZoneChange() {
-    const currentTarget = this.gameState.targetZone || 0;
-    if (this.lastTargetZone !== currentTarget) {
-      this.lastTargetZone = currentTarget;
-      this.invalidateZonesCache();
-      return true;
-    }
-    return false;
-  }
-
-  // Инвалидация кеша зон
-  invalidateZonesCache() {
-    this.zonesCacheValid = false;
-    this.zonesCache = null;
-  }
-
-  // Счетчик FPS
+  // ИСПРАВЛЕНИЕ: Добавляем счетчик FPS
   updateFPSCounter(currentTime) {
     this.frameCount++;
     
@@ -258,6 +218,7 @@ export class GameLoop extends CleanupMixin {
       this.frameCount = 0;
       this.fpsUpdateTime = currentTime;
       
+      // Логируем FPS только при значительных изменениях
       if (this.actualFPS < 50) {
         console.warn(`⚠️ Low FPS detected: ${this.actualFPS}`);
       }
@@ -269,10 +230,11 @@ export class GameLoop extends CleanupMixin {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
   }
 
-  // Обновление угла поворота с плавной анимацией
+  // ИСПРАВЛЕНИЕ: Обновление угла поворота с плавной анимацией
   updateRotation() {
     let rotationSpeed = UI_CONFIG.ROTATION_SPEED;
     
+    // Модификаторы скорости от эффектов
     if (this.gameState.debuffs && this.gameState.debuffs.includes('rapid')) {
       rotationSpeed *= GAME_CONSTANTS.RAPID_SPEED_MULTIPLIER;
     }
@@ -281,259 +243,136 @@ export class GameLoop extends CleanupMixin {
       rotationSpeed *= GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER;
     }
     
-    const rotationDelta = rotationSpeed * this.rotationDirection * (this.deltaTime / 16.67);
+    // ИСПРАВЛЕНИЕ: Используем deltaTime для плавной анимации
+    const rotationDelta = rotationSpeed * this.rotationDirection * (this.deltaTime / 16.67); // 16.67ms = 60fps
     const newAngle = this.angle + rotationDelta;
     
+    // Проверяем, изменился ли угол значительно
     const angleChanged = Math.abs(newAngle - this.lastAngle) > 0.001;
     
-    this.angle = AngleManager.normalize(newAngle);
+    this.angle = newAngle;
     this.lastAngle = this.angle;
+    
+    // Нормализуем угол для предотвращения переполнения
+    if (this.angle > 2 * Math.PI) {
+      this.angle -= 2 * Math.PI;
+    } else if (this.angle < 0) {
+      this.angle += 2 * Math.PI;
+    }
     
     return angleChanged;
   }
 
-  // ИСПРАВЛЕНИЕ: Рендеринг с надежным получением зон
+  // Рендеринг игровых элементов
   render() {
+    if (!this.managers.feature || !this.managers.feature.zones) return;
+    
+    // Очищаем canvas
     this.clearCanvas();
+    
     this.drawZones();
+    this.drawTargetIndicator();
+    this.drawPreviewZone();
     this.drawReverseIndicator();
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное рисование зон с кешированием
+  // Рисование зон
   drawZones() {
+    const zones = this.managers.feature.zones;
+    if (!zones) return;
+    
     const centerX = this.canvas.width / 2;
     const centerY = this.canvas.height / 2;
-    const radius = this.canvas.width / 2 - 10;
+    const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
+    const totalAngle = 2 * Math.PI;
+    const stepAngle = totalAngle / zones.length;
     
-    // Получаем зоны с кешированием
-    let zonesData = this.getZonesData();
-    
-    if (!zonesData || zonesData.length === 0) {
-      console.warn('⚠️ No zones data available, using emergency zones');
-      zonesData = this.createEmergencyZones();
-    }
-    
-    // Рисуем каждую зону
-    zonesData.forEach((zoneData, index) => {
-      this.drawSingleZone(zoneData, centerX, centerY, radius);
-    });
-  }
-
-  // Получение данных зон с кешированием
-  getZonesData() {
-    // Проверяем кеш
-    if (this.zonesCacheValid && this.zonesCache) {
-      return this.zonesCache;
-    }
-    
-    try {
-      // Пытаемся получить зоны из ZoneManager
-      if (this.managers.feature && 
-          this.managers.feature.zoneManager &&
-          typeof this.managers.feature.zoneManager.getZonesForRendering === 'function') {
-        
-        const zones = this.managers.feature.zoneManager.getZonesForRendering();
-        
-        if (Array.isArray(zones) && zones.length > 0) {
-          // Валидируем полученные зоны
-          const validatedZones = this.validateZonesData(zones);
-          
-          // Кешируем результат
-          this.zonesCache = validatedZones;
-          this.zonesCacheValid = true;
-          
-          return validatedZones;
-        }
-      }
-      
-      // Пытаемся получить зоны из FeatureManager напрямую
-      if (this.managers.feature && 
-          typeof this.managers.feature.getZonesForRendering === 'function') {
-        
-        const zones = this.managers.feature.getZonesForRendering();
-        
-        if (Array.isArray(zones) && zones.length > 0) {
-          const validatedZones = this.validateZonesData(zones);
-          this.zonesCache = validatedZones;
-          this.zonesCacheValid = true;
-          return validatedZones;
-        }
-      }
-      
-    } catch (error) {
-      console.error('❌ Error getting zones data:', error);
-    }
-    
-    // Возвращаем null если ничего не получилось
-    return null;
-  }
-
-  // Валидация данных зон
-  validateZonesData(zones) {
-    if (!Array.isArray(zones)) {
-      console.warn('⚠️ Zones data is not an array');
-      return [];
-    }
-    
-    return zones.filter((zone, index) => {
-      if (!zone) {
-        console.warn(`⚠️ Zone ${index} is null/undefined`);
-        return false;
-      }
-      
-      if (typeof zone.startAngle !== 'number' || typeof zone.endAngle !== 'number') {
-        console.warn(`⚠️ Zone ${index} has invalid angles:`, zone);
-        return false;
-      }
-      
-      if (!AngleManager.isValidAngle(zone.startAngle) || !AngleManager.isValidAngle(zone.endAngle)) {
-        console.warn(`⚠️ Zone ${index} has invalid angle values:`, zone);
-        return false;
-      }
-      
-      return true;
-    });
-  }
-
-  // Создание аварийных зон
-  createEmergencyZones() {
-    console.log('🆘 Creating emergency zones for rendering');
-    
-    const zoneCount = ZONE_COUNT;
-    const stepAngle = (2 * Math.PI) / zoneCount;
-    const targetZone = this.gameState.targetZone || 0;
-    
-    const validTargetZone = (targetZone >= 0 && targetZone < zoneCount) ? targetZone : 0;
-    
-    const emergencyZones = Array.from({ length: zoneCount }, (_, i) => {
-      const isTarget = (i === validTargetZone);
-      let color = '#E5E5E5'; // Серый по умолчанию
-      let type = { id: 'inactive' };
-      
-      if (isTarget) {
-        color = '#C41E3A'; // Красный для целевой
-        type = { id: 'target' };
-      }
-      
-      return {
-        index: i,
-        type,
-        isTarget,
-        color,
-        startAngle: i * stepAngle,
-        endAngle: (i + 1) * stepAngle,
-        centerAngle: (i + 0.5) * stepAngle
-      };
-    });
-    
-    console.log(`🆘 Created ${zoneCount} emergency zones with target at ${validTargetZone}`);
-    return emergencyZones;
-  }
-
-  // Рисование одной зоны
-  drawSingleZone(zoneData, centerX, centerY, radius) {
-    try {
-      const { isTarget, color, startAngle, endAngle, index, type } = zoneData;
-      
-      // Валидируем данные зоны
-      if (typeof startAngle !== 'number' || typeof endAngle !== 'number') {
-        console.warn(`⚠️ Invalid zone angles for zone ${index}:`, zoneData);
-        return;
-      }
-      
-      const adjustedStartAngle = startAngle + this.angle;
-      const adjustedEndAngle = endAngle + this.angle;
+    zones.forEach((zone, index) => {
+      const startAngle = index * stepAngle + this.angle;
+      const endAngle = (index + 1) * stepAngle + this.angle;
       
       // Основная заливка зоны
       this.ctx.beginPath();
       this.ctx.moveTo(centerX, centerY);
-      this.ctx.arc(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle);
+      this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
       this.ctx.closePath();
       
-      // Используем цвет из данных зоны с fallback
-      this.ctx.fillStyle = color || '#E5E5E5';
+      // Цвет зоны
+      this.ctx.fillStyle = this.getZoneColor(index);
       this.ctx.fill();
       
       // Обводка зоны
-      this.ctx.strokeStyle = isTarget ? '#FF0000' : '#333333';
-      this.ctx.lineWidth = isTarget ? 4 : 1;
+      this.ctx.strokeStyle = '#333';
+      this.ctx.lineWidth = 1;
       this.ctx.stroke();
-      
-      // Подпись зоны
-      this.drawZoneLabel(centerX, centerY, radius, adjustedStartAngle, adjustedEndAngle, 
-                        index, type, isTarget);
-      
-    } catch (error) {
-      console.warn(`⚠️ Error rendering zone ${zoneData.index}:`, error);
-    }
+    });
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное рисование подписей зон
-  drawZoneLabel(centerX, centerY, radius, startAngle, endAngle, zoneIndex, zoneType, isTarget) {
-    try {
-      const midAngle = (startAngle + endAngle) / 2;
-      const labelRadius = radius * 0.7;
-      const labelX = centerX + Math.cos(midAngle) * labelRadius;
-      const labelY = centerY + Math.sin(midAngle) * labelRadius;
-      
-      this.ctx.save();
-      this.ctx.font = 'bold 18px Arial';
-      this.ctx.textAlign = 'center';
-      this.ctx.textBaseline = 'middle';
-      this.ctx.fillStyle = '#FFFFFF';
-      this.ctx.strokeStyle = '#000000';
-      this.ctx.lineWidth = 3;
-      
-      // Получаем иконку зоны
-      let label = this.getZoneIcon(zoneType, isTarget);
-      
-      if (label) {
-        this.ctx.strokeText(label, labelX, labelY);
-        this.ctx.fillText(label, labelX, labelY);
-      }
-      
-      // Показываем номер зоны только для целевой (для отладки)
-      if (isTarget && window.gameDebug) {
-        this.ctx.font = 'bold 12px Arial';
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.strokeStyle = '#000000';
-        this.ctx.lineWidth = 2;
-        const debugLabel = `${zoneIndex}`;
-        this.ctx.strokeText(debugLabel, labelX, labelY + 25);
-        this.ctx.fillText(debugLabel, labelX, labelY + 25);
-      }
-      
-      this.ctx.restore();
-      
-    } catch (error) {
-      console.warn(`⚠️ Error drawing zone label for zone ${zoneIndex}:`, error);
+  // Получить цвет зоны
+  getZoneColor(zoneIndex) {
+    let color = '#888';
+    
+    if (this.gameState.targetZone === zoneIndex) {
+      color = '#aaa';
     }
+    
+    return color;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасное получение иконки зоны
-  getZoneIcon(zoneType, isTarget) {
-    try {
-      if (isTarget || (zoneType && zoneType.id === 'target')) {
-        return '🎯';
-      }
-      
-      if (!zoneType || !zoneType.id) {
-        return '';
-      }
-      
-      switch (zoneType.id) {
-        case 'energy':
-          return '⚡';
-        case 'bonus':
-          return '💰';
-        case 'inactive':
-        default:
-          return '';
-      }
-    } catch (error) {
-      console.warn('⚠️ Error getting zone icon:', error);
-      return '';
-    }
+  // Рисование индикатора целевой зоны
+  drawTargetIndicator() {
+    if (typeof this.gameState.targetZone !== 'number') return;
+    
+    const zones = this.managers.feature.zones;
+    if (!zones) return;
+    
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+    const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
+    const totalAngle = 2 * Math.PI;
+    const stepAngle = totalAngle / zones.length;
+    
+    const targetIndex = this.gameState.targetZone;
+    const startAngle = targetIndex * stepAngle + this.angle;
+    const endAngle = (targetIndex + 1) * stepAngle + this.angle;
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(centerX, centerY);
+    this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    this.ctx.closePath();
+    
+    this.ctx.strokeStyle = 'red';
+    this.ctx.lineWidth = GAME_CONSTANTS.TARGET_ZONE_BORDER_WIDTH;
+    this.ctx.stroke();
+  }
+
+  // Рисование предварительного показа следующей зоны
+  drawPreviewZone() {
+    if (!this.managers.skill || !this.managers.skill.getSkillLevel('zonePreview')) return;
+    
+    const zones = this.managers.feature.zones;
+    if (!zones) return;
+    
+    const centerX = this.canvas.width / 2;
+    const centerY = this.canvas.height / 2;
+    const radius = this.canvas.width / 2 - GAME_CONSTANTS.CANVAS_BORDER_WIDTH;
+    const totalAngle = 2 * Math.PI;
+    const stepAngle = totalAngle / zones.length;
+    
+    const nextZone = (this.gameState.targetZone + 1) % zones.length;
+    const startAngle = nextZone * stepAngle + this.angle;
+    const endAngle = (nextZone + 1) * stepAngle + this.angle;
+    
+    this.ctx.beginPath();
+    this.ctx.moveTo(centerX, centerY);
+    this.ctx.arc(centerX, centerY, radius, startAngle, endAngle);
+    this.ctx.closePath();
+    
+    this.ctx.strokeStyle = 'yellow';
+    this.ctx.lineWidth = GAME_CONSTANTS.PREVIEW_ZONE_BORDER_WIDTH;
+    this.ctx.setLineDash([10, 5]);
+    this.ctx.stroke();
+    this.ctx.setLineDash([]);
   }
 
   // Рисование индикатора обратного вращения
@@ -579,31 +418,9 @@ export class GameLoop extends CleanupMixin {
     }
   }
 
-  // Принудительная перерисовка
+  // ИСПРАВЛЕНИЕ: Принудительная перерисовка
   forceRedraw() {
-    console.log('🔄 GameLoop: Force redraw requested');
-    
     this.needsRedraw = true;
-    this.invalidateZonesCache();
-    
-    // Принудительно рендерим несколько раз для гарантии
-    if (this.running) {
-      this.render();
-      
-      this.createTimeout(() => {
-        if (this.running) {
-          this.needsRedraw = true;
-          this.render();
-        }
-      }, 16); // Один кадр при 60 FPS
-      
-      this.createTimeout(() => {
-        if (this.running) {
-          this.needsRedraw = true;
-          this.render();
-        }
-      }, 32); // Два кадра при 60 FPS
-    }
   }
 
   // Получить текущий угол поворота
@@ -626,38 +443,30 @@ export class GameLoop extends CleanupMixin {
     return this.ctx;
   }
 
-  // Метод isRunning для совместимости
+  // Проверить, запущен ли игровой цикл
   isRunning() {
-    return this.running;
+    return this.isRunning;
   }
 
-  // Получить реальный FPS
+  // ИСПРАВЛЕНИЕ: Получить реальный FPS
   getFPS() {
     return this.actualFPS;
   }
 
-  // ИСПРАВЛЕНИЕ: Безопасная статистика рендеринга
+  // Получить статистику рендеринга
   getRenderStats() {
     return {
       fps: this.actualFPS,
       targetFPS: this.targetFPS,
       angle: this.angle,
       rotationDirection: this.rotationDirection,
-      running: this.running,
+      isRunning: this.isRunning,
       needsRedraw: this.needsRedraw,
       deltaTime: this.deltaTime,
       canvasSize: {
         width: this.canvas?.width || 0,
         height: this.canvas?.height || 0
-      },
-      forceRedrawCounter: this.forceRedrawCounter,
-      targetZone: this.gameState.targetZone,
-      lastTargetZone: this.lastTargetZone,
-      zonesCacheValid: this.zonesCacheValid,
-      zonesManagerAvailable: !!(this.managers.feature && 
-                              this.managers.feature.zoneManager &&
-                              typeof this.managers.feature.zoneManager.getZonesForRendering === 'function'),
-      zoneCount: ZONE_COUNT
+      }
     };
   }
 
@@ -667,7 +476,6 @@ export class GameLoop extends CleanupMixin {
       this.canvas.width = width;
       this.canvas.height = height;
       this.needsRedraw = true;
-      this.invalidateZonesCache();
       console.log(`🖼️ Canvas resized to ${width}x${height}`);
     }
   }
@@ -679,96 +487,11 @@ export class GameLoop extends CleanupMixin {
     console.log(`🔄 Force updated rotation direction: ${this.rotationDirection}`);
   }
 
-  // Проверить наличие ZoneManager
-  hasZoneManager() {
-    return !!(this.managers.feature && 
-             this.managers.feature.zoneManager &&
-             typeof this.managers.feature.zoneManager.getZonesForRendering === 'function');
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная информация о зонах для отладки
-  getZoneRenderInfo() {
-    try {
-      if (this.hasZoneManager()) {
-        const zones = this.managers.feature.zoneManager.getZonesForRendering();
-        return {
-          available: true,
-          zones: zones,
-          debugInfo: this.managers.feature.zoneManager.getDebugInfo ? 
-                    this.managers.feature.zoneManager.getDebugInfo() : 'No debug info',
-          zoneCount: zones ? zones.length : 0,
-          cacheValid: this.zonesCacheValid
-        };
-      } else {
-        return {
-          available: false,
-          fallbackUsed: true,
-          targetZone: this.gameState.targetZone,
-          zoneCount: ZONE_COUNT,
-          cacheValid: this.zonesCacheValid
-        };
-      }
-    } catch (error) {
-      console.error('❌ Error getting zone render info:', error);
-      return {
-        available: false,
-        error: error.message,
-        fallbackUsed: true,
-        targetZone: this.gameState.targetZone,
-        zoneCount: ZONE_COUNT,
-        cacheValid: false
-      };
-    }
-  }
-
-  // ИСПРАВЛЕНИЕ: Безопасная валидация рендеринга
-  validateRendering() {
-    const validation = {
-      canvasReady: !!(this.canvas && this.ctx),
-      zonesAvailable: this.hasZoneManager(),
-      gameStateReady: !!(this.gameState && typeof this.gameState.targetZone === 'number'),
-      managersReady: !!(this.managers && this.managers.feature),
-      cacheValid: this.zonesCacheValid,
-      errors: []
-    };
-    
-    if (!validation.canvasReady) {
-      validation.errors.push('Canvas or context not initialized');
-    }
-    
-    if (!validation.gameStateReady) {
-      validation.errors.push('Game state not ready');
-    }
-    
-    if (!validation.managersReady) {
-      validation.errors.push('Managers not ready');
-    }
-    
-    return validation;
-  }
-
-  // Получить информацию о производительности
-  getPerformanceInfo() {
-    return {
-      fps: this.actualFPS,
-      targetFPS: this.targetFPS,
-      frameTime: this.frameTime,
-      deltaTime: this.deltaTime,
-      running: this.running,
-      redrawsPerformed: this.forceRedrawCounter,
-      lastFrameTime: this.lastFrameTime,
-      animationId: this.animationId,
-      cacheHits: this.zonesCacheValid ? 1 : 0,
-      cacheMisses: this.zonesCacheValid ? 0 : 1
-    };
-  }
-
   // Деструктор
   destroy() {
     console.log('🧹 Destroying GameLoop...');
     
     this.stop();
-    this.invalidateZonesCache();
     super.destroy();
     
     console.log('✅ GameLoop destroyed');
