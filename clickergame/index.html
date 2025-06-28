@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Компактная навигация сверху -->
+  <!-- Навигация сверху -->
   <div id="ui-top">
     <button id="toggle-buildings">🏗️ Buildings</button>
     <button id="toggle-skills">🎯 Skills</button>
@@ -15,49 +15,32 @@
     <button id="info-button">📚 Info</button>
   </div>
 
-  <!-- ИСПРАВЛЕНИЕ: Игровая зона с правильным расположением ресурсов по бокам -->
+  <!-- ИСПРАВЛЕНИЕ: Игровая зона с отдельным индикатором комбо -->
   <div id="game-area">
-    <!-- Контейнер для всех элементов в одну линию -->
+    <!-- НОВЫЙ: Индикатор комбо над колесом -->
+    <div class="combo-indicator" id="combo-indicator">
+      <div class="combo-title">COMBO</div>
+      <div class="combo-value" id="combo-value">0</div>
+      <div class="combo-bonus" id="combo-bonus">Keep hitting the target!</div>
+    </div>
+
+    <!-- Контейнер для колеса и ресурсов -->
     <div class="game-wheel-container">
-      <!-- Ресурсы слева -->
-      <div id="resources-left" class="resources-left"></div>
-      
-      <!-- Комбо слева от колеса -->
-      <div class="combo-indicator" id="combo-indicator">
-        <div class="combo-title">COMBO</div>
-        <div class="combo-value" id="combo-value">0</div>
-        <div class="combo-bonus" id="combo-bonus">Hit the red target!</div>
-      </div>
-
-      <!-- Игровое колесо по центру -->
-      <canvas id="gameCanvas" width="400" height="400"></canvas>
-
-      <!-- Энергия справа от колеса -->
-      <div class="energy-display-container" id="energy-display">
-        <div class="energy-bar-container">
-          <div class="energy-bar-background">
-            <div class="energy-bar energy-normal"></div>
-          </div>
-        </div>
-        <div class="energy-text">⚡ 100/100</div>
-        <div class="energy-status ready">Ready!</div>
-        <div class="energy-warning hidden">⚡ Low!</div>
-      </div>
-      
-      <!-- Ресурсы справа -->
-      <div id="resources-right" class="resources-right"></div>
+      <div id="resources-left" class="resources-panel"></div>
+      <canvas id="gameCanvas" width="500" height="500"></canvas>
+      <div id="resources-right" class="resources-panel"></div>
     </div>
   </div>
 
   <!-- Панель, которая меняется в зависимости от кнопки -->
   <div id="panel-container" class="list-panel hidden"></div>
 
-  <!-- Компактные кнопки управления -->
+  <!-- Кнопки управления -->
   <div id="controls-bottom">
-    <button id="load-button">📁 Load</button>
-    <button id="save-button">💾 Save</button>
-    <button id="reset-button">🔄 Reset</button>
-    <button disabled>Alpha 3.5.5</button>
+    <button id="load-button">📁 Load Game</button>
+    <button id="save-button">💾 Save Game</button>
+    <button id="reset-button">🔄 Generate Reset Code</button>
+    <button id="load-button" disabled>Version: Alpha 2.1</button>
   </div>
 
   <!-- Уведомления и модалки -->
@@ -83,7 +66,6 @@
         padding: 15px; border-radius: 8px;
         max-width: 300px; z-index: 10000;
         font-family: Arial, sans-serif;
-        font-size: 14px;
       `;
       errorDiv.innerHTML = `
         <strong>⚠️ Loading Error</strong><br>
@@ -91,7 +73,7 @@
         <button onclick="location.reload()" style="
           background: white; color: #ff4444; border: none;
           padding: 5px 10px; border-radius: 4px; margin-top: 5px;
-          cursor: pointer; font-weight: bold; font-size: 12px;
+          cursor: pointer; font-weight: bold;
         ">Reload Page</button>
       `;
       document.body.appendChild(errorDiv);

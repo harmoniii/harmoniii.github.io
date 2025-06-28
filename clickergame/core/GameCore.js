@@ -1,4 +1,4 @@
-// core/GameCore.js - ИСПРАВЛЕННАЯ версия с упрощенной механикой зон
+// core/GameCore.js - ИСПРАВЛЕННАЯ версия с правильными ссылками на менеджеры
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -8,8 +8,6 @@ import { BuildingManager } from '../managers/BuildingManager.js';
 import { SkillManager } from '../managers/SkillManager.js';
 import { MarketManager } from '../managers/MarketManager.js';
 import { BuffManager } from '../effects/BuffManager.js';
-import { AchievementManager } from '../managers/AchievementManager.js';
-import { EnergyManager } from '../managers/EnergyManager.js';
 import UIManager from '../ui/UIManager.js';
 import { GameLoop } from './GameLoop.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -37,9 +35,11 @@ export class GameCore extends CleanupMixin {
       
       await this.initializeGameState();
       await this.initializeManagers();
-      await this.setupManagerReferences();
       await this.initializeUI();
       await this.startGameLoop();
+      
+      // ИСПРАВЛЕНИЕ: Устанавливаем правильные ссылки между менеджерами
+      this.setupManagerReferences();
       
       // Подписываемся на системные события
       this.bindSystemEvents();
@@ -82,29 +82,19 @@ export class GameCore extends CleanupMixin {
     console.log('🔧 Initializing managers...');
     
     try {
-      // Базовые менеджеры (без зависимостей)
-      this.managers.energy = new EnergyManager(this.gameState);
-      this.managers.achievement = new AchievementManager(this.gameState);
+      // ИСПРАВЛЕНИЕ: Создаем менеджеры в правильном порядке с правильными зависимостями
+      this.managers.buff = new BuffManager(this.gameState);
+      this.managers.feature = new FeatureManager(this.gameState, this.managers.buff);
       this.managers.building = new BuildingManager(this.gameState);
       this.managers.skill = new SkillManager(this.gameState);
       this.managers.market = new MarketManager(this.gameState);
-      
-      console.log('✅ Basic managers initialized');
-      
-      // BuffManager
-      this.managers.buff = new BuffManager(this.gameState);
-      console.log('✅ BuffManager initialized');
-      
-      // FeatureManager последним
-      this.managers.feature = new FeatureManager(this.gameState, this.managers.buff);
-      console.log('✅ FeatureManager initialized');
       
       // Регистрируем менеджеры для очистки
       Object.entries(this.managers).forEach(([name, manager]) => {
         this.cleanupManager.registerComponent(manager, `${name}Manager`);
       });
       
-      console.log('✅ All managers initialized and registered');
+      console.log('✅ Managers initialized');
       
     } catch (error) {
       console.error('💀 Failed to initialize managers:', error);
@@ -112,29 +102,32 @@ export class GameCore extends CleanupMixin {
     }
   }
 
-  // Установка ссылок между менеджерами
-  async setupManagerReferences() {
+  // ИСПРАВЛЕНИЕ: Установка правильных ссылок между менеджерами
+  setupManagerReferences() {
     console.log('🔗 Setting up manager references...');
     
     try {
-      // Устанавливаем ссылки в gameState
+      // Устанавливаем ссылки в gameState для доступа из других компонентов
       this.gameState.buffManager = this.managers.buff;
-      this.gameState.energyManager = this.managers.energy;
-      this.gameState.achievementManager = this.managers.achievement;
       this.gameState.buildingManager = this.managers.building;
       this.gameState.skillManager = this.managers.skill;
       this.gameState.marketManager = this.managers.market;
       this.gameState.featureManager = this.managers.feature;
       
-      // Дополнительные ссылки для совместимости
+      // ИСПРАВЛЕНИЕ: Дополнительные ссылки для совместимости
       this.gameState.managers = this.managers;
-      this.gameState.featureMgr = this.managers.feature;
+      this.gameState.featureMgr = this.managers.feature; // Для автокликера
+      
+      // Устанавливаем обратные ссылки для автокликера
+      if (this.managers.skill && this.managers.feature) {
+        console.log('🤖 Setting up auto clicker references...');
+        // Автокликер теперь может получить доступ к FeatureManager через gameState
+      }
       
       console.log('✅ Manager references set up successfully');
       
     } catch (error) {
       console.error('💀 Failed to set up manager references:', error);
-      throw error;
     }
   }
 
@@ -195,6 +188,7 @@ export class GameCore extends CleanupMixin {
     
     eventBus.subscribe(GameEvents.LOAD_COMPLETED, () => {
       console.log('📁 Load completed');
+      // ИСПРАВЛЕНИЕ: Перезапускаем менеджеры после загрузки
       this.restartManagersAfterLoad();
     });
     
@@ -215,9 +209,9 @@ export class GameCore extends CleanupMixin {
     });
   }
 
-  // Безопасное автосохранение
+  // ИСПРАВЛЕНИЕ: Безопасное автосохранение
   autoSave() {
-    // Проверки перед сохранением
+    // КРИТИЧЕСКИЕ ПРОВЕРКИ перед сохранением
     if (!this.gameState) {
       console.warn('⚠️ AutoSave: gameState is null, skipping save');
       return false;
@@ -239,24 +233,8 @@ export class GameCore extends CleanupMixin {
     }
 
     try {
-      // Создаем расширенные данные сохранения
-      const saveData = this.gameState.getSaveData();
-      
-      // Добавляем данные энергии
-      if (this.managers.energy) {
-        saveData.energy = this.managers.energy.getSaveData();
-      }
-      
-      // Добавляем данные достижений
-      if (this.managers.achievement) {
-        saveData.achievements = this.managers.achievement.getSaveData();
-      }
-      
       // Используем безопасное сохранение
-      const success = this.storageManager.safeSave({
-        ...saveData,
-        getSaveData: () => saveData
-      });
+      const success = this.storageManager.safeSave(this.gameState);
       
       if (success) {
         console.log('💾 Auto-save completed successfully');
@@ -272,7 +250,7 @@ export class GameCore extends CleanupMixin {
     }
   }
 
-  // Перезапуск менеджеров после загрузки
+  // ИСПРАВЛЕНИЕ: Перезапуск менеджеров после загрузки
   restartManagersAfterLoad() {
     console.log('🔄 Restarting managers after load...');
     
@@ -289,34 +267,25 @@ export class GameCore extends CleanupMixin {
         this.managers.skill.stopAllGeneration();
         this.managers.skill.startGeneration();
         console.log('✅ Skill generation restarted');
-      }
-
-      // Перезапускаем энергетическую систему
-      if (this.managers.energy) {
-        this.managers.energy.forceUpdate();
-        console.log('✅ Energy system updated');
-      }
-
-      // Проверяем достижения после загрузки
-      if (this.managers.achievement) {
-        this.managers.achievement.forceCheckAllAchievements();
-        console.log('✅ Achievements checked');
+        
+        // Специально перезапускаем автокликер
+        const autoClickerLevel = this.managers.skill.getSkillLevel('autoClicker');
+        if (autoClickerLevel > 0) {
+          this.managers.skill.reloadAutoClicker();
+          console.log('🤖 Auto clicker reloaded');
+        }
       }
 
       // Обновляем UI
       if (this.managers.ui) {
-        this.createTimeout(() => {
-          this.managers.ui.forceUpdate();
-          console.log('✅ UI updated after load');
-        }, 500);
+        this.managers.ui.forceUpdate();
+        console.log('✅ UI updated');
       }
 
       // Принудительно обновляем игровой цикл
       if (this.gameLoop) {
-        this.createTimeout(() => {
-          this.gameLoop.forceRedraw();
-          console.log('✅ Game loop refreshed after load');
-        }, 600);
+        this.gameLoop.forceRedraw();
+        console.log('✅ Game loop refreshed');
       }
 
     } catch (error) {
@@ -503,31 +472,16 @@ export class GameCore extends CleanupMixin {
       activeBuffs: this.gameState.buffs.length,
       activeDebuffs: this.gameState.debuffs.length,
       buildingsBuilt: Object.values(this.gameState.buildings).filter(b => b.level > 0).length,
-      skillsLearned: Object.values(this.gameState.skills).filter(s => s.level > 0).length,
-      // Статистики энергии
-      energy: this.managers.energy ? {
-        current: this.gameState.energy?.current || 0,
-        max: this.managers.energy.getEffectiveMaxEnergy(),
-        percentage: this.managers.energy.getEnergyPercentage()
-      } : null,
-      // Статистики достижений
-      achievements: this.managers.achievement ? {
-        completed: this.managers.achievement.getCompletedAchievements().length,
-        total: this.managers.achievement.getAllAchievements().length,
-        completionPercent: this.managers.achievement.getAchievementStats().completionPercent
-      } : null
+      skillsLearned: Object.values(this.gameState.skills).filter(s => s.level > 0).length
     };
   }
 
-  // ИСПРАВЛЕНИЕ: Проверка активности игры БЕЗ вызова несуществующего метода
+  // Проверка активности игры
   isGameActive() {
-    return this.isActive() && 
-           this.gameState && 
-           this.gameLoop && 
-           this.gameLoop.running === true; // Используем свойство running вместо метода
+    return this.isActive() && this.gameState && this.gameLoop && this.gameLoop.isRunning();
   }
 
-  // Включить режим отладки
+  // ИСПРАВЛЕНИЕ: Добавляем отладочные функции
   enableDebugMode() {
     console.log('🐛 Enabling debug mode...');
     
@@ -537,54 +491,14 @@ export class GameCore extends CleanupMixin {
       getManagers: () => this.managers,
       getGameCore: () => this,
       
-      // Энергетические функции отладки
-      energy: {
-        getCurrent: () => this.managers.energy?.getEnergyInfo(),
-        restore: (amount) => this.managers.energy?.restoreEnergy(amount, 'debug'),
-        consume: (amount) => this.managers.energy?.consumeEnergy(amount),
-        reset: () => this.managers.energy?.resetEnergy(),
-        getStats: () => this.managers.energy?.getEnergyStatistics()
-      },
-      
-      // Функции отладки достижений
-      achievements: {
-        getAll: () => this.managers.achievement?.getAllAchievements(),
-        getCompleted: () => this.managers.achievement?.getCompletedAchievements(),
-        getStats: () => this.managers.achievement?.getAchievementStats(),
-        forceCheck: () => this.managers.achievement?.forceCheckAllAchievements()
-      },
-      
-      // Функции отладки зон
-      zones: {
-        getState: () => {
-          if (!this.managers.feature) return 'FeatureManager not available';
-          return this.managers.feature.getZonesDebugInfo?.() || 'Debug info not available';
-        },
-        
-        setTarget: (zoneIndex) => {
-          if (!this.managers.feature) return 'FeatureManager not available';
-          this.gameState.targetZone = zoneIndex;
-          eventBus.emit(GameEvents.ZONES_SHUFFLED, zoneIndex);
-          return `Target zone set to ${zoneIndex}`;
-        },
-        
-        getInfo: () => {
-          if (!this.managers.feature) return 'FeatureManager not available';
-          return this.managers.feature.getZoneInfo?.() || 'Zone info not available';
-        },
-        
-        reset: () => {
-          this.gameState.targetZone = 0;
-          this.gameState.previousTargetZone = 0;
-          eventBus.emit(GameEvents.ZONES_SHUFFLED, 0);
-          return 'Zones reset to default state';
-        }
-      },
-      
+      // Комбо отладка
       forceComboReset: () => {
-        this.gameState.combo.count = 0;
-        this.gameState.combo.deadline = 0;
-        eventBus.emit(GameEvents.COMBO_CHANGED, this.gameState.combo);
+        if (this.managers.feature && typeof this.managers.feature.forceResetCombo === 'function') {
+          this.managers.feature.forceResetCombo();
+        } else {
+          this.gameState.combo.count = 0;
+          this.gameState.combo.deadline = 0;
+        }
       },
       
       setCombo: (count) => {
@@ -592,14 +506,26 @@ export class GameCore extends CleanupMixin {
         eventBus.emit(GameEvents.COMBO_CHANGED, this.gameState.combo);
       },
       
+      // Эффекты отладка
       clearAllEffects: () => {
         this.managers.buff?.clearAllEffects();
       },
       
+      forceEffectCleanup: () => {
+        this.managers.buff?.forceCleanExpiredEffects();
+        this.managers.ui?.effectIndicators?.forceCleanup();
+      },
+      
+      // Автокликер отладка
       getAutoClickerStats: () => {
         return this.managers.skill?.getAutoClickerStats();
       },
       
+      reloadAutoClicker: () => {
+        this.managers.skill?.reloadAutoClicker();
+      },
+      
+      // Общая отладка
       triggerAutoSave: () => this.autoSave(),
       
       getStats: () => ({
@@ -607,24 +533,48 @@ export class GameCore extends CleanupMixin {
         cleanup: this.cleanupManager.getStats(),
         ui: this.managers.ui?.getUIStats(),
         buffs: this.managers.buff?.getDebugInfo(),
+        effects: this.managers.ui?.effectIndicators?.getDebugInfo(),
         gameLoop: this.gameLoop?.getRenderStats()
-      })
+      }),
+      
+      // FPS отладка
+      getFPS: () => this.gameLoop?.getFPS(),
+      
+      forceRedraw: () => this.gameLoop?.forceRedraw(),
+      
+      // Перезапуск менеджеров
+      restartManagers: () => this.restartManagersAfterLoad()
     };
     
-    console.log('✅ Debug mode enabled');
-    console.log('🔧 Available commands: window.gameDebug.*');
+    console.log('🐛 Debug mode enabled! Use window.gameDebug for debugging');
+    
+    // Включаем отладку в менеджерах
+    if (this.managers.buff && typeof this.managers.buff.setDebugMode === 'function') {
+      this.managers.buff.setDebugMode(true);
+    }
+    
+    if (this.cleanupManager && typeof this.cleanupManager.setDebugMode === 'function') {
+      this.cleanupManager.setDebugMode(true);
+    }
   }
 
   // Деструктор
   destroy() {
-    console.log('🧹 GameCore cleanup started');
+    console.log('🧹 Destroying GameCore...');
     
-    // Останавливаем все процессы
-    this.stopAllGameProcesses();
-    
-    // Вызываем родительский деструктор
-    super.destroy();
-    
-    console.log('✅ GameCore destroyed');
+    try {
+      // Сохраняем перед уничтожением
+      this.autoSave();
+      
+      // Останавливаем все процессы
+      this.stopAllGameProcesses();
+      
+      // Вызываем родительский деструктор
+      super.destroy();
+      
+      console.log('✅ GameCore destroyed');
+    } catch (error) {
+      console.error('💀 Error during GameCore destruction:', error);
+    }
   }
 }

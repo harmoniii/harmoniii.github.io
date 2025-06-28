@@ -9,8 +9,7 @@ export const MARKET_CATEGORIES = {
   resources: 'Basic Resources',
   advanced: 'Advanced Materials',
   special: 'Special Items',
-  premium: 'Premium Goods',
-  energy: 'Enegry Replenish'
+  premium: 'Premium Goods'
 };
 
 // Товары маркета
@@ -121,36 +120,6 @@ export const MARKET_ITEMS = [
     description: 'An artifact that channels the economic resilience of the old world, promising a steady flow of resources in an era of scarcity.',
     price: { gold: 50000, faith: 10 },
     reward: { goldBonus: 0.1 }, // 10% постоянный бонус к золоту
-    category: 'premium'
-  }
-];
-
-export const ENERGY_MARKET_ITEMS = [
-  {
-    id: 'energy_pack',
-    name: 'Energy Pack',
-    icon: '⚡',
-    description: 'A concentrated burst of power, providing immediate energy restoration for urgent reconstruction work.',
-    price: { gold: 1000 },
-    energyEffect: { type: 'restore', amount: 50 },
-    category: 'energy'
-  },
-  {
-    id: 'energy_drink',
-    name: 'Energy Drink',
-    icon: '🥤',
-    description: 'A stimulating beverage that temporarily enhances energy capacity, allowing for extended work periods.',
-    price: { gold: 2000, science: 2 },
-    energyEffect: { type: 'temp_max_boost', amount: 50, duration: 600000 }, // 10 minutes
-    category: 'energy'
-  },
-  {
-    id: 'power_core',
-    name: 'Power Core',
-    icon: '🔋',
-    description: 'A permanent energy enhancement module that increases maximum energy capacity forever.',
-    price: { gold: 5000, energy: 50, science: 10 },
-    energyEffect: { type: 'permanent_max_boost', amount: 25 },
     category: 'premium'
   }
 ];

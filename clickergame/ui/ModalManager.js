@@ -1,4 +1,4 @@
-// ui/ModalManager.js - ИСПРАВЛЕННАЯ версия управления модальными окнами
+// ui/ModalManager.js - Управление модальными окнами
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { getResourceEmoji } from '../config/ResourceConfig.js';
@@ -17,7 +17,7 @@ export class ModalManager extends CleanupMixin {
     console.log('🪟 ModalManager initialized');
   }
 
-  // ИСПРАВЛЕННАЯ инициализация модальных окон
+  // Инициализация модальных окон
   initializeModals() {
     // Проверяем наличие базовых модальных окон
     this.mysteryModal = document.getElementById('mystery-modal');
@@ -31,13 +31,8 @@ export class ModalManager extends CleanupMixin {
       this.infoModal = this.createModal('info-modal');
     }
     
-    // ИСПРАВЛЕНИЕ: Правильная регистрация DOM элементов
-    if (this.mysteryModal) {
-      this.registerDOMElement(this.mysteryModal);
-    }
-    if (this.infoModal) {
-      this.registerDOMElement(this.infoModal);
-    }
+    this.registerDOMElement(this.mysteryModal);
+    this.registerDOMElement(this.infoModal);
   }
 
   // Создать модальное окно
@@ -121,8 +116,6 @@ export class ModalManager extends CleanupMixin {
 
   // Привязать обработчики Mystery Box
   bindMysteryBoxHandlers() {
-    if (!this.mysteryModal) return;
-    
     const mysteryOptions = this.mysteryModal.querySelectorAll('.mystery-option');
     const closeButton = this.mysteryModal.querySelector('.modal-close');
     
@@ -145,13 +138,9 @@ export class ModalManager extends CleanupMixin {
     if (!resource) return;
     
     // Валидируем ресурс
-    if (this.gameState.resources && this.gameState.resources.hasOwnProperty(resource)) {
+    if (this.gameState.resources.hasOwnProperty(resource)) {
       const amount = 5;
-      if (typeof this.gameState.addResource === 'function') {
-        this.gameState.addResource(resource, amount);
-      } else {
-        this.gameState.resources[resource] = (this.gameState.resources[resource] || 0) + amount;
-      }
+      this.gameState.addResource(resource, amount);
       
       eventBus.emit(GameEvents.RESOURCE_CHANGED, { 
         resource: resource, 
@@ -169,8 +158,6 @@ export class ModalManager extends CleanupMixin {
 
   // Показать информационное модальное окно
   showInfoModal(title, content, options = {}) {
-    if (!this.infoModal) return;
-    
     const modalContent = this.createInfoModalContent(title, content, options);
     this.infoModal.innerHTML = modalContent;
     this.showModal(this.infoModal);
@@ -202,8 +189,6 @@ export class ModalManager extends CleanupMixin {
 
   // Привязать обработчики информационного модального окна
   bindInfoModalHandlers(options) {
-    if (!this.infoModal) return;
-    
     const buttons = this.infoModal.querySelectorAll('.modal-button, .modal-close');
     
     buttons.forEach(button => {
@@ -239,6 +224,82 @@ export class ModalManager extends CleanupMixin {
     this.showInfoModal(title, content, options);
   }
 
+  // Показать модальное окно с формой
+  showFormModal(title, fields, onSubmit) {
+    const fieldsHtml = fields.map(field => {
+      switch (field.type) {
+        case 'text':
+        case 'number':
+          return `
+            <div class="form-field">
+              <label for="${field.name}">${field.label}:</label>
+              <input type="${field.type}" id="${field.name}" name="${field.name}" 
+                     value="${field.value || ''}" ${field.required ? 'required' : ''}>
+            </div>
+          `;
+        case 'select':
+          const optionsHtml = field.options.map(opt => 
+            `<option value="${opt.value}">${opt.text}</option>`
+          ).join('');
+          return `
+            <div class="form-field">
+              <label for="${field.name}">${field.label}:</label>
+              <select id="${field.name}" name="${field.name}" ${field.required ? 'required' : ''}>
+                ${optionsHtml}
+              </select>
+            </div>
+          `;
+        case 'textarea':
+          return `
+            <div class="form-field">
+              <label for="${field.name}">${field.label}:</label>
+              <textarea id="${field.name}" name="${field.name}" 
+                        ${field.required ? 'required' : ''}>${field.value || ''}</textarea>
+            </div>
+          `;
+        default:
+          return '';
+      }
+    }).join('');
+    
+    const content = `
+      <form class="modal-form" id="modal-form">
+        ${fieldsHtml}
+      </form>
+    `;
+    
+    const options = {
+      buttons: [
+        { text: 'Submit', action: 'submit', class: 'btn-submit' },
+        { text: 'Cancel', action: 'cancel', class: 'btn-cancel' }
+      ],
+      onAction: (action) => {
+        if (action === 'submit') {
+          this.handleFormSubmit(onSubmit);
+        }
+      }
+    };
+    
+    this.showInfoModal(title, content, options);
+  }
+
+  // Обработать отправку формы
+  handleFormSubmit(onSubmit) {
+    const form = this.infoModal.querySelector('#modal-form');
+    if (!form) return;
+    
+    const formData = new FormData(form);
+    const data = {};
+    
+    for (const [key, value] of formData.entries()) {
+      data[key] = value;
+    }
+    
+    if (onSubmit) {
+      onSubmit(data);
+    }
+  }
+
   // Показать модальное окно достижения
   showAchievementModal(achievement) {
     const content = `
@@ -256,9 +317,7 @@ export class ModalManager extends CleanupMixin {
     
     // Автоматически закрываем через время
     this.createTimeout(() => {
-      if (this.infoModal) {
-        this.hideModal(this.infoModal);
-      }
+      this.hideModal(this.infoModal);
     }, GAME_CONSTANTS.SKILL_NOTIFICATION_DURATION);
   }
 
@@ -276,7 +335,6 @@ export class ModalManager extends CleanupMixin {
     loadingModal.innerHTML = this.createInfoModalContent('', content);
     loadingModal.classList.add('loading-modal-container');
     
-    this.registerDOMElement(loadingModal);
     this.showModal(loadingModal);
     
     return loadingModal;
@@ -294,11 +352,9 @@ export class ModalManager extends CleanupMixin {
     modal.style.transform = 'scale(0.8)';
     
     this.createTimeout(() => {
-      if (modal) {
-        modal.style.transition = 'all 0.3s ease-out';
-        modal.style.opacity = '1';
-        modal.style.transform = 'scale(1)';
-      }
+      modal.style.transition = 'all 0.3s ease-out';
+      modal.style.opacity = '1';
+      modal.style.transform = 'scale(1)';
     }, 10);
     
     // Блокируем прокрутку страницы
@@ -315,14 +371,12 @@ export class ModalManager extends CleanupMixin {
     modal.style.transform = 'scale(0.8)';
     
     this.createTimeout(() => {
-      if (modal) {
-        modal.classList.add('hidden');
-        this.activeModals.delete(modal);
-        
-        // Восстанавливаем прокрутку если нет активных модальных окон
-        if (this.activeModals.size === 0) {
-          document.body.style.overflow = '';
-        }
+      modal.classList.add('hidden');
+      this.activeModals.delete(modal);
+      
+      // Восстанавливаем прокрутку если нет активных модальных окон
+      if (this.activeModals.size === 0) {
+        document.body.style.overflow = '';
       }
     }, 300);
   }
@@ -423,24 +477,20 @@ export class ModalManager extends CleanupMixin {
     
     // Анимация появления
     this.createTimeout(() => {
-      if (popup) {
-        popup.style.opacity = '1';
-        popup.style.transform = 'translateX(0)';
-      }
+      popup.style.opacity = '1';
+      popup.style.transform = 'translateX(0)';
     }, 10);
     
     // Автоматическое удаление
     this.createTimeout(() => {
-      if (popup) {
-        popup.style.opacity = '0';
-        popup.style.transform = 'translateX(100%)';
-        
-        this.createTimeout(() => {
-          if (popup && document.body.contains(popup)) {
-            document.body.removeChild(popup);
-          }
-        }, 300);
-      }
+      popup.style.opacity = '0';
+      popup.style.transform = 'translateX(100%)';
+      
+      this.createTimeout(() => {
+        if (document.body.contains(popup)) {
+          document.body.removeChild(popup);
+        }
+      }, 300);
     }, duration);
     
     return popup;
@@ -451,8 +501,8 @@ export class ModalManager extends CleanupMixin {
     return {
       activeModals: this.activeModals.size,
       totalModalsInDOM: document.querySelectorAll('.modal').length,
-      mysteryModalVisible: this.mysteryModal && !this.mysteryModal.classList.contains('hidden'),
-      infoModalVisible: this.infoModal && !this.infoModal.classList.contains('hidden')
+      mysteryModalVisible: !this.mysteryModal.classList.contains('hidden'),
+      infoModalVisible: !this.infoModal.classList.contains('hidden')
     };
   }
 

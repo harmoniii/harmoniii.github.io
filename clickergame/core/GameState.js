@@ -1,9 +1,8 @@
-// core/GameState.js - ИСПРАВЛЕННАЯ версия с поддержкой энергетической системы
+// core/GameState.js - Fixed version with proper cleanup
 import { RESOURCES } from '../config/ResourceConfig.js';
 import { BUILDING_DEFS } from '../managers/BuildingManager.js';
 import { SKILL_DEFS } from '../managers/SkillManager.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
-import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
 
 export class GameState {
   constructor() {
@@ -12,20 +11,11 @@ export class GameState {
   }
 
   initializeState() {
-    // Основные ресурсы (БЕЗ энергии - теперь отдельная система)
+    // Основные ресурсы
     this.resources = RESOURCES.reduce((obj, resource) => {
       obj[resource] = 0;
       return obj;
     }, {});
-
-    // Энергетическая система (отдельно от ресурсов)
-    this.energy = {
-      current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-      max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
-      lastRegenTime: Date.now(),
-      totalConsumed: 0,
-      totalRegenerated: 0
-    };
 
     // Комбо система
     this.combo = {
@@ -77,19 +67,7 @@ export class GameState {
     this.market = {
       dailyDeals: [],
       purchaseHistory: [],
-      reputation: 0,
-      permanentBonuses: {}
-    };
-
-    // Система достижений
-    this.achievements = {
-      completed: new Set(),
-      statistics: {
-        totalClicks: 0,
-        maxCombo: 0,
-        resourcesCollected: {},
-        totalResourcesCollected: 0
-      }
+      reputation: 0
     };
 
     // Системные поля
@@ -129,38 +107,6 @@ export class GameState {
       count: Math.max(0, Math.min(combo.count || 0, GAME_CONSTANTS.MAX_COMBO_COUNT)),
       deadline: Math.max(0, combo.deadline || 0),
       lastAngle: typeof combo.lastAngle === 'number' ? combo.lastAngle : null
-    };
-  }
-
-  // Валидация энергии
-  validateEnergy(energy) {
-    if (!energy || typeof energy !== 'object') {
-      return { ...this.energy };
-    }
-    
-    return {
-      current: Math.max(0, energy.current || ENERGY_CONSTANTS.INITIAL_ENERGY),
-      max: Math.max(ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, energy.max || ENERGY_CONSTANTS.INITIAL_MAX_ENERGY),
-      lastRegenTime: energy.lastRegenTime || Date.now(),
-      totalConsumed: Math.max(0, energy.totalConsumed || 0),
-      totalRegenerated: Math.max(0, energy.totalRegenerated || 0)
-    };
-  }
-
-  // Валидация достижений
-  validateAchievements(achievements) {
-    if (!achievements || typeof achievements !== 'object') {
-      return { ...this.achievements };
-    }
-    
-    return {
-      completed: new Set(Array.isArray(achievements.completed) ? achievements.completed : []),
-      statistics: {
-        totalClicks: Math.max(0, achievements.statistics?.totalClicks || 0),
-        maxCombo: Math.max(0, achievements.statistics?.maxCombo || 0),
-        resourcesCollected: achievements.statistics?.resourcesCollected || {},
-        totalResourcesCollected: Math.max(0, achievements.statistics?.totalResourcesCollected || 0)
-      }
     };
   }
 
@@ -214,17 +160,8 @@ export class GameState {
     try {
       // Создаем безопасную копию данных с валидацией
       const saveData = {
-        // Основные ресурсы с валидацией (БЕЗ энергии)
+        // Основные ресурсы с валидацией
         resources: this.resources ? { ...this.resources } : {},
-        
-        // Энергетическая система
-        energy: this.energy ? { ...this.energy } : {
-          current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-          max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
-          lastRegenTime: Date.now(),
-          totalConsumed: 0,
-          totalRegenerated: 0
-        },
         
         // Комбо с валидацией
         combo: this.combo ? { ...this.combo } : { count: 0, deadline: 0, lastZone: null, lastAngle: null },
@@ -248,12 +185,6 @@ export class GameState {
         // Маркет
         market: this.market ? { ...this.market } : {},
         
-        // Достижения
-        achievements: {
-          completed: Array.from(this.achievements.completed || []),
-          statistics: { ...this.achievements.statistics }
-        },
-        
         // НЕ сохраняем временные эффекты
         buffs: [],
         debuffs: [],
@@ -268,7 +199,7 @@ export class GameState {
         
         // Метаданные будут добавлены в StorageManager
         saveTimestamp: Date.now(),
-        saveVersion: '1.0.8'
+        saveVersion: '0.8.0'
       };
   
       // Дополнительная валидация ресурсов
@@ -279,9 +210,6 @@ export class GameState {
           saveData.resources[resource] = 0;
         }
       });
-
-      // Валидация энергии
-      saveData.energy = this.validateEnergy(saveData.energy);
   
       console.log('✅ GameState.getSaveData: Save data created successfully');
       return saveData;
@@ -292,13 +220,6 @@ export class GameState {
       // Возвращаем минимальные безопасные данные
       return {
         resources: {},
-        energy: {
-          current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-          max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
-          lastRegenTime: Date.now(),
-          totalConsumed: 0,
-          totalRegenerated: 0
-        },
         combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
         skillPoints: 0,
         targetZone: 0,
@@ -307,15 +228,6 @@ export class GameState {
         skills: {},
         skillStates: {},
         market: {},
-        achievements: {
-          completed: [],
-          statistics: {
-            totalClicks: 0,
-            maxCombo: 0,
-            resourcesCollected: {},
-            totalResourcesCollected: 0
-          }
-        },
         buffs: [],
         debuffs: [],
         blockedUntil: 0,
@@ -327,7 +239,7 @@ export class GameState {
           frozenCombo: false
         },
         saveTimestamp: Date.now(),
-        saveVersion: '1.0.8'
+        saveVersion: '0.8.0'
       };
     }
   }
@@ -338,27 +250,13 @@ export class GameState {
       throw new Error('Invalid save data or GameState is destroyed');
     }
 
-    // Валидируем и загружаем ресурсы (БЕЗ энергии)
+    // Валидируем и загружаем ресурсы
     if (data.resources && typeof data.resources === 'object') {
       Object.entries(data.resources).forEach(([resource, value]) => {
         if (RESOURCES.includes(resource)) {
           this.resources[resource] = this.validateResource(resource, value);
         }
       });
-    }
-
-    // Загружаем энергию
-    if (data.energy && typeof data.energy === 'object') {
-      this.energy = this.validateEnergy(data.energy);
-    } else {
-      // Если энергии нет в сохранении, инициализируем значениями по умолчанию
-      this.energy = {
-        current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-        max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
-        lastRegenTime: Date.now(),
-        totalConsumed: 0,
-        totalRegenerated: 0
-      };
     }
 
     // Загружаем остальные данные
@@ -405,14 +303,8 @@ export class GameState {
       this.market = {
         dailyDeals: Array.isArray(data.market.dailyDeals) ? data.market.dailyDeals : [],
         purchaseHistory: Array.isArray(data.market.purchaseHistory) ? data.market.purchaseHistory : [],
-        reputation: Math.max(0, Math.floor(data.market.reputation || 0)),
-        permanentBonuses: data.market.permanentBonuses || {}
+        reputation: Math.max(0, Math.floor(data.market.reputation || 0))
       };
-    }
-
-    // Загружаем достижения
-    if (data.achievements && typeof data.achievements === 'object') {
-      this.achievements = this.validateAchievements(data.achievements);
     }
 
     // Сбрасываем временные эффекты
@@ -435,7 +327,6 @@ export class GameState {
     return !this.isDestroyed && 
            this.resources && 
            this.combo && 
-           this.energy &&
            typeof this.skillPoints === 'number';
   }
 
@@ -457,21 +348,17 @@ export class GameState {
     
     // Clear all references
     this.resources = null;
-    this.energy = null;
     this.combo = null;
     this.buildings = null;
     this.skills = null;
     this.skillStates = null;
     this.market = null;
-    this.achievements = null;
     this.buffs = null;
     this.debuffs = null;
     this.effectStates = null;
     
     // Clear manager references
     this.buffManager = null;
-    this.energyManager = null;
-    this.achievementManager = null;
     this.buildingManager = null;
     this.skillManager = null;
     this.marketManager = null;

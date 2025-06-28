@@ -112,53 +112,6 @@ export const BUILDING_DEFS = [
   }
 ];
 
-export const UPDATED_BUILDING_DEFS = [
-  // Обновленный генератор
-  {
-    id: 'generator',
-    img: '⚡',
-    name: 'Generator',
-    description: 'A salvaged piece of pre-catastrophe technology, carefully restored to provide energy in a world of darkness. Its hum is a promise - civilization can be restarted, one spark at a time. Produces energy and increases energy capacity.',
-    price: { iron: 20, stone: 15, people: 3 },
-    production: { resource: 'energy', amount: 2, interval: 10000 },
-    energyBonus: {
-      maxEnergy: 10, // +10 max energy per level
-      regenBonus: 0.5 // +50% regen rate per level
-    },
-    maxLevel: 10,
-    category: 'energy'
-  },
-  
-  // Новое здание - Батарея
-  {
-    id: 'battery',
-    img: '🔋',
-    name: 'Energy Battery',
-    description: 'Advanced energy storage systems recovered from the ruins of the old world. These batteries can store excess energy beyond normal capacity, ensuring no power is wasted in the struggle for survival.',
-    price: { iron: 30, energy: 20, science: 5 },
-    energyBonus: {
-      maxEnergy: 25, // +25 max energy per level
-      overflow: true // Allows energy above normal cap
-    },
-    maxLevel: 8,
-    category: 'energy'
-  },
-  
-  // Новое здание - Солнечная панель
-  {
-    id: 'solarPanel',
-    img: '☀️',
-    name: 'Solar Panel',
-    description: 'Gleaming photovoltaic cells that capture the life-giving energy of the sun, converting light into hope. A symbol of humanities ability to harness nature for reconstruction.',
-    price: { iron: 25, science: 10, gold: 500 },
-    energyBonus: {
-      passiveRegen: 0.5 // +0.5 energy regen per level
-    },
-    maxLevel: 5,
-    category: 'energy'
-  }
-];
-
 export class BuildingManager extends CleanupMixin {
   constructor(gameState) {
     super();
