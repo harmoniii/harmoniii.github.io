@@ -1,4 +1,4 @@
-// effects/EffectDefinitions.js - ИСПРАВЛЕНО: убраны эффекты для колеса
+// effects/EffectDefinitions.js - ОБНОВЛЕНО: новые баффы и дебаффы с пересмотренными вероятностями
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 // ===== ОПРЕДЕЛЕНИЯ БАФФОВ (ПОЛОЖИТЕЛЬНЫЕ ЭФФЕКТЫ) =====
@@ -90,6 +90,39 @@ export const BUFF_DEFS = [
     description: 'All production buildings work 5x faster',
     rarity: 'epic',
     category: 'enhancement'
+  },
+  // НОВЫЕ БАФФЫ
+  { 
+    id: 'crystalFocus', 
+    name: '💎 Crystal Focus', 
+    duration: 15, 
+    description: 'All clicks are critical hits for the duration',
+    rarity: 'epic',
+    category: 'combat'
+  },
+  { 
+    id: 'prismaticGlow', 
+    name: '🌈 Prismatic Glow', 
+    duration: 10, 
+    description: 'Target hits cost no energy',
+    rarity: 'rare',
+    category: 'energy'
+  },
+  { 
+    id: 'chaosClown', 
+    name: '🎪 Chaos Clown', 
+    duration: 10, 
+    description: '100% buff chance, 0% debuff chance',
+    rarity: 'legendary',
+    category: 'luck'
+  },
+  { 
+    id: 'taxBoom', 
+    name: '🏛️ Tax Boom', 
+    duration: 900, // 15 минут
+    description: '33% discount on all market items',
+    rarity: 'legendary',
+    category: 'special'
   }
 ];
 
@@ -158,6 +191,31 @@ export const DEBUFF_DEFS = [
     description: 'Lose 1% of all resources every second',
     severity: 'severe',
     category: 'destruction'
+  },
+  // НОВЫЕ ДЕБАФФЫ
+  { 
+    id: 'absoluteZero', 
+    name: '❄️ Absolute Zero', 
+    duration: 15, 
+    description: 'Completely stops energy regeneration and building production',
+    severity: 'catastrophic',
+    category: 'complete_shutdown'
+  },
+  { 
+    id: 'energyParasite', 
+    name: '⚡ Energy Parasite', 
+    duration: 15, 
+    description: 'Each click costs double energy',
+    severity: 'severe',
+    category: 'energy_drain'
+  },
+  { 
+    id: 'unluckyCurse', 
+    name: '🎲 Unlucky Curse', 
+    duration: 20, 
+    description: '0% buff chance, 100% debuff chance',
+    severity: 'catastrophic',
+    category: 'curse'
   }
 ];
 
@@ -182,9 +240,9 @@ export const EFFECT_CONFIG = {
   
   roll: {
     outcomes: [
-      { chance: 0.15, type: 'jackpot', amount: 100, message: 'JACKPOT!' },
-      { chance: 0.20, type: 'big_win', amount: 50, message: 'Big Win!' },
-      { chance: 0.30, type: 'small_win', amount: 15, message: 'Small Win' },
+      { chance: 0.15, type: 'jackpot', amount: 25, message: 'JACKPOT!' },
+      { chance: 0.20, type: 'big_win', amount: 10, message: 'Big Win!' },
+      { chance: 0.30, type: 'small_win', amount: 5, message: 'Small Win' },
       { chance: 0.25, type: 'nothing', amount: 0, message: 'Nothing...' },
       { chance: 0.10, type: 'loss', amount: -10, message: 'Bad Luck!' }
     ]
@@ -219,6 +277,28 @@ export const EFFECT_CONFIG = {
   
   timeWarp: {
     productionMultiplier: 5,
+    stackable: false
+  },
+
+  // НОВЫЕ БАФФЫ
+  crystalFocus: {
+    critChanceBonus: 1.0, // 100% критов
+    stackable: false
+  },
+  
+  prismaticGlow: {
+    energyCostReduction: 1.0, // 100% снижение стоимости
+    stackable: false
+  },
+  
+  chaosClown: {
+    buffChanceMultiplier: 100.0, // Гарантированные баффы
+    debuffChanceMultiplier: 0.0, // Никаких дебаффов
+    stackable: false
+  },
+  
+  taxBoom: {
+    marketDiscount: 0.33, // 33% скидка
     stackable: false
   },
 
@@ -263,6 +343,24 @@ export const EFFECT_CONFIG = {
     intervalMs: 1000,
     damagePercent: 0.01,
     stackable: false
+  },
+
+  // НОВЫЕ ДЕБАФФЫ
+  absoluteZero: {
+    stopsEnergyRegen: true,
+    stopsBuildingProduction: true,
+    stackable: false
+  },
+  
+  energyParasite: {
+    energyCostMultiplier: 2.0, // Двойная стоимость энергии
+    stackable: false
+  },
+  
+  unluckyCurse: {
+    buffChanceMultiplier: 0.0, // Никаких баффов
+    debuffChanceMultiplier: 100.0, // Гарантированные дебаффы
+    stackable: false
   }
 };
 
@@ -276,67 +374,77 @@ export const EFFECT_CATEGORIES = {
   choice: 'Player Choice',
   enhancement: 'Power Enhancement',
   protection: 'Defense & Protection',
+  energy: 'Energy Management',
+  special: 'Special Events',
   
   // Debuff categories
   interference: 'Game Interference',
   destruction: 'Resource Destruction',
   curse: 'Negative Influence',
-  control: 'Game Control'
+  control: 'Game Control',
+  complete_shutdown: 'System Shutdown',
+  energy_drain: 'Energy Drain'
 };
 
-// ===== РЕДКОСТЬ ЭФФЕКТОВ =====
+// ===== РЕДКОСТЬ ЭФФЕКТОВ (ПЕРЕСМОТРЕННАЯ) =====
 export const RARITY_INFO = {
   common: {
     name: 'Common',
     color: '#9E9E9E',
-    weight: 50,
+    weight: 45, // Уменьшено с 50
     description: 'Frequently occurring effects'
   },
   uncommon: {
     name: 'Uncommon',
     color: '#4CAF50',
-    weight: 30,
+    weight: 30, // Без изменений
     description: 'Moderately rare effects'
   },
   rare: {
     name: 'Rare',
     color: '#FF9800',
-    weight: 15,
+    weight: 18, // Увеличено с 15
     description: 'Rarely occurring powerful effects'
   },
   epic: {
     name: 'Epic',
     color: '#9C27B0',
-    weight: 4,
+    weight: 6, // Увеличено с 4
     description: 'Very rare game-changing effects'
   },
   legendary: {
     name: 'Legendary',
     color: '#F44336',
-    weight: 1,
+    weight: 1, // Без изменений
     description: 'Extremely rare ultimate effects'
   }
 };
 
-// ===== СЕРЬЕЗНОСТЬ ДЕБАФФОВ =====
+// ===== СЕРЬЕЗНОСТЬ ДЕБАФФОВ (ПЕРЕСМОТРЕННАЯ) =====
 export const SEVERITY_INFO = {
   mild: {
     name: 'Mild',
     color: '#FF9800',
-    weight: 50,
+    weight: 45, // Уменьшено с 50
     description: 'Minor inconvenience'
   },
   moderate: {
     name: 'Moderate',
     color: '#f44336',
-    weight: 35,
+    weight: 35, // Без изменений
     description: 'Noticeable hindrance'
   },
   severe: {
     name: 'Severe',
     color: '#8E24AA',
-    weight: 15,
+    weight: 18, // Увеличено с 15
     description: 'Significant penalty'
+  },
+  catastrophic: {
+    name: 'Catastrophic',
+    color: '#B71C1C',
+    weight: 2, // Новая категория
+    description: 'Game-changing disaster'
   }
 };
 
@@ -353,7 +461,7 @@ export function getBuffById(id) {
  * Получить определение дебаффа по ID
  */
 export function getDebuffById(id) {
-  return DEBUFF_DEFS.find(debuff => debuff.id === id);
+  return DEBUFF_DEFS.find(debuff => debuff.id === debuff);
 }
 
 /**

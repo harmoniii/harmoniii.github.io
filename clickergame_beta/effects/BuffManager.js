@@ -1,4 +1,4 @@
-// effects/BuffManager.js - ИСПРАВЛЕННАЯ версия с правильной очисткой эффектов
+// effects/BuffManager.js - ОБНОВЛЕННАЯ версия с новыми эффектами
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { 
@@ -21,14 +21,13 @@ export class BuffManager extends CleanupMixin {
     this.activeEffects = new Map(); // id -> {timeoutId, config, startTime, duration}
     this.effectIntervals = new Map(); // id -> intervalId
     
-    // ИСПРАВЛЕНИЕ: Добавляем систему принудительной очистки
     this.cleanupCheckInterval = null;
     this.forceCleanupAfter = 60000; // 1 минута максимум для любого эффекта
     
     this.initializeEffectStates();
     this.startCleanupChecker();
     
-    console.log('🎭 BuffManager initialized');
+    console.log('🎭 BuffManager initialized with new effects');
   }
 
   // Инициализация состояний эффектов
@@ -53,15 +52,23 @@ export class BuffManager extends CleanupMixin {
       shieldBlocks: 0,
       heavyClickRequired: {},
       reverseDirection: 1,
-      frozenCombo: false
+      frozenCombo: false,
+      // НОВЫЕ СОСТОЯНИЯ
+      crystalFocusActive: false,
+      prismaticGlowActive: false,
+      chaosClownActive: false,
+      taxBoomActive: false,
+      absoluteZeroActive: false,
+      energyParasiteActive: false,
+      unluckyCurseActive: false
     };
   }
 
-  // ИСПРАВЛЕНИЕ: Запуск системы принудительной очистки
+  // Запуск системы принудительной очистки
   startCleanupChecker() {
     this.cleanupCheckInterval = this.createInterval(() => {
       this.forceCleanExpiredEffects();
-    }, 5000, 'effect-cleanup-checker'); // Проверяем каждые 5 секунд
+    }, 5000, 'effect-cleanup-checker');
   }
 
   // Применить случайный бафф
@@ -153,10 +160,31 @@ export class BuffManager extends CleanupMixin {
       case 'mysteryBox':
         this.showMysteryBox();
         break;
+
+      // НОВЫЕ БАФФЫ
+      case 'crystalFocus':
+        this.gameState.effectStates.crystalFocusActive = true;
+        eventBus.emit(GameEvents.NOTIFICATION, '💎 Crystal Focus: All clicks are now critical!');
+        break;
+
+      case 'prismaticGlow':
+        this.gameState.effectStates.prismaticGlowActive = true;
+        eventBus.emit(GameEvents.NOTIFICATION, '🌈 Prismatic Glow: Target hits cost no energy!');
+        break;
+
+      case 'chaosClown':
+        this.gameState.effectStates.chaosClownActive = true;
+        eventBus.emit(GameEvents.NOTIFICATION, '🎪 Chaos Clown: Only buffs, no debuffs!');
+        break;
+
+      case 'taxBoom':
+        this.gameState.effectStates.taxBoomActive = true;
+        eventBus.emit(GameEvents.NOTIFICATION, '🏛️ Tax Boom: 33% discount in market for 15 minutes!');
+        break;
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Установить истечение баффа с правильной очисткой
+  // Установить истечение баффа с правильной очисткой
   setBuffExpiration(buffDef) {
     // Buff Mastery skill - увеличение длительности баффов
     const buffDurationBonus = this.getSkillBonus('duration', 'buffs');
@@ -172,7 +200,7 @@ export class BuffManager extends CleanupMixin {
       });
     }, finalDuration, `buff-${buffDef.id}`);
 
-    // ИСПРАВЛЕНИЕ: Сохраняем полную информацию об эффекте
+    // Сохраняем полную информацию об эффекте
     this.activeEffects.set(buffDef.id, {
       timeoutId,
       config: EFFECT_CONFIG[buffDef.id],
@@ -223,6 +251,23 @@ export class BuffManager extends CleanupMixin {
       case 'shield':
         this.gameState.effectStates.shieldBlocks = 0;
         break;
+
+      // НОВЫЕ БАФФЫ
+      case 'crystalFocus':
+        this.gameState.effectStates.crystalFocusActive = false;
+        break;
+
+      case 'prismaticGlow':
+        this.gameState.effectStates.prismaticGlowActive = false;
+        break;
+
+      case 'chaosClown':
+        this.gameState.effectStates.chaosClownActive = false;
+        break;
+
+      case 'taxBoom':
+        this.gameState.effectStates.taxBoomActive = false;
+        break;
     }
   }
 
@@ -243,6 +288,12 @@ export class BuffManager extends CleanupMixin {
       if (this.gameState.effectStates.shieldBlocks <= 0) {
         this.removeBuff('shield');
       }
+      return;
+    }
+
+    // Chaos Clown блокирует все дебаффы
+    if (this.gameState.effectStates.chaosClownActive) {
+      eventBus.emit(GameEvents.NOTIFICATION, '🎪 Chaos Clown blocked debuff!');
       return;
     }
 
@@ -306,10 +357,28 @@ export class BuffManager extends CleanupMixin {
       case 'curse':
         // Пассивные дебаффы - эффект применяется в логике игры
         break;
+
+      // НОВЫЕ ДЕБАФФЫ
+      case 'absoluteZero':
+        this.gameState.effectStates.absoluteZeroActive = true;
+        this.stopAllEnergyRegen();
+        this.stopAllBuildingProduction();
+        eventBus.emit(GameEvents.NOTIFICATION, '❄️ Absolute Zero: Everything frozen!');
+        break;
+
+      case 'energyParasite':
+        this.gameState.effectStates.energyParasiteActive = true;
+        eventBus.emit(GameEvents.NOTIFICATION, '⚡ Energy Parasite: Double energy cost!');
+        break;
+
+      case 'unluckyCurse':
+        this.gameState.effectStates.unluckyCurseActive = true;
+        eventBus.emit(GameEvents.NOTIFICATION, '🎲 Unlucky Curse: Only debuffs, no buffs!');
+        break;
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Установить истечение дебаффа с правильной очисткой
+  // Установить истечение дебаффа с правильной очисткой
   setDebuffExpiration(debuffDef) {
     // Resilience skill - уменьшение длительности дебаффов
     const debuffReduction = this.getSkillBonus('reduction', 'debuffs');
@@ -324,7 +393,7 @@ export class BuffManager extends CleanupMixin {
       });
     }, finalDuration * 1000, `debuff-${debuffDef.id}`);
 
-    // ИСПРАВЛЕНИЕ: Сохраняем полную информацию об эффекте
+    // Сохраняем полную информацию об эффекте
     this.activeEffects.set(debuffDef.id, {
       timeoutId,
       config: EFFECT_CONFIG[debuffDef.id],
@@ -375,6 +444,21 @@ export class BuffManager extends CleanupMixin {
       case 'heavyClick':
         this.gameState.effectStates.heavyClickRequired = {};
         break;
+
+      // НОВЫЕ ДЕБАФФЫ
+      case 'absoluteZero':
+        this.gameState.effectStates.absoluteZeroActive = false;
+        this.restoreAllEnergyRegen();
+        this.restoreAllBuildingProduction();
+        break;
+
+      case 'energyParasite':
+        this.gameState.effectStates.energyParasiteActive = false;
+        break;
+
+      case 'unluckyCurse':
+        this.gameState.effectStates.unluckyCurseActive = false;
+        break;
     }
   }
 
@@ -399,7 +483,6 @@ export class BuffManager extends CleanupMixin {
   // Применить Time Warp
   applyTimeWarp(enabled) {
     // Этот эффект обрабатывается в BuildingManager
-    // Здесь мы просто уведомляем о смене состояния
     eventBus.emit(GameEvents.NOTIFICATION, 
       enabled ? '⏰ Time Warp: Buildings work 5x faster!' : 
                 '⏰ Time Warp ended');
@@ -533,9 +616,94 @@ export class BuffManager extends CleanupMixin {
     this.clearEffectInterval('decay');
   }
 
+  // ===== НОВЫЕ МЕТОДЫ ДЛЯ ABSOLUTE ZERO =====
+
+  // Остановить всю регенерацию энергии
+  stopAllEnergyRegen() {
+    if (this.gameState.energyManager && typeof this.gameState.energyManager.stopRegeneration === 'function') {
+      this.gameState.energyManager.stopRegeneration();
+    }
+  }
+
+  // Восстановить регенерацию энергии
+  restoreAllEnergyRegen() {
+    if (this.gameState.energyManager && typeof this.gameState.energyManager.startRegeneration === 'function') {
+      this.gameState.energyManager.startRegeneration();
+    }
+  }
+
+  // Остановить всё производство зданий
+  stopAllBuildingProduction() {
+    if (this.gameState.buildingManager && typeof this.gameState.buildingManager.stopAllProduction === 'function') {
+      this.gameState.buildingManager.stopAllProduction();
+    }
+  }
+
+  // Восстановить производство зданий
+  restoreAllBuildingProduction() {
+    if (this.gameState.buildingManager && typeof this.gameState.buildingManager.startProduction === 'function') {
+      this.gameState.buildingManager.startProduction();
+    }
+  }
+
+  // ===== ПРОВЕРКИ АКТИВНЫХ ЭФФЕКТОВ =====
+
+  // Проверить критические удары (Crystal Focus)
+  shouldForceCritical() {
+    return this.gameState.effectStates.crystalFocusActive === true;
+  }
+
+  // Проверить бесплатную энергию (Prismatic Glow)
+  shouldReduceEnergyCost() {
+    return this.gameState.effectStates.prismaticGlowActive === true;
+  }
+
+  // Проверить двойную стоимость энергии (Energy Parasite)
+  shouldDoubleEnergyCost() {
+    return this.gameState.effectStates.energyParasiteActive === true;
+  }
+
+  // Проверить скидку в маркете (Tax Boom)
+  getMarketDiscount() {
+    if (this.gameState.effectStates.taxBoomActive === true) {
+      return 0.33; // 33% скидка
+    }
+    return 0;
+  }
+
+  // Модифицировать шанс баффов/дебаффов
+  modifyEffectChances(baseBuffChance, baseDebuffChance) {
+    let buffChance = baseBuffChance;
+    let debuffChance = baseDebuffChance;
+
+    // Chaos Clown
+    if (this.gameState.effectStates.chaosClownActive) {
+      buffChance = 100; // Гарантированные баффы
+      debuffChance = 0; // Никаких дебаффов
+    }
+
+    // Unlucky Curse
+    if (this.gameState.effectStates.unluckyCurseActive) {
+      buffChance = 0; // Никаких баффов
+      debuffChance = 100; // Гарантированные дебаффы
+    }
+
+    // Lucky buff
+    if (this.gameState.buffs && this.gameState.buffs.includes('lucky')) {
+      buffChance += GAME_CONSTANTS.LUCKY_BUFF_BONUS;
+    }
+
+    // Curse debuff
+    if (this.gameState.debuffs && this.gameState.debuffs.includes('curse')) {
+      buffChance *= 0.5;
+    }
+
+    return { buffChance, debuffChance };
+  }
+
   // ===== УТИЛИТЫ =====
 
-  // ИСПРАВЛЕНИЕ: Правильная очистка эффекта
+  // Правильная очистка эффекта
   clearEffect(effectId) {
     console.log(`🧹 Clearing effect: ${effectId}`);
     
@@ -553,7 +721,7 @@ export class BuffManager extends CleanupMixin {
     this.clearEffectInterval(effectId);
   }
 
-  // ИСПРАВЛЕНИЕ: Правильная очистка интервала эффекта
+  // Правильная очистка интервала эффекта
   clearEffectInterval(effectId) {
     if (this.effectIntervals.has(effectId)) {
       const intervalId = this.effectIntervals.get(effectId);
@@ -563,7 +731,7 @@ export class BuffManager extends CleanupMixin {
     }
   }
 
-  // ИСПРАВЛЕНИЕ: Принудительная очистка истекших эффектов
+  // Принудительная очистка истекших эффектов
   forceCleanExpiredEffects() {
     const now = Date.now();
     const expiredEffects = [];
@@ -601,11 +769,11 @@ export class BuffManager extends CleanupMixin {
       }
     });
 
-    // ИСПРАВЛЕНИЕ: Дополнительная проверка на висящие эффекты в DOM
+    // Дополнительная проверка на висящие эффекты в DOM
     this.cleanupOrphanedEffects();
   }
 
-  // ИСПРАВЛЕНИЕ: Очистка осиротевших эффектов в UI
+  // Очистка осиротевших эффектов в UI
   cleanupOrphanedEffects() {
     // Получаем текущие активные эффекты
     const currentBuffs = this.gameState.buffs || [];
@@ -703,7 +871,15 @@ export class BuffManager extends CleanupMixin {
         starPowerClicks: this.gameState.effectStates.starPowerClicks,
         shieldBlocks: this.gameState.effectStates.shieldBlocks,
         frozenCombo: this.gameState.effectStates.frozenCombo,
-        heavyClickZones: Object.keys(this.gameState.effectStates.heavyClickRequired || {}).length
+        heavyClickZones: Object.keys(this.gameState.effectStates.heavyClickRequired || {}).length,
+        // Новые состояния
+        crystalFocusActive: this.gameState.effectStates.crystalFocusActive,
+        prismaticGlowActive: this.gameState.effectStates.prismaticGlowActive,
+        chaosClownActive: this.gameState.effectStates.chaosClownActive,
+        taxBoomActive: this.gameState.effectStates.taxBoomActive,
+        absoluteZeroActive: this.gameState.effectStates.absoluteZeroActive,
+        energyParasiteActive: this.gameState.effectStates.energyParasiteActive,
+        unluckyCurseActive: this.gameState.effectStates.unluckyCurseActive
       }
     };
   }
@@ -714,7 +890,7 @@ export class BuffManager extends CleanupMixin {
            this.gameState.debuffs.includes(effectId);
   }
 
-  // ИСПРАВЛЕНИЕ: Улучшенная очистка всех эффектов
+  // Улучшенная очистка всех эффектов
   clearAllEffects() {
     console.log('🧹 Clearing all effects...');
     
@@ -758,7 +934,7 @@ export class BuffManager extends CleanupMixin {
     console.log('✅ All effects cleared');
   }
 
-  // ИСПРАВЛЕНИЕ: Получить отладочную информацию
+  // Получить отладочную информацию
   getDebugInfo() {
     return {
       activeEffects: Array.from(this.activeEffects.entries()).map(([id, effect]) => ({
