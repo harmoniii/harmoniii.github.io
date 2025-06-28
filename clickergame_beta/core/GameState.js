@@ -1,4 +1,4 @@
-// core/GameState.js - ИСПРАВЛЕННАЯ версия с поддержкой энергетической системы
+// core/GameState.js - Упрощенная версия БЕЗ управления зонами
 import { RESOURCES } from '../config/ResourceConfig.js';
 import { BUILDING_DEFS } from '../managers/BuildingManager.js';
 import { SKILL_DEFS } from '../managers/SkillManager.js';
@@ -12,7 +12,7 @@ export class GameState {
   }
 
   initializeState() {
-    // Основные ресурсы (БЕЗ энергии - теперь отдельная система)
+    // Основные ресурсы (БЕЗ энергии - отдельная система)
     this.resources = RESOURCES.reduce((obj, resource) => {
       obj[resource] = 0;
       return obj;
@@ -35,9 +35,8 @@ export class GameState {
       lastAngle: null
     };
 
-    // Целевые зоны
-    this.targetZone = 0;
-    this.previousTargetZone = 0;
+    // УДАЛЕНО: targetZone и previousTargetZone теперь управляются ZoneManager
+    // Зоны больше НЕ хранятся в GameState!
 
     // Временные блокировки
     this.blockedUntil = 0;
@@ -203,18 +202,16 @@ export class GameState {
     return true;
   }
 
-  // Получить состояние для сохранения
+  // ИСПРАВЛЕНИЕ: Получить состояние для сохранения БЕЗ данных зон
   getSaveData() {
-    // КРИТИЧЕСКАЯ ПРОВЕРКА: если объект уничтожен, не сохраняем
     if (this.isDestroyed) {
       console.warn('⚠️ GameState.getSaveData: Object is destroyed, returning null');
       return null;
     }
   
     try {
-      // Создаем безопасную копию данных с валидацией
       const saveData = {
-        // Основные ресурсы с валидацией (БЕЗ энергии)
+        // Основные ресурсы (БЕЗ энергии)
         resources: this.resources ? { ...this.resources } : {},
         
         // Энергетическая система
@@ -226,15 +223,20 @@ export class GameState {
           totalRegenerated: 0
         },
         
-        // Комбо с валидацией
-        combo: this.combo ? { ...this.combo } : { count: 0, deadline: 0, lastZone: null, lastAngle: null },
+        // Комбо
+        combo: this.combo ? { ...this.combo } : { 
+          count: 0, 
+          deadline: 0, 
+          lastZone: null, 
+          lastAngle: null 
+        },
         
-        // Skill Points с валидацией
+        // Skill Points
         skillPoints: this.validateSkillPoints(this.skillPoints || 0),
         
-        // Зоны
-        targetZone: typeof this.targetZone === 'number' ? this.targetZone : 0,
-        previousTargetZone: typeof this.previousTargetZone === 'number' ? this.previousTargetZone : 0,
+        // ИСПРАВЛЕНИЕ: Сохраняем текущую целевую зону из ZoneManager
+        // (будет установлено в GameCore.autoSave перед сохранением)
+        targetZone: 0, // По умолчанию, будет перезаписано
         
         // Здания
         buildings: this.buildings ? { ...this.buildings } : {},
@@ -266,12 +268,12 @@ export class GameState {
           frozenCombo: false
         },
         
-        // Метаданные будут добавлены в StorageManager
+        // Метаданные
         saveTimestamp: Date.now(),
-        saveVersion: '1.0.8'
+        saveVersion: '1.0.9'
       };
-  
-      // Дополнительная валидация ресурсов
+
+      // Валидация ресурсов
       Object.keys(saveData.resources).forEach(resource => {
         const value = saveData.resources[resource];
         if (typeof value !== 'number' || isNaN(value) || value < 0) {
@@ -301,8 +303,7 @@ export class GameState {
         },
         combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
         skillPoints: 0,
-        targetZone: 0,
-        previousTargetZone: 0,
+        targetZone: 0, // Будет установлено из ZoneManager
         buildings: {},
         skills: {},
         skillStates: {},
@@ -327,18 +328,20 @@ export class GameState {
           frozenCombo: false
         },
         saveTimestamp: Date.now(),
-        saveVersion: '1.0.8'
+        saveVersion: '1.0.9'
       };
     }
   }
   
-  // Загрузить состояние
+  // ИСПРАВЛЕНИЕ: Загрузить состояние БЕЗ управления зонами
   loadSaveData(data) {
     if (this.isDestroyed || !data || typeof data !== 'object') {
       throw new Error('Invalid save data or GameState is destroyed');
     }
 
-    // Валидируем и загружаем ресурсы (БЕЗ энергии)
+    console.log('📥 Loading save data into GameState...');
+
+    // Валидируем и загружаем ресурсы
     if (data.resources && typeof data.resources === 'object') {
       Object.entries(data.resources).forEach(([resource, value]) => {
         if (RESOURCES.includes(resource)) {
@@ -351,7 +354,6 @@ export class GameState {
     if (data.energy && typeof data.energy === 'object') {
       this.energy = this.validateEnergy(data.energy);
     } else {
-      // Если энергии нет в сохранении, инициализируем значениями по умолчанию
       this.energy = {
         current: ENERGY_CONSTANTS.INITIAL_ENERGY,
         max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
@@ -361,11 +363,15 @@ export class GameState {
       };
     }
 
-    // Загружаем остальные данные
+    // Загружаем комбо
     this.combo = this.validateCombo(data.combo);
+    
+    // Загружаем skill points
     this.skillPoints = this.validateSkillPoints(data.skillPoints);
-    this.targetZone = typeof data.targetZone === 'number' ? data.targetZone : 0;
-    this.previousTargetZone = typeof data.previousTargetZone === 'number' ? data.previousTargetZone : this.targetZone;
+
+    // ИСПРАВЛЕНИЕ: Сохраняем targetZone для передачи в ZoneManager
+    // (но не управляем зонами в GameState)
+    this.targetZone = data.targetZone || 0;
 
     // Загружаем здания
     if (data.buildings && typeof data.buildings === 'object') {
@@ -428,9 +434,11 @@ export class GameState {
     };
 
     this.lastTimestamp = Date.now();
+    
+    console.log('✅ GameState data loaded successfully');
   }
 
-  // Check if state is valid
+  // Проверить валидность состояния
   isValid() {
     return !this.isDestroyed && 
            this.resources && 
@@ -439,7 +447,7 @@ export class GameState {
            typeof this.skillPoints === 'number';
   }
 
-  // Reset to default state
+  // Сбросить к состоянию по умолчанию
   reset() {
     if (this.isDestroyed) return;
     
@@ -447,7 +455,7 @@ export class GameState {
     this.initializeState();
   }
 
-  // REQUIRED: Destroy method for CleanupManager
+  // ОБЯЗАТЕЛЬНЫЙ метод destroy для CleanupManager
   destroy() {
     if (this.isDestroyed) return;
     
@@ -455,7 +463,7 @@ export class GameState {
     
     this.isDestroyed = true;
     
-    // Clear all references
+    // Очищаем все ссылки
     this.resources = null;
     this.energy = null;
     this.combo = null;
@@ -468,13 +476,14 @@ export class GameState {
     this.debuffs = null;
     this.effectStates = null;
     
-    // Clear manager references
+    // Очищаем ссылки на менеджеры
     this.buffManager = null;
     this.energyManager = null;
     this.achievementManager = null;
     this.buildingManager = null;
     this.skillManager = null;
     this.marketManager = null;
+    this.zoneManager = null; // НОВОЕ: ссылка на ZoneManager
     
     console.log('✅ GameState destroyed');
   }
