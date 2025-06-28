@@ -59,11 +59,15 @@ export class GridManager extends CleanupMixin {
     this.cells[this.targetCell].type = CELL_TYPES.TARGET;
     this.cells[this.targetCell].isTarget = true;
     
-    // Добавляем 2-3 энергетические клетки
-    this.addSpecialCells(CELL_TYPES.ENERGY, 2);
+    // Добавляем 1 энергетическую клетку с шансом 70%
+    if (Math.random() < 0.70) {
+    this.addSpecialCells(CELL_TYPES.ENERGY, 1);
+        }
     
-    // Добавляем 1 бонусную клетку
-    this.addSpecialCells(CELL_TYPES.BONUS, 1);
+    // Добавляем 1 бонусную клетку с шансом 15%
+    if (Math.random() < 0.15) {
+        this.addSpecialCells(CELL_TYPES.BONUS, 1);
+      }
   }
 
   // Добавить специальные клетки

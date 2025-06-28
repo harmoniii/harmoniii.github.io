@@ -10,8 +10,8 @@ export const ENERGY_CONSTANTS = {
     CLICK_COST: 1,
     
     // Зоны
-    ENERGY_ZONE_RESTORE: 2,
-    GOLD_ZONE_RESTORE: 1,
+    ENERGY_ZONE_RESTORE: 1,
+    GOLD_ZONE_RESTORE: 4,
     
     // Здания
     GENERATOR_MAX_ENERGY_BONUS: 10,
