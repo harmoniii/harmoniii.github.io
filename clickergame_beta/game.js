@@ -1,5 +1,5 @@
-// game.js - ИСПРАВЛЕННАЯ версия с правильной инициализацией
-import { GameCore } from './core/GameCore.js';
+// game.js - Главный файл для системы сетки 3x3
+import { GridGameCore } from './core/GridGameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
 
 // Глобальные переменные для отладки
@@ -8,7 +8,7 @@ let gameCore = null;
 // Основная функция инициализации
 async function main() {
   try {
-    console.log('🚀 Starting Clicker...');
+    console.log('🚀 Starting Grid Clicker Game...');
     
     // Устанавливаем обработчики ошибок
     setupErrorHandlers();
@@ -16,21 +16,22 @@ async function main() {
     // Устанавливаем современные обработчики закрытия страницы
     setupModernPageHandlers();
     
-    // Создаем и запускаем игровое ядро
-    gameCore = new GameCore();
+    // Создаем и запускаем игровое ядро с сеткой
+    gameCore = new GridGameCore();
     
     // Экспортируем для отладки
     window.gameCore = gameCore;
     window.eventBus = eventBus;
     window.GameEvents = GameEvents;
     
-    // НОВОЕ: Автоматически включаем режим отладки в консоли
+    // Автоматически включаем режим отладки в консоли
     if (gameCore && typeof gameCore.enableDebugMode === 'function') {
       gameCore.enableDebugMode();
     }
     
-    console.log('✅ Game started successfully');
+    console.log('✅ Grid Clicker Game started successfully');
     console.log('🐛 Debug mode enabled! Use window.gameDebug for debugging');
+    console.log('🎯 Game now uses 3x3 grid instead of rotating wheel');
     
   } catch (error) {
     console.error('💀 Critical error in main:', error);
@@ -116,7 +117,7 @@ function handleCriticalError(error) {
     timestamp: new Date().toISOString()
   });
 
-  const errorMessage = `Game initialization failed: ${error.message}`;
+  const errorMessage = `Grid Game initialization failed: ${error.message}`;
   
   // Показываем ошибку пользователю
   const errorDiv = document.createElement('div');
@@ -133,12 +134,12 @@ function handleCriticalError(error) {
     text-align: center;
     font-family: 'Segoe UI', Arial, sans-serif;
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    max-width: 400px;
+    max-width: 500px;
     width: 90%;
   `;
   
   errorDiv.innerHTML = `
-    <h2>💀 Critical Error</h2>
+    <h2>💀 Grid Game Error</h2>
     <p style="margin: 15px 0; line-height: 1.4;">${errorMessage}</p>
     <div style="margin-top: 20px;">
       <button onclick="location.reload()" style="
@@ -165,6 +166,7 @@ function handleCriticalError(error) {
       ">✖️ Close</button>
     </div>
     <p style="font-size: 12px; opacity: 0.8; margin-top: 15px;">
+      The game now uses a 3x3 grid system instead of a rotating wheel.<br>
       If this error persists, try clearing your browser cache.
     </p>
   `;
@@ -182,12 +184,13 @@ function handleCriticalError(error) {
 // Функция для отладки состояния игры
 function getGameDebugInfo() {
   if (!gameCore) {
-    return 'Game not initialized';
+    return 'Grid game not initialized';
   }
   
   try {
     return {
       gameState: gameCore.getGameState(),
+      gridManager: gameCore.getGridManager(),
       managers: gameCore.getManagers(),
       stats: gameCore.getGameStats(),
       isActive: gameCore.isGameActive(),
@@ -210,7 +213,7 @@ function forceSave() {
       return false;
     }
   }
-  return 'GameCore not available';
+  return 'GridGameCore not available';
 }
 
 // Функция для принудительной очистки (для отладки)
@@ -225,13 +228,66 @@ function forceCleanup() {
       return false;
     }
   }
-  return 'GameCore not available';
+  return 'GridGameCore not available';
+}
+
+// Функция для тестирования сетки (для отладки)
+function testGrid() {
+  if (gameCore && gameCore.gridManager) {
+    try {
+      const stats = gameCore.gridManager.getStats();
+      const debugInfo = gameCore.gridManager.getDebugInfo();
+      console.log('🎯 Grid Stats:', stats);
+      console.log('🎯 Grid Debug Info:', debugInfo);
+      
+      // Тестируем перемешивание
+      console.log('🔄 Testing grid shuffle...');
+      gameCore.gridManager.shuffleCells();
+      
+      return { stats, debugInfo, shuffled: true };
+    } catch (error) {
+      console.error('🔧 Grid test error:', error);
+      return false;
+    }
+  }
+  return 'GridManager not available';
 }
 
 // Экспортируем функции для глобального доступа
 window.getGameDebugInfo = getGameDebugInfo;
 window.forceSave = forceSave;
 window.forceCleanup = forceCleanup;
+window.testGrid = testGrid;
+
+// Дополнительные отладочные функции для сетки
+window.gridDebug = {
+  shuffle: () => gameCore?.gridManager?.shuffleCells(),
+  setTarget: (cellIndex) => gameCore?.gridManager?.setTargetCell(cellIndex),
+  getStats: () => gameCore?.gridManager?.getStats(),
+  getDebugInfo: () => gameCore?.gridManager?.getDebugInfo(),
+  isReady: () => gameCore?.gridManager?.isManagerReady(),
+  testClick: (cellIndex) => {
+    if (gameCore?.gridManager) {
+      const cellSize = 400 / 3; // canvas 400px / 3 cells
+      const row = Math.floor(cellIndex / 3);
+      const col = cellIndex % 3;
+      const x = col * cellSize + cellSize / 2;
+      const y = row * cellSize + cellSize / 2;
+      
+      console.log(`🧪 Testing click on cell ${cellIndex} at (${x}, ${y})`);
+      
+      eventBus.emit(GameEvents.CLICK, {
+        x: x,
+        y: y,
+        canvasWidth: 400,
+        canvasHeight: 400
+      });
+      
+      return { cellIndex, x, y };
+    }
+    return 'GridManager not available';
+  }
+};
 
 // Запускаем игру после загрузки DOM
 if (document.readyState === 'loading') {
@@ -242,4 +298,4 @@ if (document.readyState === 'loading') {
 }
 
 // Экспортируем основные функции (если используется как модуль)
-export { main, getGameDebugInfo, forceSave, forceCleanup };
+export { main, getGameDebugInfo, forceSave, forceCleanup, testGrid };
