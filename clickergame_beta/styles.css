@@ -1,4 +1,4 @@
-/* styles.css - Минималистичная версия */
+/* styles.css - ИСПРАВЛЕННАЯ версия для сетки 3x3 */
 
 /* Сброс отступов и флекс-контейнер */
 body, html {
@@ -9,7 +9,7 @@ body, html {
   min-height: 100vh;
   color: #333;
   overflow-y: scroll;
-  font-size: 14px; /* Уменьшаем базовый размер шрифта */
+  font-size: 14px;
 }
 
 body::before {
@@ -36,7 +36,7 @@ body::before {
   transition: all 0.2s ease;
   min-width: 80px;
   color: #333;
-  font-size: 12px; /* Компактные кнопки */
+  font-size: 12px;
 }
 
 #ui-top button:hover {
@@ -61,7 +61,7 @@ body::before {
   background: #2196F3;
 }
 
-/* ИСПРАВЛЕНИЕ: Компактная игровая зона с аккуратным расположением */
+/* ИСПРАВЛЕНИЕ: Компактная игровая зона для сетки */
 #game-area {
   display: flex; 
   flex-direction: column;
@@ -77,17 +77,92 @@ body::before {
   margin: 0 auto;
 }
 
-/* ИСПРАВЛЕНИЕ: Горизонтальное расположение с колесом по центру */
-.game-wheel-container {
+/* ИСПРАВЛЕНИЕ: Контейнер для сетки 3x3 */
+.grid-game-container {
   display: flex;
   align-items: flex-start;
-  gap: 2rem; /* Увеличиваем gap для лучшего расположения */
+  gap: 2rem;
   width: 100%;
   justify-content: center;
   position: relative;
 }
 
-/* ИСПРАВЛЕНИЕ: Компактный индикатор комбо слева */
+/* Левая панель с ресурсами */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.resources-section {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.resources-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: #333;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.25rem;
+}
+
+.resources-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.resources-group .resource-display {
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.resources-group .resource-display:hover {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* Центральная игровая область */
+.game-grid-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+#gameCanvas {
+  background: #fff; 
+  border: 3px solid #333; 
+  border-radius: 12px; /* Квадрат с закругленными углами */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  display: block;
+  width: 400px !important;
+  height: 400px !important;
+}
+
+/* Правая панель с информацией */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 140px;
+  flex-shrink: 0;
+}
+
+/* ИСПРАВЛЕНИЕ: Компактный индикатор комбо */
 .combo-indicator {
   position: relative;
   background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
@@ -96,11 +171,8 @@ body::before {
   padding: 8px 12px;
   box-shadow: 0 3px 8px rgba(255, 165, 0, 0.3);
   text-align: center;
-  min-width: 90px;
-  max-width: 120px;
+  width: 100%;
   animation: comboGlow 2s ease-in-out infinite alternate;
-  order: 2; /* Между левыми ресурсами и колесом */
-  flex-shrink: 0;
 }
 
 .combo-indicator .combo-title {
@@ -131,20 +203,7 @@ body::before {
   line-height: 1.1;
 }
 
-/* Игровое колесо по центру */
-#gameCanvas {
-  background: #fff; 
-  border: 2px solid #333; 
-  border-radius: 50%;
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-  display: block;
-  flex-shrink: 0;
-  width: 400px !important;
-  height: 400px !important;
-  order: 4; /* По центру */
-}
-
-/* ИСПРАВЛЕНИЕ: Компактный энергетический дисплей справа */
+/* ИСПРАВЛЕНИЕ: Компактный энергетический дисплей */
 .energy-display-container {
   background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
   border: 2px solid #3498DB;
@@ -152,94 +211,9 @@ body::before {
   padding: 8px 12px;
   box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
   text-align: center;
-  min-width: 90px;
-  max-width: 120px;
+  width: 100%;
   position: relative;
   backdrop-filter: blur(5px);
-  order: 5; /* Между колесом и правыми ресурсами */
-  flex-shrink: 0;
-}
-
-/* ИСПРАВЛЕНИЕ: Ресурсы в аккуратные столбики */
-.resources-panel {
-  display: flex; 
-  flex-direction: column; /* Вертикальное расположение */
-  gap: 0.3rem; /* Маленькие отступы */
-  align-items: flex-start;
-  width: 100%;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.8rem; /* Компактный текст */
-  min-height: auto;
-  overflow: visible;
-}
-
-.resources-left {
-  display: flex; 
-  flex-direction: column;
-  gap: 0.3rem;
-  align-items: flex-start;
-  width: 140px; /* Фиксированная ширина */
-  background: rgba(255, 255, 255, 0.8);
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.8rem;
-  order: 1; /* Слева */
-  flex-shrink: 0;
-}
-
-.resources-right {
-  display: flex; 
-  flex-direction: column;
-  gap: 0.3rem;
-  align-items: flex-start;
-  width: 140px; /* Фиксированная ширина */
-  background: rgba(255, 255, 255, 0.8);
-  padding: 0.5rem 0.75rem;
-  border-radius: 8px;
-  font-weight: 500;
-  font-size: 0.8rem;
-  order: 3; /* Справа */
-  flex-shrink: 0;
-}
-
-.resources-panel span, .resources-panel div {
-  cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
-  font-size: 0.75rem; /* Очень компактно */
-  line-height: 1.2;
-}
-
-.resources-panel span:hover, .resources-panel div:hover {
-  color: #4CAF50;
-  background: rgba(76, 175, 80, 0.1);
-}
-
-.resources-left span, .resources-left div,
-.resources-right span, .resources-right div {
-  cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.6);
-  white-space: nowrap;
-  font-size: 0.75rem;
-  line-height: 1.2;
-  width: 100%;
-  text-align: left;
-}
-
-.resources-left span:hover, .resources-left div:hover,
-.resources-right span:hover, .resources-right div:hover {
-  color: #4CAF50;
-  background: rgba(76, 175, 80, 0.1);
 }
 
 /* Анимация свечения для комбо */
@@ -304,6 +278,16 @@ body::before {
 
 .energy-status.recharging {
   color: #F39C12;
+}
+
+.energy-warning {
+  font-size: 0.6rem;
+  color: #E74C3C;
+  font-weight: bold;
+}
+
+.energy-warning.hidden {
+  display: none;
 }
 
 /* Индикаторы эффектов */
@@ -382,7 +366,7 @@ body::before {
   margin: 0 0 0.75rem 0;
   color: #333;
   text-align: center;
-  font-size: 1.1rem; /* Компактный заголовок */
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
@@ -398,7 +382,7 @@ body::before {
   border-bottom: 1px solid #4CAF50;
   padding-bottom: 0.3rem;
   margin-bottom: 0.5rem;
-  font-size: 0.9rem; /* Меньший заголовок */
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
@@ -407,11 +391,11 @@ body::before {
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  padding: 0.5rem; /* Уменьшенный отступ */
+  padding: 0.5rem;
   margin-bottom: 0.5rem;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   transition: all 0.2s ease;
-  font-size: 0.8rem; /* Компактный текст */
+  font-size: 0.8rem;
 }
 
 .item-card:hover {
@@ -448,11 +432,11 @@ body::before {
 }
 
 .item-icon {
-  font-size: 1.2rem; /* Меньшая иконка */
+  font-size: 1.2rem;
 }
 
 .item-name {
-  font-size: 0.9rem; /* Компактное название */
+  font-size: 0.9rem;
   font-weight: 600;
   color: #333;
   flex-grow: 1;
@@ -473,8 +457,8 @@ body::before {
   font-style: italic;
   margin-bottom: 0.4rem;
   line-height: 1.3;
-  font-size: 0.75rem; /* Очень компактное описание */
-  max-height: 3rem; /* Ограничиваем высоту */
+  font-size: 0.75rem;
+  max-height: 3rem;
   overflow: hidden;
 }
 
@@ -484,7 +468,7 @@ body::before {
   padding: 0.3rem;
   border-radius: 4px;
   margin-bottom: 0.4rem;
-  font-size: 0.7rem; /* Очень мелкий текст */
+  font-size: 0.7rem;
 }
 
 .item-details div {
@@ -713,7 +697,7 @@ body::before {
   border-radius: 3px;
 }
 
-/* Адаптивность */
+/* Адаптивность для сетки */
 @media (max-width: 768px) {
   #ui-top {
     gap: 0.3rem;
@@ -731,33 +715,33 @@ body::before {
     padding: 0.5rem;
   }
   
-  .game-wheel-container {
+  .grid-game-container {
     flex-direction: column;
-    gap: 0.75rem;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .left-panel,
+  .right-panel {
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  .left-panel {
+    order: 2; /* После квадрата на мобильных */
+  }
+  
+  .game-grid-center {
+    order: 1;
+  }
+  
+  .right-panel {
+    order: 3;
   }
   
   #gameCanvas {
     width: 300px !important;
     height: 300px !important;
-    order: 1;
-  }
-  
-  .combo-indicator,
-  .energy-display-container {
-    order: unset;
-    min-width: 120px;
-    max-width: 200px;
-    margin: 0 auto;
-  }
-  
-  .resources-panel {
-    width: 100%;
-    text-align: center;
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.25rem;
-    padding: 0.4rem 0.6rem;
   }
   
   .item-footer {
@@ -791,133 +775,12 @@ body::before {
   }
 }
 
-.grid-game-container {
-  display: flex;
-  align-items: flex-start;
-  gap: 2rem;
-  width: 100%;
-  justify-content: center;
-  position: relative;
-}
-
-/* Левая панель с ресурсами */
-.left-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 180px;
-  flex-shrink: 0;
-}
-
-.resources-section {
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  padding: 0.75rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.resources-section h4 {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.8rem;
-  color: #333;
-  text-align: center;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 0.25rem;
-}
-
-.resources-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.resources-group .resource-display {
-  cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 0.75rem;
-  line-height: 1.2;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.resources-group .resource-display:hover {
-  color: #4CAF50;
-  background: rgba(76, 175, 80, 0.1);
-}
-
-/* Центральная игровая область */
-.game-grid-center {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-#gameCanvas {
-  background: #fff; 
-  border: 3px solid #333; 
-  border-radius: 12px; /* Квадрат с закругленными углами */
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
-  display: block;
-  width: 400px !important;
-  height: 400px !important;
-}
-
-/* Правая панель с информацией */
-.right-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  width: 140px;
-  flex-shrink: 0;
-}
-
-.right-panel .combo-indicator,
-.right-panel .energy-display-container {
-  width: 100%;
-}
-
-/* Адаптивность для квадратной игры */
-@media (max-width: 768px) {
-  .grid-game-container {
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
-  }
-  
-  .left-panel,
-  .right-panel {
-    width: 100%;
-    max-width: 400px;
-  }
-  
-  .left-panel {
-    order: 2; /* После квадрата на мобильных */
-  }
-  
-  .game-grid-center {
-    order: 1;
-  }
-  
-  .right-panel {
-    order: 3;
-  }
-  
-  #gameCanvas {
-    width: 300px !important;
-    height: 300px !important;
-  }
-}
-
 /* ИСПРАВЛЕНИЕ: Скрываем старые стили для круглой игры */
 .game-wheel-container {
-  display: none !important; /* Отключаем старую структуру */
+  display: none !important;
 }
 
 .resources-left,
 .resources-right {
-  display: none !important; /* Отключаем старые контейнеры */
+  display: none !important;
 }

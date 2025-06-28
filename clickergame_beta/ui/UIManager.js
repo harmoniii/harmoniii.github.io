@@ -1,4 +1,4 @@
-// ui/UIManager.js - Упрощенная версия UI менеджера
+// ui/UIManager.js - ИСПРАВЛЕННАЯ версия для сетки 3x3
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { PanelManager } from './PanelManager.js';
@@ -38,6 +38,8 @@ export default class UIManager extends CleanupMixin {
         this.bindControls();
         this.bindEvents();
         this.updateDisplay();
+        
+        console.log('🖥️ UIManager initialized for grid layout');
     }
 
     initializeElements() {
@@ -55,9 +57,10 @@ export default class UIManager extends CleanupMixin {
         this.btnSave = document.getElementById('save-button');
         this.btnReset = document.getElementById('reset-button');
         
-        // Контейнеры для отображения
-        this.resourcesLeft = document.getElementById('resources-left');
-        this.resourcesRight = document.getElementById('resources-right');
+        // ИСПРАВЛЕНИЕ: Новые контейнеры для сетки
+        this.basicResources = document.getElementById('basic-resources');
+        this.advancedResources = document.getElementById('advanced-resources');
+        this.specialResources = document.getElementById('special-resources');
         
         this.validateElements();
     }
@@ -65,16 +68,23 @@ export default class UIManager extends CleanupMixin {
     validateElements() {
         const requiredElements = [
             'btnBuildings', 'btnSkills', 'btnMarket', 'btnInfo',
-            'panel', 'btnLoad', 'btnSave', 'btnReset',
-            'resourcesLeft', 'resourcesRight'
+            'panel', 'btnLoad', 'btnSave', 'btnReset'
         ];
         
+        // ИСПРАВЛЕНИЕ: Проверяем только обязательные элементы
         const missingElements = requiredElements.filter(elementName => !this[elementName]);
         
         if (missingElements.length > 0) {
             console.error('Missing UI elements:', missingElements);
             throw new Error(`Missing required UI elements: ${missingElements.join(', ')}`);
         }
+        
+        // ИСПРАВЛЕНИЕ: Предупреждаем о недостающих контейнерах ресурсов, но не падаем
+        if (!this.basicResources || !this.advancedResources || !this.specialResources) {
+            console.warn('⚠️ Some resource containers not found - resource display may not work properly');
+        }
+        
+        console.log('✅ All required UI elements found');
     }
 
     bindControls() {
@@ -107,6 +117,8 @@ export default class UIManager extends CleanupMixin {
         this.addEventListener(this.btnReset, 'click', () => {
             this.saveLoadManager.performReset();
         });
+        
+        console.log('✅ UI controls bound');
     }
 
     bindEvents() {
@@ -124,7 +136,9 @@ export default class UIManager extends CleanupMixin {
         });
         
         eventBus.subscribe(GameEvents.COMBO_CHANGED, () => {
-            this.comboDisplay.forceUpdate();
+            if (this.comboDisplay) {
+                this.comboDisplay.forceUpdate();
+            }
         });
         
         eventBus.subscribe(GameEvents.SKILL_POINTS_CHANGED, () => {
@@ -133,7 +147,9 @@ export default class UIManager extends CleanupMixin {
         
         // События энергии с ограничением
         eventBus.subscribe(GameEvents.ENERGY_CHANGED, () => {
-            this.energyDisplay.updateFromGameState();
+            if (this.energyDisplay) {
+                this.energyDisplay.updateFromGameState();
+            }
         });
         
         eventBus.subscribe(GameEvents.ENERGY_INSUFFICIENT, (data) => {
@@ -165,11 +181,11 @@ export default class UIManager extends CleanupMixin {
             this.effectIndicators.update();
         });
         
-        eventBus.subscribe(GameEvents.BUFF_EXPIRED, (data) => {
+        eventBus.subscribe(GameEvents.BUFF_EXPIRED, () => {
             this.effectIndicators.update();
         });
         
-        eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, (data) => {
+        eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, () => {
             this.effectIndicators.update();
         });
         
@@ -262,6 +278,8 @@ export default class UIManager extends CleanupMixin {
                 lastSpecialNotification = now;
             }
         });
+        
+        console.log('✅ UI events bound');
     }
 
     togglePanel(panelType) {
@@ -275,39 +293,52 @@ export default class UIManager extends CleanupMixin {
     showPanel(panelType) {
         this.currentPanel = panelType;
         
-        switch (panelType) {
-            case 'buildings':
-                this.panelManager.showBuildings(this.panel);
-                break;
-            case 'skills':
-                this.panelManager.showSkills(this.panel);
-                break;
-            case 'market':
-                this.panelManager.showMarket(this.panel);
-                break;
-            case 'info':
-                this.panelManager.showInfo(this.panel);
-                break;
-            default:
-                console.warn('Unknown panel type:', panelType);
-                return;
+        try {
+            switch (panelType) {
+                case 'buildings':
+                    this.panelManager.showBuildings(this.panel);
+                    break;
+                case 'skills':
+                    this.panelManager.showSkills(this.panel);
+                    break;
+                case 'market':
+                    this.panelManager.showMarket(this.panel);
+                    break;
+                case 'info':
+                    this.panelManager.showInfo(this.panel);
+                    break;
+                default:
+                    console.warn('Unknown panel type:', panelType);
+                    return;
+            }
+            
+            this.panel.classList.remove('hidden');
+            console.log(`📱 Showing panel: ${panelType}`);
+            
+        } catch (error) {
+            console.error(`❌ Error showing ${panelType} panel:`, error);
+            this.notificationManager.showError(`Error loading ${panelType} panel`);
         }
-        
-        this.panel.classList.remove('hidden');
     }
 
     hidePanel() {
         this.currentPanel = null;
         this.panel.classList.add('hidden');
         this.panel.innerHTML = '';
+        console.log('📱 Panel hidden');
     }
     
     updateDisplay() {
         if (!this.isActive()) return;
         
-        this.resourceDisplay.update(); // Убираем параметры
-        this.effectIndicators.update();
-      }
+        try {
+            // ИСПРАВЛЕНИЕ: ResourceDisplay теперь работает с новой структурой автоматически
+            this.resourceDisplay.update();
+            this.effectIndicators.update();
+        } catch (error) {
+            console.warn('⚠️ Error updating display:', error);
+        }
+    }
 
     getCurrentPanel() {
         return this.currentPanel;
@@ -330,29 +361,75 @@ export default class UIManager extends CleanupMixin {
     }
 
     forceUpdate() {
-        this.updateDisplay();
-        this.effectIndicators.update();
+        console.log('🔄 Force updating UI...');
         
-        if (this.energyDisplay) {
-            this.energyDisplay.forceUpdate();
-        }
-        
-        if (this.comboDisplay) {
-            this.comboDisplay.forceUpdate();
-        }
-        
-        if (this.currentPanel) {
-            const currentPanel = this.currentPanel;
-            this.hidePanel();
-            this.showPanel(currentPanel);
+        try {
+            this.updateDisplay();
+            this.effectIndicators.update();
+            
+            if (this.energyDisplay) {
+                this.energyDisplay.forceUpdate();
+            }
+            
+            if (this.comboDisplay) {
+                this.comboDisplay.forceUpdate();
+            }
+            
+            // Обновляем текущую панель если открыта
+            if (this.currentPanel) {
+                const currentPanel = this.currentPanel;
+                this.hidePanel();
+                this.showPanel(currentPanel);
+            }
+            
+            console.log('✅ UI force update completed');
+            
+        } catch (error) {
+            console.error('❌ Error during force update:', error);
         }
     }
 
+    // Получить отладочную информацию
+    getDebugInfo() {
+        return {
+            isActive: this.isActive(),
+            currentPanel: this.currentPanel,
+            hasRequiredElements: {
+                buttons: !!(this.btnBuildings && this.btnSkills && this.btnMarket && this.btnInfo),
+                panel: !!this.panel,
+                controls: !!(this.btnLoad && this.btnSave && this.btnReset)
+            },
+            components: {
+                panelManager: !!this.panelManager,
+                notificationManager: !!this.notificationManager,
+                modalManager: !!this.modalManager,
+                resourceDisplay: !!this.resourceDisplay,
+                effectIndicators: !!this.effectIndicators,
+                saveLoadManager: !!this.saveLoadManager,
+                energyDisplay: !!this.energyDisplay,
+                comboDisplay: !!this.comboDisplay
+            },
+            stats: this.getUIStats()
+        };
+    }
+
     destroy() {
-        this.hidePanel();
-        this.modalManager.hideAllModals();
-        this.notificationManager.clearAll();
+        console.log('🧹 UIManager cleanup started');
         
+        // Скрываем панели и модальные окна
+        this.hidePanel();
+        
+        if (this.modalManager) {
+            this.modalManager.hideAllModals();
+        }
+        
+        if (this.notificationManager) {
+            this.notificationManager.clearAll();
+        }
+        
+        // Вызываем родительский деструктор
         super.destroy();
+        
+        console.log('✅ UIManager destroyed');
     }
 }

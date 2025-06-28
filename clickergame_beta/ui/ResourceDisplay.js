@@ -1,4 +1,4 @@
-// ui/ResourceDisplay.js - ИСПРАВЛЕНИЕ для новой разметки
+// ui/ResourceDisplay.js - ИСПРАВЛЕНИЕ для новой разметки сетки 3x3
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { getResourceEmoji, RESOURCE_GROUPS } from '../config/ResourceConfig.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -8,21 +8,30 @@ export class ResourceDisplay extends CleanupMixin {
     super();
     this.gameState = gameState;
     this.tooltip = null;
+    
+    console.log('📊 ResourceDisplay initialized for grid layout');
   }
 
   // ИСПРАВЛЕНИЕ: Обновить отображение для новой структуры
   update() {
     if (!this.isActive()) return;
     
-    this.displayBasicResources();
-    this.displayAdvancedResources();
-    this.displaySpecialResources();
+    try {
+      this.displayBasicResources();
+      this.displayAdvancedResources();
+      this.displaySpecialResources();
+    } catch (error) {
+      console.warn('⚠️ Error updating resource display:', error);
+    }
   }
 
   // Отобразить основные ресурсы
   displayBasicResources() {
     const container = document.getElementById('basic-resources');
-    if (!container) return;
+    if (!container) {
+      console.warn('⚠️ Basic resources container not found');
+      return;
+    }
     
     container.innerHTML = '';
     
@@ -38,7 +47,10 @@ export class ResourceDisplay extends CleanupMixin {
   // Отобразить продвинутые ресурсы
   displayAdvancedResources() {
     const container = document.getElementById('advanced-resources');
-    if (!container) return;
+    if (!container) {
+      console.warn('⚠️ Advanced resources container not found');
+      return;
+    }
     
     container.innerHTML = '';
     
@@ -54,7 +66,10 @@ export class ResourceDisplay extends CleanupMixin {
   // Отобразить специальные ресурсы и статистику
   displaySpecialResources() {
     const container = document.getElementById('special-resources');
-    if (!container) return;
+    if (!container) {
+      console.warn('⚠️ Special resources container not found');
+      return;
+    }
     
     container.innerHTML = '';
     
@@ -147,15 +162,15 @@ export class ResourceDisplay extends CleanupMixin {
   // Получить подсказку для ресурса
   getResourceTooltip(resourceName, value) {
     const tooltips = {
-      gold: 'Primary currency earned by clicking',
-      wood: 'Basic building material',
-      stone: 'Sturdy construction resource',
-      food: 'Sustenance for your people',
-      water: 'Essential for life and production',
-      iron: 'Strong metal for advanced buildings',
+      gold: 'Primary currency earned by clicking the target',
+      wood: 'Basic building material from sawmills',
+      stone: 'Sturdy construction resource from quarries',
+      food: 'Sustenance for your people from farms',
+      water: 'Essential for life and production from wells',
+      iron: 'Strong metal for advanced buildings from mines',
       people: 'Population that works in buildings',
-      energy: 'Power for clicking and buildings',
-      science: 'Research and development resource',
+      energy: 'Power for clicking and building operations',
+      science: 'Research and development from laboratories',
       faith: 'Spiritual resource that increases buff chance',
       chaos: 'Destructive force that increases debuff chance'
     };
@@ -182,6 +197,7 @@ export class ResourceDisplay extends CleanupMixin {
         pointer-events: none;
         white-space: pre-line;
         max-width: 200px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       `;
       document.body.appendChild(this.tooltip);
       
@@ -237,24 +253,52 @@ export class ResourceDisplay extends CleanupMixin {
     });
   }
 
-  // Обратная совместимость с UIManager
-  update(leftContainer, rightContainer) {
-    // Игнорируем старые параметры, используем новую структуру
-    this.update();
-  }
-
-  updateResource(resourceName, container) {
-    // Обновляем все секции
-    this.update();
-  }
-
   // Получить статистику отображения
   getDisplayStats() {
     return {
-      totalResources: Object.keys(this.gameState.resources).length,
-      totalValue: Object.values(this.gameState.resources).reduce((sum, val) => sum + (val || 0), 0),
+      totalResources: Object.keys(this.gameState.resources || {}).length,
+      totalValue: Object.values(this.gameState.resources || {}).reduce((sum, val) => sum + (val || 0), 0),
       hasActiveEffects: (this.gameState.buffs && this.gameState.buffs.length > 0) || 
-                       (this.gameState.debuffs && this.gameState.debuffs.length > 0)
+                       (this.gameState.debuffs && this.gameState.debuffs.length > 0),
+      skillPoints: this.gameState.skillPoints || 0,
+      hasTooltip: !!this.tooltip
     };
+  }
+
+  // Принудительное обновление
+  forceUpdate() {
+    console.log('🔄 Force updating resource display...');
+    this.update();
+  }
+
+  // Получить отладочную информацию
+  getDebugInfo() {
+    return {
+      isActive: this.isActive(),
+      containers: {
+        basic: !!document.getElementById('basic-resources'),
+        advanced: !!document.getElementById('advanced-resources'),
+        special: !!document.getElementById('special-resources')
+      },
+      resources: this.gameState.resources || {},
+      skillPoints: this.gameState.skillPoints || 0,
+      effects: {
+        buffs: (this.gameState.buffs || []).length,
+        debuffs: (this.gameState.debuffs || []).length
+      }
+    };
+  }
+
+  // Деструктор
+  destroy() {
+    console.log('🧹 ResourceDisplay cleanup started');
+    
+    if (this.tooltip) {
+      this.hideTooltip();
+    }
+    
+    super.destroy();
+    
+    console.log('✅ ResourceDisplay destroyed');
   }
 }
