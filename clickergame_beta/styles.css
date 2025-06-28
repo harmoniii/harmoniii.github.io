@@ -790,3 +790,134 @@ body::before {
     padding: 0.6rem;
   }
 }
+
+.grid-game-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+  justify-content: center;
+  position: relative;
+}
+
+/* Левая панель с ресурсами */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.resources-section {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  padding: 0.75rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.resources-section h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: #333;
+  text-align: center;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 0.25rem;
+}
+
+.resources-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.resources-group .resource-display {
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.resources-group .resource-display:hover {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
+/* Центральная игровая область */
+.game-grid-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+#gameCanvas {
+  background: #fff; 
+  border: 3px solid #333; 
+  border-radius: 12px; /* Квадрат с закругленными углами */
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  display: block;
+  width: 400px !important;
+  height: 400px !important;
+}
+
+/* Правая панель с информацией */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 140px;
+  flex-shrink: 0;
+}
+
+.right-panel .combo-indicator,
+.right-panel .energy-display-container {
+  width: 100%;
+}
+
+/* Адаптивность для квадратной игры */
+@media (max-width: 768px) {
+  .grid-game-container {
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .left-panel,
+  .right-panel {
+    width: 100%;
+    max-width: 400px;
+  }
+  
+  .left-panel {
+    order: 2; /* После квадрата на мобильных */
+  }
+  
+  .game-grid-center {
+    order: 1;
+  }
+  
+  .right-panel {
+    order: 3;
+  }
+  
+  #gameCanvas {
+    width: 300px !important;
+    height: 300px !important;
+  }
+}
+
+/* ИСПРАВЛЕНИЕ: Скрываем старые стили для круглой игры */
+.game-wheel-container {
+  display: none !important; /* Отключаем старую структуру */
+}
+
+.resources-left,
+.resources-right {
+  display: none !important; /* Отключаем старые контейнеры */
+}
