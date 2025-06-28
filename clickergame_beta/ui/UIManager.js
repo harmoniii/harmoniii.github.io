@@ -301,13 +301,13 @@ export default class UIManager extends CleanupMixin {
         this.panel.classList.add('hidden');
         this.panel.innerHTML = '';
     }
-
+    
     updateDisplay() {
         if (!this.isActive()) return;
         
-        this.resourceDisplay.update(this.resourcesLeft, this.resourcesRight);
+        this.resourceDisplay.update(); // Убираем параметры
         this.effectIndicators.update();
-    }
+      }
 
     getCurrentPanel() {
         return this.currentPanel;
