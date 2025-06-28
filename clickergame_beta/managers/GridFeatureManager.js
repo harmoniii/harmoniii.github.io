@@ -1,4 +1,4 @@
-// managers/GridFeatureManager.js - ИСПРАВЛЕНО: обновление поля после всех кликов
+// managers/GridFeatureManager.js - ОБНОВЛЕНО: поддержка новых эффектов
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -27,7 +27,7 @@ export class GridFeatureManager extends CleanupMixin {
     this.bindEvents();
     this.startComboTimer();
     
-    console.log('🎯 GridFeatureManager initialized');
+    console.log('🎯 GridFeatureManager initialized with new effects support');
   }
 
   bindEvents() {
@@ -76,6 +76,12 @@ export class GridFeatureManager extends CleanupMixin {
       return;
     }
 
+    // НОВОЕ: Проверяем Absolute Zero - блокирует все действия
+    if (this.gameState.effectStates?.absoluteZeroActive) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❄️ Everything is frozen!');
+      return;
+    }
+
     // Обновляем статистику
     this.updateClickStats();
     
@@ -90,14 +96,14 @@ export class GridFeatureManager extends CleanupMixin {
 
     console.log(`🖱️ Click: cell ${clickResult.cellIndex}, target: ${this.gridManager.getTargetCell()}, accuracy: ${clickResult.accuracy?.toFixed(3)}`);
     
-    // ИСПРАВЛЕНИЕ: Обрабатываем результат и ВСЕГДА перемешиваем после любого успешного клика
+    // Обрабатываем результат и ВСЕГДА перемешиваем после любого успешного клика
     if (clickResult.isTarget) {
       this.handleTargetCellHit(clickResult, now);
     } else {
       this.handleSpecialCellHit(clickResult, now);
     }
     
-    // ИСПРАВЛЕНИЕ: Перемешиваем сетку после ЛЮБОГО попадания в клетку
+    // Перемешиваем сетку после ЛЮБОГО попадания в клетку
     this.handleCellShuffle();
   }
 
@@ -121,8 +127,9 @@ export class GridFeatureManager extends CleanupMixin {
     
     console.log(`🎯 TARGET HIT! Cell ${cellIndex}, accuracy: ${accuracy.toFixed(3)}`);
     
-    // Проверяем энергию
-    if (!this.checkEnergyForClick(effects.energyCost || 1)) {
+    // ОБНОВЛЕНО: Проверяем энергию с учетом новых эффектов
+    const energyCost = this.calculateEnergyCost(effects.energyCost || 1);
+    if (!this.checkEnergyForClick(energyCost)) {
       return;
     }
 
@@ -139,13 +146,13 @@ export class GridFeatureManager extends CleanupMixin {
     // Обрабатываем комбо
     const effectiveCombo = this.handleCombo(clickResult, now, accuracy);
     
-    // Обрабатываем получение золота
+    // ОБНОВЛЕНО: Обрабатываем получение золота с новыми эффектами
     this.handleGoldGain(clickResult, effectiveCombo, accuracy);
     
-    // Тратим энергию
-    this.handleEnergyConsumption(effects.energyCost || 1);
+    // ОБНОВЛЕНО: Тратим энергию с учетом новых эффектов
+    this.handleEnergyConsumption(energyCost);
     
-    // Обрабатываем появление эффектов
+    // ОБНОВЛЕНО: Обрабатываем появление эффектов с новой логикой
     this.handleEffectChance();
     
     // Обновляем статистику
@@ -160,6 +167,27 @@ export class GridFeatureManager extends CleanupMixin {
       isTarget: true,
       timestamp: now
     });
+  }
+
+  // НОВОЕ: Рассчитать стоимость энергии с учетом эффектов
+  calculateEnergyCost(baseCost) {
+    let finalCost = baseCost;
+
+    // Prismatic Glow - бесплатные клики по цели
+    if (this.gameState.effectStates?.prismaticGlowActive) {
+      return 0;
+    }
+
+    // Energy Parasite - двойная стоимость
+    if (this.gameState.effectStates?.energyParasiteActive) {
+      finalCost *= 2;
+    }
+
+    // Energy Efficiency skill
+    const efficiencyLevel = this.getSkillBonus('reduction', 'energy_cost');
+    finalCost *= (1 - efficiencyLevel);
+
+    return Math.max(0.1, finalCost);
   }
 
   // Обработка попадания в специальные клетки
@@ -252,10 +280,12 @@ export class GridFeatureManager extends CleanupMixin {
     }
     
     try {
-      if (!this.gameState.energyManager.canClick()) {
+      // ОБНОВЛЕНО: Используем модифицированную стоимость энергии
+      const currentEnergy = this.gameState.energy?.current || 0;
+      if (currentEnergy < energyCost) {
         const energyInfo = this.gameState.energyManager.getEnergyInfo();
         eventBus.emit(GameEvents.NOTIFICATION, 
-          `⚡ Not enough energy! Need ${energyInfo.clickCost}, have ${energyInfo.current}`);
+          `⚡ Not enough energy! Need ${energyCost.toFixed(1)}, have ${energyInfo.current}`);
         return false;
       }
     } catch (error) {
@@ -358,7 +388,7 @@ export class GridFeatureManager extends CleanupMixin {
     return effectiveCombo;
   }
 
-  // Обработка получения золота
+  // ОБНОВЛЕНО: Обработка получения золота с новыми эффектами
   handleGoldGain(clickResult, effectiveCombo, accuracy = 0.5) {
     let clickMultiplier = 1;
     
@@ -387,9 +417,17 @@ export class GridFeatureManager extends CleanupMixin {
       goldGain *= 3;
     }
     
-    // Critical Strike skill
-    const critChance = this.getSkillBonus('chance', 'critical');
-    if (Math.random() < critChance) {
+    // НОВОЕ: Crystal Focus - принудительные критические удары
+    let isCritical = false;
+    if (this.gameState.effectStates?.crystalFocusActive) {
+      isCritical = true;
+    } else {
+      // Обычная проверка критических ударов
+      const critChance = this.getSkillBonus('chance', 'critical');
+      isCritical = Math.random() < critChance;
+    }
+    
+    if (isCritical) {
       goldGain *= 2;
       eventBus.emit(GameEvents.CRITICAL_HIT, { damage: goldGain });
     }
@@ -416,6 +454,12 @@ export class GridFeatureManager extends CleanupMixin {
 
   // Восстановление энергии
   handleEnergyRestore(amount, source) {
+    // НОВОЕ: Absolute Zero блокирует восстановление энергии
+    if (this.gameState.effectStates?.absoluteZeroActive) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❄️ Energy restore blocked by Absolute Zero!');
+      return;
+    }
+
     if (this.gameState.energyManager) {
       try {
         this.gameState.energyManager.restoreEnergy(amount, source);
@@ -431,7 +475,7 @@ export class GridFeatureManager extends CleanupMixin {
     }
   }
 
-  // Потребление энергии
+  // ОБНОВЛЕНО: Потребление энергии с учетом новых эффектов
   handleEnergyConsumption(cost) {
     if (this.gameState.energyManager) {
       try {
@@ -542,46 +586,76 @@ export class GridFeatureManager extends CleanupMixin {
     }
   }
 
-  // Обработка появления эффектов
+  // ОБНОВЛЕНО: Обработка появления эффектов с новой логикой
   handleEffectChance() {
     const faithAmount = this.gameState.resources.faith || 0;
     const chaosAmount = this.gameState.resources.chaos || 0;
     
-    let baseChance = GAME_CONSTANTS.BASE_EFFECT_CHANCE;
-    
-    // Lucky Zone buff
-    if (this.gameState.buffs && this.gameState.buffs.includes('lucky')) {
-      baseChance += GAME_CONSTANTS.LUCKY_BUFF_BONUS;
-    }
-    
-    // Curse debuff
-    if (this.gameState.debuffs && this.gameState.debuffs.includes('curse')) {
-      baseChance *= 0.5;
+    let baseBuffChance = GAME_CONSTANTS.BASE_EFFECT_CHANCE;
+    let baseDebuffChance = GAME_CONSTANTS.BASE_EFFECT_CHANCE;
+
+    // НОВОЕ: Модифицируем шансы через BuffManager
+    if (this.buffManager && typeof this.buffManager.modifyEffectChances === 'function') {
+      const modifiedChances = this.buffManager.modifyEffectChances(baseBuffChance, baseDebuffChance);
+      baseBuffChance = modifiedChances.buffChance;
+      baseDebuffChance = modifiedChances.debuffChance;
+    } else {
+      // Fallback - старая логика
+      // Lucky Zone buff
+      if (this.gameState.buffs && this.gameState.buffs.includes('lucky')) {
+        baseBuffChance += GAME_CONSTANTS.LUCKY_BUFF_BONUS;
+      }
+
+      // Curse debuff
+      if (this.gameState.debuffs && this.gameState.debuffs.includes('curse')) {
+        baseBuffChance *= 0.5;
+      }
+
+      // НОВЫЕ ЭФФЕКТЫ
+      // Chaos Clown
+      if (this.gameState.effectStates?.chaosClownActive) {
+        baseBuffChance = 100;
+        baseDebuffChance = 0;
+      }
+
+      // Unlucky Curse
+      if (this.gameState.effectStates?.unluckyCurseActive) {
+        baseBuffChance = 0;
+        baseDebuffChance = 100;
+      }
     }
     
     // Lucky Charm skill
     const luckyCharmBonus = this.getSkillBonus('chance', 'luck');
-    baseChance += luckyCharmBonus;
+    baseBuffChance += luckyCharmBonus;
     
     const effectRoll = Math.random() * 100;
     
-    if (effectRoll < baseChance) {
+    if (effectRoll < Math.max(baseBuffChance, baseDebuffChance)) {
       const totalInfluence = faithAmount + chaosAmount;
       
-      if (totalInfluence === 0) {
-        if (Math.random() < 0.5) {
-          this.buffManager?.applyRandomBuff();
+      // Определяем тип эффекта
+      let shouldApplyBuff = false;
+      
+      if (baseBuffChance > 0 && baseDebuffChance > 0) {
+        // Обычная логика faith/chaos
+        if (totalInfluence === 0) {
+          shouldApplyBuff = Math.random() < 0.5;
         } else {
-          this.buffManager?.applyRandomDebuff();
+          const faithRatio = faithAmount / totalInfluence;
+          shouldApplyBuff = Math.random() < faithRatio;
         }
+      } else if (baseBuffChance > 0) {
+        shouldApplyBuff = true;
+      } else if (baseDebuffChance > 0) {
+        shouldApplyBuff = false;
+      }
+      
+      // Применяем эффект
+      if (shouldApplyBuff) {
+        this.buffManager?.applyRandomBuff();
       } else {
-        const faithRatio = faithAmount / totalInfluence;
-        
-        if (Math.random() < faithRatio) {
-          this.buffManager?.applyRandomBuff();
-        } else {
-          this.buffManager?.applyRandomDebuff();
-        }
+        this.buffManager?.applyRandomDebuff();
       }
     }
   }
@@ -620,7 +694,16 @@ export class GridFeatureManager extends CleanupMixin {
       hasBuffManager: !!this.buffManager,
       clickStats: this.getClickStats(),
       lastEnergyNotification: this.lastEnergyNotification,
-      gameStateReady: !!(this.gameState && !this.gameState.isDestroyed)
+      gameStateReady: !!(this.gameState && !this.gameState.isDestroyed),
+      newEffectStates: {
+        crystalFocusActive: this.gameState.effectStates?.crystalFocusActive,
+        prismaticGlowActive: this.gameState.effectStates?.prismaticGlowActive,
+        chaosClownActive: this.gameState.effectStates?.chaosClownActive,
+        taxBoomActive: this.gameState.effectStates?.taxBoomActive,
+        absoluteZeroActive: this.gameState.effectStates?.absoluteZeroActive,
+        energyParasiteActive: this.gameState.effectStates?.energyParasiteActive,
+        unluckyCurseActive: this.gameState.effectStates?.unluckyCurseActive
+      }
     };
   }
 
