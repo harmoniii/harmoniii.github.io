@@ -1,4 +1,4 @@
-// effects/EffectDefinitions.js - Определения всех эффектов (баффов и дебаффов)
+// effects/EffectDefinitions.js - ИСПРАВЛЕНО: убраны эффекты для колеса
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
 // ===== ОПРЕДЕЛЕНИЯ БАФФОВ (ПОЛОЖИТЕЛЬНЫЕ ЭФФЕКТЫ) =====
@@ -42,14 +42,6 @@ export const BUFF_DEFS = [
     description: 'Choose from 3 random resources',
     rarity: 'rare',
     category: 'choice'
-  },
-  { 
-    id: 'speedBoost', 
-    name: '🏃 Speed Boost', 
-    duration: 12, 
-    description: 'Wheel rotates 50% slower, easier targeting',
-    rarity: 'common',
-    category: 'control'
   },
   { 
     id: 'starPower', 
@@ -104,14 +96,6 @@ export const BUFF_DEFS = [
 // ===== ОПРЕДЕЛЕНИЯ ДЕБАФФОВ (ОТРИЦАТЕЛЬНЫЕ ЭФФЕКТЫ) =====
 export const DEBUFF_DEFS = [
   { 
-    id: 'rapid', 
-    name: '🌪️ Rapid Time', 
-    duration: 5, 
-    description: 'Wheel spins much faster, harder to aim',
-    severity: 'mild',
-    category: 'control'
-  },
-  { 
     id: 'ghost', 
     name: '👻 Ghost Click', 
     duration: 2, 
@@ -136,14 +120,6 @@ export const DEBUFF_DEFS = [
     category: 'control'
   },
   { 
-    id: 'reverseControls', 
-    name: '🙃 Reverse Controls', 
-    duration: 8, 
-    description: 'Target zone moves in opposite direction',
-    severity: 'moderate',
-    category: 'control'
-  },
-  { 
     id: 'freeze', 
     name: '❄️ Freeze', 
     duration: 10, 
@@ -163,7 +139,7 @@ export const DEBUFF_DEFS = [
     id: 'heavyClick', 
     name: '⚖️ Heavy Click', 
     duration: 8, 
-    description: 'Need to click zone 3 times to register',
+    description: 'Need to click cell 3 times to register',
     severity: 'moderate',
     category: 'interference'
   },
@@ -214,11 +190,6 @@ export const EFFECT_CONFIG = {
     ]
   },
   
-  speedBoost: {
-    speedMultiplier: GAME_CONSTANTS.SPEED_BOOST_MULTIPLIER,
-    stackable: false
-  },
-  
   starPower: {
     clicksCount: GAME_CONSTANTS.STAR_POWER_CLICKS,
     bonusAmount: GAME_CONSTANTS.STAR_POWER_BONUS,
@@ -252,11 +223,6 @@ export const EFFECT_CONFIG = {
   },
 
   // Debuff configurations
-  rapid: {
-    speedMultiplier: GAME_CONSTANTS.RAPID_SPEED_MULTIPLIER,
-    stackable: false
-  },
-  
   ghost: {
     ignoreChance: GAME_CONSTANTS.GHOST_CLICK_CHANCE,
     stackable: false
@@ -270,11 +236,6 @@ export const EFFECT_CONFIG = {
   lock: {
     blockDuration: 1000, // 1 second in milliseconds
     instantEffect: true
-  },
-  
-  reverseControls: {
-    reverseDirection: true,
-    stackable: false
   },
   
   freeze: {
@@ -313,14 +274,14 @@ export const EFFECT_CATEGORIES = {
   resource: 'Resource Generation',
   gamble: 'Risk & Reward',
   choice: 'Player Choice',
-  control: 'Game Control',
   enhancement: 'Power Enhancement',
   protection: 'Defense & Protection',
   
   // Debuff categories
   interference: 'Game Interference',
   destruction: 'Resource Destruction',
-  curse: 'Negative Influence'
+  curse: 'Negative Influence',
+  control: 'Game Control'
 };
 
 // ===== РЕДКОСТЬ ЭФФЕКТОВ =====
@@ -392,7 +353,7 @@ export function getBuffById(id) {
  * Получить определение дебаффа по ID
  */
 export function getDebuffById(id) {
-  return DEBUFF_DEFS.find(debuff => debuff.id === id);
+  return DEBUFF_DEFS.find(debuff => debuff.id === debuffId);
 }
 
 /**

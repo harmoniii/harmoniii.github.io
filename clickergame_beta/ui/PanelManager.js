@@ -1,4 +1,4 @@
-// ui/PanelManager.js - Управление панелями интерфейса
+// ui/PanelManager.js - ИСПРАВЛЕНО: улучшенное отображение правил
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { CardFactory } from './CardFactory.js';
 import { BUFF_DEFS, DEBUFF_DEFS } from '../effects/EffectDefinitions.js';
@@ -132,7 +132,7 @@ export class PanelManager extends CleanupMixin {
     });
     panelElement.appendChild(debuffsSection);
     
-    // Секция правил
+    // ИСПРАВЛЕНИЕ: Секция правил с лучшим отображением
     const rulesSection = this.createCategorySection('⚖️ Effect Rules');
     const rulesCard = this.createEffectRulesCard();
     rulesSection.appendChild(rulesCard);
@@ -147,29 +147,48 @@ export class PanelManager extends CleanupMixin {
     return section;
   }
 
-  // Создать карточку правил эффектов
+  // ИСПРАВЛЕНИЕ: Создать карточку правил эффектов с лучшим форматированием
   createEffectRulesCard() {
     const card = document.createElement('div');
     card.className = 'item-card rules-card';
     card.innerHTML = `
       <div class="item-description">
+        <h4>📊 Base Effect Chances</h4>
         <p><strong>Base chance:</strong> ${GAME_CONSTANTS.BASE_EFFECT_CHANCE}% per click to get an effect</p>
-        <p><strong>Resource influence:</strong></p>
+        
+        <h4>🎯 Resource Influence</h4>
         <ul>
-          <li>🙏 <strong>Faith</strong> increases buff chance</li>
-          <li>🌪️ <strong>Chaos</strong> increases debuff chance</li>
+          <li><strong>🙏 Faith:</strong> Increases buff chance</li>
+          <li><strong>🌪️ Chaos:</strong> Increases debuff chance</li>
         </ul>
-        <p><strong>Modifiers:</strong></p>
+        
+        <h4>✨ Buff Modifiers</h4>
         <ul>
-          <li>💎 <strong>Lucky Zone</strong> buff: +${GAME_CONSTANTS.LUCKY_BUFF_BONUS}% buff chance</li>
-          <li>🍀 <strong>Lucky Charm</strong> skill: increases buff chance</li>
-          <li>🛡️ <strong>Shield</strong> buff: blocks next ${GAME_CONSTANTS.SHIELD_BLOCKS} debuffs</li>
+          <li><strong>💎 Lucky Zone buff:</strong> +${GAME_CONSTANTS.LUCKY_BUFF_BONUS}% buff chance</li>
+          <li><strong>🍀 Lucky Charm skill:</strong> Increases buff chance based on level</li>
+          <li><strong>🛡️ Shield buff:</strong> Blocks next ${GAME_CONSTANTS.SHIELD_BLOCKS} debuffs</li>
         </ul>
-        <p><strong>Skill Effects:</strong></p>
+        
+        <h4>💀 Debuff Effects</h4>
         <ul>
-          <li>✨ <strong>Buff Mastery</strong>: increases buff duration</li>
-          <li>🛡️ <strong>Resilience</strong>: reduces debuff duration</li>
-          <li>☮️ <strong>Inner Peace</strong>: reduces chaos influence</li>
+          <li><strong>🌙 Curse debuff:</strong> Reduces all buff chances by 50%</li>
+          <li><strong>👻 Ghost Click:</strong> 50% chance clicks are ignored</li>
+          <li><strong>⚖️ Heavy Click:</strong> Need ${GAME_CONSTANTS.HEAVY_CLICK_REQUIRED} clicks per cell</li>
+        </ul>
+        
+        <h4>🛠️ Skill Effects</h4>
+        <ul>
+          <li><strong>✨ Buff Mastery:</strong> Increases buff duration</li>
+          <li><strong>🛡️ Resilience:</strong> Reduces debuff duration</li>
+          <li><strong>☮️ Inner Peace:</strong> Reduces chaos influence on debuffs</li>
+        </ul>
+        
+        <h4>🎮 Game Mechanics</h4>
+        <ul>
+          <li><strong>Grid System:</strong> 3x3 grid with target, energy, and bonus cells</li>
+          <li><strong>Combo System:</strong> Hit target cells consecutively to build combo</li>
+          <li><strong>Energy System:</strong> Separate from resources, needed for clicking</li>
+          <li><strong>Effect Duration:</strong> Most effects are temporary and stack</li>
         </ul>
       </div>
     `;

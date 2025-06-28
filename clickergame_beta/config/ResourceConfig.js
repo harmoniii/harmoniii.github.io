@@ -1,7 +1,7 @@
-// config/ResourceConfig.js - Конфигурация ресурсов и зон
+// config/ResourceConfig.js - ИСПРАВЛЕНО: убрана энергия из ресурсов
 export const RESOURCES = [
     'gold', 'wood', 'stone', 'food', 'water', 'iron',
-    'people', 'energy', 'science', 'faith', 'chaos'
+    'people', 'science', 'faith', 'chaos'
   ];
   
   export const RESOURCE_EMOJIS = {
@@ -12,7 +12,7 @@ export const RESOURCES = [
     water: '💧',
     iron: '⛓️',
     people: '👥',
-    energy: '⚡',
+    energy: '⚡', // Оставляем для обратной совместимости, но не используем
     science: '🔬',
     faith: '🙏',
     chaos: '🌪️',
@@ -27,7 +27,7 @@ export const RESOURCES = [
     water: 'Water',
     iron: 'Iron',
     people: 'People',
-    energy: 'Energy',
+    energy: 'Energy', // Оставляем для обратной совместимости
     science: 'Science',
     faith: 'Faith',
     chaos: 'Chaos',
@@ -37,12 +37,12 @@ export const RESOURCES = [
   export const ZONE_COUNT = 8;
   export const ZONE_DEFS = Array.from({ length: ZONE_COUNT }, () => ({ type: 'random' }));
   
-  // Группы ресурсов для различных механик
+  // ИСПРАВЛЕНИЕ: Убрана энергия из групп ресурсов
   export const RESOURCE_GROUPS = {
     BASIC: ['gold', 'wood', 'stone', 'food', 'water', 'iron'],
-    ADVANCED: ['people', 'energy', 'science'],
+    ADVANCED: ['people', 'science'],
     SPECIAL: ['faith', 'chaos'],
-    TRADEABLE: ['wood', 'stone', 'food', 'water', 'iron', 'people', 'energy', 'science'],
+    TRADEABLE: ['wood', 'stone', 'food', 'water', 'iron', 'people', 'science'],
     NON_TRADEABLE: ['gold', 'faith', 'chaos']
   };
   
