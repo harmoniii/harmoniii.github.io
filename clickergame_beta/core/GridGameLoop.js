@@ -1,4 +1,4 @@
-// core/GridGameLoop.js - Игровой цикл для сетки 3x3
+// core/GridGameLoop.js - ИСПРАВЛЕННАЯ версия игрового цикла для сетки 3x3
 import { CleanupMixin } from './CleanupManager.js';
 import { eventBus, GameEvents } from './GameEvents.js';
 import { UI_CONFIG } from '../config/GameConstants.js';
@@ -37,6 +37,8 @@ export class GridGameLoop extends CleanupMixin {
     if (!this.ctx) {
       throw new Error('Failed to get 2D context');
     }
+    
+    console.log('🖼️ Canvas initialized:', this.canvas.width + 'x' + this.canvas.height);
   }
 
   setupCanvasEvents() {
@@ -55,6 +57,8 @@ export class GridGameLoop extends CleanupMixin {
     this.addEventListener(this.canvas, 'click', clickHandler);
     this.addEventListener(this.canvas, 'touchstart', touchHandler);
     this.addEventListener(this.canvas, 'contextmenu', (e) => e.preventDefault());
+    
+    console.log('👆 Canvas events bound');
   }
 
   handleCanvasClick(e) {
@@ -115,6 +119,8 @@ export class GridGameLoop extends CleanupMixin {
     eventBus.subscribe(GameEvents.DEBUFF_EXPIRED, () => {
       this.needsRedraw = true;
     });
+    
+    console.log('📡 Grid game loop events bound');
   }
 
   start() {

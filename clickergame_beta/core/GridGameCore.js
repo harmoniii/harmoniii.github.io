@@ -1,4 +1,4 @@
-// core/GridGameCore.js - Игровое ядро для сетки 3x3
+// core/GridGameCore.js - ИСПРАВЛЕННАЯ версия для сетки 3x3
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';

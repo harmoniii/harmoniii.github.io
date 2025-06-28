@@ -1,4 +1,4 @@
-// game.js - Главный файл для системы сетки 3x3
+// game.js - ИСПРАВЛЕННАЯ версия для системы сетки 3x3
 import { GridGameCore } from './core/GridGameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
 
