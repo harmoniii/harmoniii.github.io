@@ -1,9 +1,10 @@
+<!-- index.html - ИСПРАВЛЕННАЯ разметка для квадратной игры -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Restoration: Chronicles of Survival — Clicker</title>
+  <title>Restoration: Chronicles of Survival — Grid Clicker</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -15,63 +16,79 @@
     <button id="info-button">📚 Info</button>
   </div>
 
-  <!-- ИСПРАВЛЕНИЕ: Игровая зона с правильным расположением ресурсов по бокам -->
+  <!-- ИСПРАВЛЕНО: Игровая зона с правильным расположением для сетки -->
   <div id="game-area">
-    <!-- Контейнер для всех элементов в одну линию -->
-    <div class="game-wheel-container">
-      <!-- Ресурсы слева -->
-      <div id="resources-left" class="resources-left"></div>
+    <div class="grid-game-container">
       
-      <!-- Комбо слева от колеса -->
-      <div class="combo-indicator" id="combo-indicator">
-        <div class="combo-title">COMBO</div>
-        <div class="combo-value" id="combo-value">0</div>
-        <div class="combo-bonus" id="combo-bonus">Hit the red target!</div>
-      </div>
-
-      <!-- Игровое колесо по центру -->
-      <canvas id="gameCanvas" width="400" height="400"></canvas>
-
-      <!-- Энергия справа от колеса -->
-      <div class="energy-display-container" id="energy-display">
-        <div class="energy-bar-container">
-          <div class="energy-bar-background">
-            <div class="energy-bar energy-normal"></div>
-          </div>
+      <!-- Все ресурсы слева от квадрата -->
+      <div class="left-panel">
+        <!-- Основные ресурсы -->
+        <div class="resources-section">
+          <h4>📦 Basic Resources</h4>
+          <div id="basic-resources" class="resources-group"></div>
         </div>
-        <div class="energy-text">⚡ 100/100</div>
-        <div class="energy-status ready">Ready!</div>
-        <div class="energy-warning hidden">⚡ Low!</div>
+        
+        <!-- Дополнительные ресурсы -->
+        <div class="resources-section">
+          <h4>⚗️ Advanced Resources</h4>
+          <div id="advanced-resources" class="resources-group"></div>
+        </div>
+        
+        <!-- Специальные ресурсы -->
+        <div class="resources-section">
+          <h4>✨ Special</h4>
+          <div id="special-resources" class="resources-group"></div>
+        </div>
       </div>
-      
-      <!-- Ресурсы справа -->
-      <div id="resources-right" class="resources-right"></div>
+
+      <!-- Игровая сетка по центру -->
+      <div class="game-grid-center">
+        <canvas id="gameCanvas" width="400" height="400"></canvas>
+      </div>
+
+      <!-- Информационные панели справа -->
+      <div class="right-panel">
+        
+        <!-- Комбо индикатор -->
+        <div class="combo-indicator" id="combo-indicator">
+          <div class="combo-title">COMBO</div>
+          <div class="combo-value" id="combo-value">0</div>
+          <div class="combo-bonus" id="combo-bonus">Hit the red target!</div>
+        </div>
+
+        <!-- Энергия -->
+        <div class="energy-display-container" id="energy-display">
+          <div class="energy-bar-container">
+            <div class="energy-bar-background">
+              <div class="energy-bar energy-normal"></div>
+            </div>
+          </div>
+          <div class="energy-text">⚡ 100/100</div>
+          <div class="energy-status ready">Ready!</div>
+          <div class="energy-warning hidden">⚡ Low!</div>
+        </div>
+        
+      </div>
     </div>
   </div>
 
-  <!-- Панель, которая меняется в зависимости от кнопки -->
+  <!-- Остальная разметка остается без изменений -->
   <div id="panel-container" class="list-panel hidden"></div>
 
-  <!-- Компактные кнопки управления -->
   <div id="controls-bottom">
     <button id="load-button">📁 Load</button>
     <button id="save-button">💾 Save</button>
     <button id="reset-button">🔄 Reset</button>
-    <button disabled>Alpha 3.5.7</button>
+    <button disabled>Alpha 4.0</button>
   </div>
 
-  <!-- Уведомления и модалки -->
   <div id="notifications"></div>
   <div id="mystery-modal" class="modal hidden"></div>
   <div id="info-modal" class="modal hidden"></div>
-
-  <!-- Контейнер для индикаторов эффектов -->
   <div id="effect-indicators" class="effect-indicators"></div>
 
-  <!-- Основная загрузка игры -->
   <script type="module" src="game.js"></script>
 
-  <!-- Обработка ошибок загрузки -->
   <script>
     window.addEventListener('error', (e) => {
       console.error('Game loading error:', e);
@@ -86,7 +103,7 @@
         font-size: 14px;
       `;
       errorDiv.innerHTML = `
-        <strong>⚠️ Loading Error</strong><br>
+        <strong>⚠️ Grid Game Error</strong><br>
         <small>${e.message || 'Unknown error occurred'}</small><br>
         <button onclick="location.reload()" style="
           background: white; color: #ff4444; border: none;

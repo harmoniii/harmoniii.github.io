@@ -1,4 +1,4 @@
-// ui/ResourceDisplay.js - ИСПРАВЛЕННАЯ версия БЕЗ управления комбо
+// ui/ResourceDisplay.js - ИСПРАВЛЕНИЕ для новой разметки
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { getResourceEmoji, RESOURCE_GROUPS } from '../config/ResourceConfig.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -10,55 +10,69 @@ export class ResourceDisplay extends CleanupMixin {
     this.tooltip = null;
   }
 
-  // ИСПРАВЛЕНИЕ: Обновить отображение ресурсов БЕЗ комбо (БЕЗ энергии)
-  update(leftContainer, rightContainer) {
-    if (!this.isActive() || !leftContainer || !rightContainer) return;
+  // ИСПРАВЛЕНИЕ: Обновить отображение для новой структуры
+  update() {
+    if (!this.isActive()) return;
     
-    this.clearContainers(leftContainer, rightContainer);
-    this.displayMainResources(leftContainer);
-    this.displayOtherResources(rightContainer);
-    this.displayGameStats(rightContainer);
+    this.displayBasicResources();
+    this.displayAdvancedResources();
+    this.displaySpecialResources();
   }
 
-  // Очистить контейнеры
-  clearContainers(leftContainer, rightContainer) {
-    leftContainer.innerHTML = '';
-    rightContainer.innerHTML = '';
-  }
-
-  // ИСПРАВЛЕНИЕ: Отобразить основные ресурсы БЕЗ энергии
-  displayMainResources(container) {
-    const mainResources = RESOURCE_GROUPS.BASIC; // gold, wood, stone, food, water, iron
+  // Отобразить основные ресурсы
+  displayBasicResources() {
+    const container = document.getElementById('basic-resources');
+    if (!container) return;
     
-    mainResources.forEach(resourceName => {
+    container.innerHTML = '';
+    
+    const basicResources = RESOURCE_GROUPS.BASIC; // gold, wood, stone, food, water, iron
+    
+    basicResources.forEach(resourceName => {
       const value = this.gameState.resources[resourceName] || 0;
       const element = this.createResourceElement(resourceName, value);
       container.appendChild(element);
-      container.appendChild(document.createElement('br'));
     });
   }
 
-  // ИСПРАВЛЕНИЕ: Отобразить остальные ресурсы БЕЗ энергии
-  displayOtherResources(container) {
-    // Исключаем энергию из отображения, показываем только people, science, faith, chaos
-    const otherResources = ['people', 'science', 'faith', 'chaos'];
+  // Отобразить продвинутые ресурсы
+  displayAdvancedResources() {
+    const container = document.getElementById('advanced-resources');
+    if (!container) return;
     
-    otherResources.forEach(resourceName => {
+    container.innerHTML = '';
+    
+    const advancedResources = RESOURCE_GROUPS.ADVANCED; // people, energy, science
+    
+    advancedResources.forEach(resourceName => {
       const value = this.gameState.resources[resourceName] || 0;
       const element = this.createResourceElement(resourceName, value);
       container.appendChild(element);
-      container.appendChild(document.createElement('br'));
     });
   }
 
-  // Отобразить игровую статистику БЕЗ комбо (теперь отдельно)
-  displayGameStats(container) {
+  // Отобразить специальные ресурсы и статистику
+  displaySpecialResources() {
+    const container = document.getElementById('special-resources');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Специальные ресурсы
+    const specialResources = RESOURCE_GROUPS.SPECIAL; // faith, chaos
+    
+    specialResources.forEach(resourceName => {
+      const value = this.gameState.resources[resourceName] || 0;
+      const element = this.createResourceElement(resourceName, value);
+      container.appendChild(element);
+    });
+    
     // Skill Points
     const skillPoints = Math.floor(this.gameState.skillPoints || 0);
     const sp = this.createStatElement('Skill Points', skillPoints, '✨');
     container.appendChild(sp);
     
-    // Дополнительная информация если есть активные эффекты
+    // Активные эффекты если есть
     if (this.gameState.buffs && this.gameState.buffs.length > 0) {
       const activeBuffs = this.createStatElement('Active Buffs', this.gameState.buffs.length, '✨');
       container.appendChild(activeBuffs);
@@ -72,51 +86,51 @@ export class ResourceDisplay extends CleanupMixin {
 
   // Создать элемент ресурса
   createResourceElement(resourceName, value) {
-    const span = document.createElement('span');
-    span.className = 'resource-display';
+    const div = document.createElement('div');
+    div.className = 'resource-display';
     
     const emoji = getResourceEmoji(resourceName);
     const formattedValue = this.formatValue(value);
     
-    span.textContent = `${emoji} ${formattedValue}`;
+    div.textContent = `${emoji} ${formattedValue}`;
     
     // Добавляем обработчики для подсказок
-    this.addEventListener(span, 'mouseenter', (e) => {
+    this.addEventListener(div, 'mouseenter', (e) => {
       this.showTooltip(e, this.getResourceTooltip(resourceName, value));
     });
     
-    this.addEventListener(span, 'mouseleave', () => {
+    this.addEventListener(div, 'mouseleave', () => {
       this.hideTooltip();
     });
     
-    // Добавляем цветовое кодирование для специальных ресурсов
+    // Цветовое кодирование для специальных ресурсов
     if (resourceName === 'faith' && value > 0) {
-      span.style.color = '#4CAF50';
+      div.style.color = '#4CAF50';
     } else if (resourceName === 'chaos' && value > 0) {
-      span.style.color = '#f44336';
+      div.style.color = '#f44336';
     }
     
-    return span;
+    return div;
   }
 
   // Создать элемент статистики
   createStatElement(label, value, emoji = '') {
     const div = document.createElement('div');
-    div.className = 'stat-display';
+    div.className = 'resource-display';
     
     const formattedValue = this.formatValue(value);
-    div.textContent = `${emoji} ${label}: ${formattedValue}`;
+    div.textContent = `${emoji} ${formattedValue}`;
+    div.title = label; // Подсказка
     
     return div;
   }
 
-  // Форматировать значение для отображения
+  // Форматировать значение
   formatValue(value) {
     if (typeof value !== 'number' || isNaN(value)) {
       return '0';
     }
     
-    // Для больших чисел используем сокращения
     if (value >= 1000000000) {
       return (value / 1000000000).toFixed(1) + 'B';
     } else if (value >= 1000000) {
@@ -140,6 +154,7 @@ export class ResourceDisplay extends CleanupMixin {
       water: 'Essential for life and production',
       iron: 'Strong metal for advanced buildings',
       people: 'Population that works in buildings',
+      energy: 'Power for clicking and buildings',
       science: 'Research and development resource',
       faith: 'Spiritual resource that increases buff chance',
       chaos: 'Destructive force that increases debuff chance'
@@ -156,6 +171,18 @@ export class ResourceDisplay extends CleanupMixin {
     if (!this.tooltip) {
       this.tooltip = document.createElement('div');
       this.tooltip.className = 'tooltip';
+      this.tooltip.style.cssText = `
+        position: absolute;
+        background: #333;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 10000;
+        pointer-events: none;
+        white-space: pre-line;
+        max-width: 200px;
+      `;
       document.body.appendChild(this.tooltip);
       
       this.onDestroy(() => {
@@ -166,10 +193,9 @@ export class ResourceDisplay extends CleanupMixin {
     }
     
     this.tooltip.textContent = text;
-    this.tooltip.style.top = `${event.pageY + GAME_CONSTANTS.TOOLTIP_OFFSET}px`;
-    this.tooltip.style.left = `${event.pageX + GAME_CONSTANTS.TOOLTIP_OFFSET}px`;
+    this.tooltip.style.top = `${event.pageY + 10}px`;
+    this.tooltip.style.left = `${event.pageX + 10}px`;
     this.tooltip.style.display = 'block';
-    this.tooltip.style.whiteSpace = 'pre-line';
   }
 
   // Скрыть подсказку
@@ -179,50 +205,47 @@ export class ResourceDisplay extends CleanupMixin {
     }
   }
 
-  // Обновить только конкретный ресурс (оптимизация)
-  updateResource(resourceName, container) {
+  // Подсветить ресурс (при изменении)
+  highlightResource(resourceName) {
     if (!this.isActive()) return;
     
-    const resourceElements = container.querySelectorAll('.resource-display');
-    resourceElements.forEach(element => {
-      const text = element.textContent;
-      const emoji = getResourceEmoji(resourceName);
+    const containers = ['basic-resources', 'advanced-resources', 'special-resources'];
+    containers.forEach(containerId => {
+      const container = document.getElementById(containerId);
+      if (!container) return;
       
-      if (text.startsWith(emoji)) {
-        const value = this.gameState.resources[resourceName] || 0;
-        const formattedValue = this.formatValue(value);
-        element.textContent = `${emoji} ${formattedValue}`;
-      }
+      const resourceElements = container.querySelectorAll('.resource-display');
+      resourceElements.forEach(element => {
+        const text = element.textContent;
+        const emoji = getResourceEmoji(resourceName);
+        
+        if (text.startsWith(emoji)) {
+          element.style.transition = 'all 0.3s ease';
+          element.style.backgroundColor = '#4CAF50';
+          element.style.color = 'white';
+          element.style.transform = 'scale(1.05)';
+          
+          this.createTimeout(() => {
+            if (element) {
+              element.style.backgroundColor = '';
+              element.style.color = '';
+              element.style.transform = '';
+            }
+          }, 1000);
+        }
+      });
     });
   }
 
-  // Подсветить ресурс (при изменении)
-  highlightResource(resourceName, container) {
-    if (!this.isActive()) return;
-    
-    const resourceElements = container.querySelectorAll('.resource-display');
-    resourceElements.forEach(element => {
-      const text = element.textContent;
-      const emoji = getResourceEmoji(resourceName);
-      
-      if (text.startsWith(emoji)) {
-        element.style.transition = 'all 0.3s ease';
-        element.style.backgroundColor = '#4CAF50';
-        element.style.color = 'white';
-        element.style.padding = '2px 4px';
-        element.style.borderRadius = '4px';
-        
-        // Убираем подсветку через время
-        this.createTimeout(() => {
-          if (element) {
-            element.style.backgroundColor = '';
-            element.style.color = '';
-            element.style.padding = '';
-            element.style.borderRadius = '';
-          }
-        }, 1000);
-      }
-    });
+  // Обратная совместимость с UIManager
+  update(leftContainer, rightContainer) {
+    // Игнорируем старые параметры, используем новую структуру
+    this.update();
+  }
+
+  updateResource(resourceName, container) {
+    // Обновляем все секции
+    this.update();
   }
 
   // Получить статистику отображения

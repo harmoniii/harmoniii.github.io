@@ -333,10 +333,10 @@ export class GridFeatureManager extends CleanupMixin {
         this.gameState.combo.count++;
       }
       
-      // Бонус за точность
-      if (accuracy > 0.9) {
-        this.gameState.combo.count += 1;
-      }
+    //   // Бонус за точность
+    //   if (accuracy > 0.9) {
+    //     this.gameState.combo.count += 1;
+    //   }
       
       this.gameState.combo.deadline = now + comboTimeout;
     }
