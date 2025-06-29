@@ -4,7 +4,6 @@ import { CardFactory } from './CardFactory.js';
 import { SKILL_CATEGORIES } from '../managers/SkillManager.js';
 import { MARKET_CATEGORIES } from '../managers/MarketManager.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
-import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
 
 export class PanelManager extends CleanupMixin {
   constructor(gameState) {
@@ -149,7 +148,7 @@ export class PanelManager extends CleanupMixin {
         <h4>⚡ Energy System</h4>
         <ul>
           <li><strong>Energy Cost:</strong> ${GAME_CONSTANTS.CLICK_COST} energy per target click</li>
-          <li><strong>Energy Regeneration:</strong> +${ENERGY_CONSTANTS.BASE_REGEN_RATE} every 15 seconds</li>
+          <li><strong>Energy Regeneration:</strong> +${GAME_CONSTANTS.BASE_REGEN_RATE} every 15 seconds</li>
           <li><strong>Energy Zones:</strong> Hit green cells to restore energy</li>
           <li><strong>Energy Skills:</strong> Reduce cost and increase regeneration</li>
           <li><strong>Generator Building:</strong> Increases max energy and regen rate</li>
