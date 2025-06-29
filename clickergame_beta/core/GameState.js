@@ -3,7 +3,6 @@ import { RESOURCES } from '../config/ResourceConfig.js';
 import { BUILDING_DEFS } from '../managers/BuildingManager.js';
 import { SKILL_DEFS } from '../managers/SkillManager.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
-import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
 
 export class GameState {
   constructor() {
