@@ -98,25 +98,25 @@ export class GameState {
   }
 
   // Методы валидации
-  validateResource(resourceName, value) {
+validateNumber(value, min = 0, max = Number.MAX_SAFE_INTEGER, shouldFloor = false) {
+    if (typeof value !== 'number' || isNaN(value) || value < min) {
+      return min;
+    }
+    const result = Math.min(value, max);
+    return shouldFloor ? Math.floor(result) : result;
+}
+
+validateResource(resourceName, value) {
     if (!RESOURCES.includes(resourceName)) {
       console.warn(`Invalid resource: ${resourceName}`);
       return 0;
     }
-    
-    if (typeof value !== 'number' || isNaN(value) || value < 0) {
-      return 0;
-    }
-    
-    return Math.min(value, GAME_CONSTANTS.MAX_SAFE_RESOURCE_VALUE);
-  }
+    return this.validateNumber(value, 0, GAME_CONSTANTS.MAX_SAFE_RESOURCE_VALUE);
+}
 
-  validateSkillPoints(value) {
-    if (typeof value !== 'number' || isNaN(value) || value < 0) {
-      return 0;
-    }
-    return Math.min(Math.floor(value), GAME_CONSTANTS.MAX_SKILL_POINTS);
-  }
+validateSkillPoints(value) {
+    return this.validateNumber(value, 0, GAME_CONSTANTS.MAX_SKILL_POINTS, true);
+}
 
   validateCombo(combo) {
     if (!combo || typeof combo !== 'object') {
