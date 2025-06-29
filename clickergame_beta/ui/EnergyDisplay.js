@@ -2,7 +2,6 @@
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
-import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
 
 export class EnergyDisplay extends CleanupMixin {
   constructor(gameState) {
