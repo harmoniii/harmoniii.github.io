@@ -131,9 +131,6 @@ export class PanelManager extends CleanupMixin {
   }
 
   // ИСПРАВЛЕНИЕ: Полное руководство по игре с актуальными правилами
-// Обновленный метод createGameRulesCard() для PanelManager.js
-// Включает все изменения для системы сетки 3x3 и новые эффекты
-
 createGameRulesCard() {
   const card = document.createElement('div');
   card.className = 'item-card rules-card';
@@ -178,7 +175,7 @@ createGameRulesCard() {
       <ul>
         <li><strong>🔥 Frenzy (Common):</strong> ${GAME_CONSTANTS.FRENZY_MULTIPLIER}x gold gain for 15s</li>
         <li><strong>💎 Lucky Zone (Common):</strong> +${GAME_CONSTANTS.LUCKY_BUFF_BONUS}% buff chance for 10s</li>
-        <li><strong>⚙️ Resource Waterfall (Uncommon):</strong> +1 random resource every ${GAME_CONSTANTS.WATERFALL_INTERVAL / 1000}s for 10s</li>
+        <li><strong>⚙️ Resource Waterfall (Uncommon):</strong> +${GAME_CONSTANTS.WATERFALL_AMOUNT} random resource every ${GAME_CONSTANTS.WATERFALL_INTERVAL / 1000}s for 10s</li>
         <li><strong>🔄 Double Tap (Uncommon):</strong> Each click counts as ${GAME_CONSTANTS.DOUBLE_TAP_MULTIPLIER} clicks for 12s</li>
         <li><strong>🎰 Slot Machine (Uncommon):</strong> ${GAME_CONSTANTS.SLOT_MACHINE_CHANCE * 100}% chance for +${GAME_CONSTANTS.SLOT_MACHINE_AMOUNT} random resource per click (15s)</li>
         <li><strong>⭐ Star Power (Uncommon):</strong> Next ${GAME_CONSTANTS.STAR_POWER_CLICKS} clicks give +${GAME_CONSTANTS.STAR_POWER_BONUS} random resource</li>
@@ -218,14 +215,14 @@ createGameRulesCard() {
       
       <h4>🏗️ Building System</h4>
       <ul>
-        <li><strong>🪚 Sawmill:</strong> Produces ${BUILDING_DEFS.find(b => b.id === 'sawmill')?.production?.amount || 1} wood every ${(BUILDING_DEFS.find(b => b.id === 'sawmill')?.production?.interval || 10000) / 1000}s</li>
-        <li><strong>⛏️ Stone Quarry:</strong> Produces ${BUILDING_DEFS.find(b => b.id === 'quarry')?.production?.amount || 1} stone every ${(BUILDING_DEFS.find(b => b.id === 'quarry')?.production?.interval || 12000) / 1000}s</li>
-        <li><strong>🌾 Farm:</strong> Produces ${BUILDING_DEFS.find(b => b.id === 'farm')?.production?.amount || 2} food every ${(BUILDING_DEFS.find(b => b.id === 'farm')?.production?.interval || 8000) / 1000}s</li>
-        <li><strong>🪣 Water Well:</strong> Produces ${BUILDING_DEFS.find(b => b.id === 'well')?.production?.amount || 1} water every ${(BUILDING_DEFS.find(b => b.id === 'well')?.production?.interval || 6000) / 1000}s</li>
-        <li><strong>⚒️ Iron Mine:</strong> Produces ${BUILDING_DEFS.find(b => b.id === 'mine')?.production?.amount || 1} iron every ${(BUILDING_DEFS.find(b => b.id === 'mine')?.production?.interval || 15000) / 1000}s</li>
-        <li><strong>🏠 House:</strong> Attracts ${BUILDING_DEFS.find(b => b.id === 'house')?.production?.amount || 1} people every ${(BUILDING_DEFS.find(b => b.id === 'house')?.production?.interval || 30000) / 1000}s</li>
+        <li><strong>🪚 Sawmill:</strong> Produces wood every 10 seconds</li>
+        <li><strong>⛏️ Stone Quarry:</strong> Produces stone every 12 seconds</li>
+        <li><strong>🌾 Farm:</strong> Produces food every 8 seconds (2 per cycle)</li>
+        <li><strong>🪣 Water Well:</strong> Produces water every 6 seconds</li>
+        <li><strong>⚒️ Iron Mine:</strong> Produces iron every 15 seconds</li>
+        <li><strong>🏠 House:</strong> Attracts people every 30 seconds</li>
         <li><strong>⚡ Generator:</strong> Provides energy production and capacity bonuses</li>
-        <li><strong>🔬 Laboratory:</strong> Produces ${BUILDING_DEFS.find(b => b.id === 'laboratory')?.production?.amount || 1} science every ${(BUILDING_DEFS.find(b => b.id === 'laboratory')?.production?.interval || 20000) / 1000}s</li>
+        <li><strong>🔬 Laboratory:</strong> Produces science every 20 seconds</li>
         <li><strong>⛪ Temple:</strong> Produces faith and reduces chaos over time</li>
         <li><strong>🏰 Fortress:</strong> Provides 20% reduction to debuff duration</li>
         <li><strong>Scaling Cost:</strong> Each level costs 1.5x more than the previous</li>
@@ -276,7 +273,7 @@ createGameRulesCard() {
         <li><strong>Cross-Device:</strong> Share saves between different devices/browsers</li>
         <li><strong>Import Protection:</strong> Validates save data before loading</li>
         <li><strong>Reset Function:</strong> Complete game reset (permanent action)</li>
-        <li><strong>Save Version:</strong> Current version ${this.gameState?.saveVersion || '1.0.9'}</li>
+        <li><strong>Save Version:</strong> Current version 1.0.9</li>
       </ul>
       
       <h4>🎲 Advanced Mechanics</h4>
