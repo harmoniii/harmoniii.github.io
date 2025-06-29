@@ -126,20 +126,30 @@ export class EnergyDisplay extends CleanupMixin {
   }
 
   // Обновление текста энергии
-  updateEnergyText(current, max, canClick, timeToNext) {
-    if (!this.energyText) return;
-    
-    const currentRounded = Math.floor(current);
-    const maxRounded = Math.floor(max);
-    
-    this.energyText.textContent = `⚡ ${currentRounded}/${maxRounded}`;
-    
-    // Показываем время перезарядки если нужно
-    if (!canClick && timeToNext > 0) {
-      const seconds = Math.ceil(timeToNext / 1000);
+updateEnergyText(current, max, canClick, timeToNext) {
+  if (!this.energyText) return;
+  
+  // ИСПРАВЛЕНИЕ: Безопасная обработка значений
+  const currentSafe = this.safeDisplayNumber(current);
+  const maxSafe = this.safeDisplayNumber(max);
+  
+  this.energyText.textContent = `⚡ ${currentSafe}/${maxSafe}`;
+  
+  // Показываем время перезарядки если нужно
+  if (!canClick && timeToNext > 0 && !isNaN(timeToNext)) {
+    const seconds = Math.ceil(timeToNext / 1000);
+    if (!isNaN(seconds) && seconds > 0) {
       this.energyText.textContent += ` (${seconds}s)`;
     }
   }
+}
+
+safeDisplayNumber(value) {
+  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) {
+    return '0';
+  }
+  return Math.floor(Math.max(0, value)).toString();
+}
 
   // Обновление статуса энергии
   updateEnergyStatus(energyData) {

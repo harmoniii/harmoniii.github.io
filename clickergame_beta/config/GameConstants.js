@@ -26,16 +26,16 @@ export const GAME_CONSTANTS = {
   WATERFALL_AMOUNT: 1,
 
   // Энергетические константы
-  ENERGY_INITIAL: 100,
-  ENERGY_INITIAL_MAX: 100,
-  ENERGY_BASE_REGEN_RATE: 1,
-  ENERGY_REGEN_INTERVAL: 15000,
-  ENERGY_CLICK_COST: 1,
-  ENERGY_ZONE_RESTORE: 1,
-  ENERGY_GOLD_ZONE_RESTORE: 4,
-  ENERGY_WARNING_THRESHOLD: 20,
-  ENERGY_CRITICAL_THRESHOLD: 10,
-  ENERGY_PULSE_THRESHOLD: 10,
+  INITIAL_ENERGY: 100,              // Начальная энергия
+  INITIAL_MAX_ENERGY: 100,          // Начальная максимальная энергия
+  BASE_REGEN_RATE: 1,               // Базовая скорость регенерации
+  REGEN_INTERVAL: 15000,            // Интервал регенерации (15 сек)
+  CLICK_COST: 1,                    // Стоимость клика
+  ZONE_RESTORE: 1,
+  GOLD_ZONE_RESTORE: 4,
+  WARNING_THRESHOLD: 20,
+  CRITICAL_THRESHOLD: 10,
+  PULSE_THRESHOLD: 10,
   GENERATOR_REGEN_BONUS: 0.5,
   GENERATOR_MAX_ENERGY_BONUS: 10,
   MASTERY_REGEN_BONUS: 1.0,
