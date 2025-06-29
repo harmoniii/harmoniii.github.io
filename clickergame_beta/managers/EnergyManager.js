@@ -18,8 +18,8 @@ export class EnergyManager extends CleanupMixin {
     initializeEnergy() {
         if (!this.gameState.energy) {
             this.gameState.energy = {
-                current: GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_ENERGY,
-                max: GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
+                current: GAME_CONSTANTS.INITIAL_ENERGY,
+                max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
                 lastRegenTime: Date.now(),
                 totalConsumed: 0,
                 totalRegenerated: 0
@@ -33,7 +33,7 @@ export class EnergyManager extends CleanupMixin {
         const energy = this.gameState.energy;
         
         energy.current = Math.max(0, Math.floor(energy.current || 0));
-        energy.max = Math.max(GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, Math.floor(energy.max || GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_MAX_ENERGY));
+        energy.max = Math.max(GAME_CONSTANTS.INITIAL_MAX_ENERGY, Math.floor(energy.max || GAME_CONSTANTS.INITIAL_MAX_ENERGY));
         energy.current = Math.min(energy.current, this.getEffectiveMaxEnergy());
         energy.totalConsumed = Math.max(0, energy.totalConsumed || 0);
         energy.totalRegenerated = Math.max(0, energy.totalRegenerated || 0);
@@ -50,7 +50,7 @@ export class EnergyManager extends CleanupMixin {
         
         this.regenInterval = this.createInterval(() => {
             this.regenerateEnergy();
-        }, GAME_CONSTANTS.ENERGY_CONSTANTS.REGEN_INTERVAL, 'energy-regeneration');
+        }, GAME_CONSTANTS.REGEN_INTERVAL, 'energy-regeneration');
     }
 
     bindEvents() {
@@ -80,11 +80,11 @@ export class EnergyManager extends CleanupMixin {
     }
 
     getClickEnergyCost() {
-        let cost = GAME_CONSTANTS.ENERGY_CONSTANTS.CLICK_COST;
+        let cost = GAME_CONSTANTS.CLICK_COST;
         
         // Energy Efficiency skill
         const efficiencyLevel = this.getSkillLevel('energyEfficiency');
-        const reduction = efficiencyLevel * GAME_CONSTANTS.ENERGY_CONSTANTS.EFFICIENCY_REDUCTION;
+        const reduction = efficiencyLevel * GAME_CONSTANTS.EFFICIENCY_REDUCTION;
         cost *= (1 - Math.min(0.75, reduction));
         
         return Math.max(0.1, Math.ceil(cost * 10) / 10);
@@ -104,7 +104,7 @@ export class EnergyManager extends CleanupMixin {
             percentage: this.getEnergyPercentage()
         });
         
-        if (this.gameState.energy.current <= GAME_CONSTANTS.ENERGY_CONSTANTS.PULSE_THRESHOLD) {
+        if (this.gameState.energy.current <= GAME_CONSTANTS.PULSE_THRESHOLD) {
             eventBus.emit(GameEvents.ENERGY_CRITICAL);
         }
     }
@@ -135,7 +135,7 @@ export class EnergyManager extends CleanupMixin {
         const now = Date.now();
         const timeSinceLastRegen = now - this.gameState.energy.lastRegenTime;
         
-        const regenCycles = Math.floor(timeSinceLastRegen / GAME_CONSTANTS.ENERGY_CONSTANTS.REGEN_INTERVAL);
+        const regenCycles = Math.floor(timeSinceLastRegen / GAME_CONSTANTS.REGEN_INTERVAL);
         
         if (regenCycles > 0) {
             const effectiveRegen = this.getEffectiveRegenRate() * regenCycles;
@@ -146,15 +146,15 @@ export class EnergyManager extends CleanupMixin {
     }
 
     getEffectiveRegenRate() {
-        let regen = GAME_CONSTANTS.ENERGY_CONSTANTS.BASE_REGEN_RATE;
+        let regen = GAME_CONSTANTS.BASE_REGEN_RATE;
         
         // Generator building bonus
         const generatorLevel = this.getBuildingLevel('generator');
-        regen *= (1 + generatorLevel * GAME_CONSTANTS.ENERGY_CONSTANTS.GENERATOR_REGEN_BONUS);
+        regen *= (1 + generatorLevel * GAME_CONSTANTS.GENERATOR_REGEN_BONUS);
         
         // Energy Mastery skill
         const masteryLevel = this.getSkillLevel('energyMastery');
-        regen *= (1 + masteryLevel * GAME_CONSTANTS.ENERGY_CONSTANTS.MASTERY_REGEN_BONUS);
+        regen *= (1 + masteryLevel * GAME_CONSTANTS.MASTERY_REGEN_BONUS);
         
         return Math.max(0.1, regen);
     }
@@ -164,13 +164,13 @@ export class EnergyManager extends CleanupMixin {
         
         // Generator building bonus
         const generatorLevel = this.getBuildingLevel('generator');
-        maxEnergy += generatorLevel * GAME_CONSTANTS.ENERGY_CONSTANTS.GENERATOR_MAX_ENERGY_BONUS;
+        maxEnergy += generatorLevel * GAME_CONSTANTS.GENERATOR_MAX_ENERGY_BONUS;
         
         // Power Storage skill
         const storageLevel = this.getSkillLevel('powerStorage');
-        maxEnergy += storageLevel * GAME_CONSTANTS.ENERGY_CONSTANTS.STORAGE_MAX_BONUS;
+        maxEnergy += storageLevel * GAME_CONSTANTS.STORAGE_MAX_BONUS;
         
-        return Math.max(GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, maxEnergy);
+        return Math.max(GAME_CONSTANTS.INITIAL_MAX_ENERGY, maxEnergy);
     }
 
     updateMaxEnergy() {
@@ -200,7 +200,7 @@ export class EnergyManager extends CleanupMixin {
     getTimeToNextRegen() {
         const now = Date.now();
         const timeSinceLastRegen = now - this.gameState.energy.lastRegenTime;
-        return Math.max(0, GAME_CONSTANTS.ENERGY_CONSTANTS.REGEN_INTERVAL - timeSinceLastRegen);
+        return Math.max(0, GAME_CONSTANTS.REGEN_INTERVAL - timeSinceLastRegen);
     }
 
     getEnergyPercentage() {
@@ -214,16 +214,16 @@ export class EnergyManager extends CleanupMixin {
     }
 
     useEnergyPack() {
-        this.restoreEnergy(GAME_CONSTANTS.ENERGY_CONSTANTS.ENERGY_PACK_RESTORE, 'energy_pack');
-        eventBus.emit(GameEvents.NOTIFICATION, `⚡ Energy Pack used! +${GAME_CONSTANTS.ENERGY_CONSTANTS.ENERGY_PACK_RESTORE} Energy`);
+        this.restoreEnergy(GAME_CONSTANTS.ENERGY_PACK_RESTORE, 'energy_pack');
+        eventBus.emit(GameEvents.NOTIFICATION, `⚡ Energy Pack used! +${GAME_CONSTANTS.ENERGY_PACK_RESTORE} Energy`);
     }
 
     restoreFromEnergyZone() {
-        this.restoreEnergy(GAME_CONSTANTS.ENERGY_CONSTANTS.ENERGY_ZONE_RESTORE, 'energy_zone');
+        this.restoreEnergy(GAME_CONSTANTS.ENERGY_ZONE_RESTORE, 'energy_zone');
     }
 
     restoreFromGoldZone() {
-        this.restoreEnergy(GAME_CONSTANTS.ENERGY_CONSTANTS.GOLD_ZONE_RESTORE, 'gold_zone');
+        this.restoreEnergy(GAME_CONSTANTS.GOLD_ZONE_RESTORE, 'gold_zone');
     }
 
     getBuildingLevel(buildingId) {
@@ -259,9 +259,9 @@ export class EnergyManager extends CleanupMixin {
     getEnergyStatus() {
         const percentage = this.getEnergyPercentage();
         
-        if (percentage <= GAME_CONSTANTS.ENERGY_CONSTANTS.CRITICAL_THRESHOLD) {
+        if (percentage <= GAME_CONSTANTS.CRITICAL_THRESHOLD) {
             return 'critical';
-        } else if (percentage <= GAME_CONSTANTS.ENERGY_CONSTANTS.WARNING_THRESHOLD) {
+        } else if (percentage <= GAME_CONSTANTS.WARNING_THRESHOLD) {
             return 'warning';
         } else {
             return 'normal';
@@ -297,8 +297,8 @@ export class EnergyManager extends CleanupMixin {
             
             // Загружаем энергию с валидацией
             this.gameState.energy = {
-                current: Math.max(0, Math.floor(data.current || GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_ENERGY)),
-                max: Math.max(GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, Math.floor(data.max || GAME_CONSTANTS.ENERGY_CONSTANTS.INITIAL_MAX_ENERGY)),
+                current: Math.max(0, Math.floor(data.current || GAME_CONSTANTS.INITIAL_ENERGY)),
+                max: Math.max(GAME_CONSTANTS.INITIAL_MAX_ENERGY, Math.floor(data.max || GAME_CONSTANTS.INITIAL_MAX_ENERGY)),
                 lastRegenTime: data.lastRegenTime || Date.now(),
                 totalConsumed: Math.max(0, data.totalConsumed || 0),
                 totalRegenerated: Math.max(0, data.totalRegenerated || 0)
