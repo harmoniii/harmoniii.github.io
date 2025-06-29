@@ -19,8 +19,8 @@ export class GameState {
 
     // Энергетическая система (отдельно от ресурсов)
     this.energy = {
-      current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-      max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
+      current: GAME_CONSTANTS.INITIAL_ENERGY,
+      max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
       lastRegenTime: Date.now(),
       totalConsumed: 0,
       totalRegenerated: 0
@@ -137,8 +137,8 @@ validateSkillPoints(value) {
     }
     
     return {
-      current: Math.max(0, energy.current || ENERGY_CONSTANTS.INITIAL_ENERGY),
-      max: Math.max(ENERGY_CONSTANTS.INITIAL_MAX_ENERGY, energy.max || ENERGY_CONSTANTS.INITIAL_MAX_ENERGY),
+      current: Math.max(0, energy.current || GAME_CONSTANTS.INITIAL_ENERGY),
+      max: Math.max(GAME_CONSTANTS.INITIAL_MAX_ENERGY, energy.max || GAME_CONSTANTS.INITIAL_MAX_ENERGY),
       lastRegenTime: energy.lastRegenTime || Date.now(),
       totalConsumed: Math.max(0, energy.totalConsumed || 0),
       totalRegenerated: Math.max(0, energy.totalRegenerated || 0)
@@ -215,8 +215,8 @@ validateSkillPoints(value) {
         
         // Энергетическая система
         energy: this.energy ? { ...this.energy } : {
-          current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-          max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
+          current: GAME_CONSTANTS.INITIAL_ENERGY,
+          max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
           lastRegenTime: Date.now(),
           totalConsumed: 0,
           totalRegenerated: 0
@@ -294,8 +294,8 @@ validateSkillPoints(value) {
       return {
         resources: {},
         energy: {
-          current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-          max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
+          current: GAME_CONSTANTS.INITIAL_ENERGY,
+          max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
           lastRegenTime: Date.now(),
           totalConsumed: 0,
           totalRegenerated: 0
@@ -354,8 +354,8 @@ validateSkillPoints(value) {
       this.energy = this.validateEnergy(data.energy);
     } else {
       this.energy = {
-        current: ENERGY_CONSTANTS.INITIAL_ENERGY,
-        max: ENERGY_CONSTANTS.INITIAL_MAX_ENERGY,
+        current: GAME_CONSTANTS.INITIAL_ENERGY,
+        max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
         lastRegenTime: Date.now(),
         totalConsumed: 0,
         totalRegenerated: 0
