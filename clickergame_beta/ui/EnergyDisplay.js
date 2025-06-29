@@ -1,6 +1,7 @@
 // ui/EnergyDisplay.js - ИСПРАВЛЕННАЯ версия с простой инициализацией
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
+import { GAME_CONSTANTS } from '../config/GameConstants.js';
 import { ENERGY_CONSTANTS } from '../managers/EnergyManager.js';
 
 export class EnergyDisplay extends CleanupMixin {
@@ -116,9 +117,9 @@ export class EnergyDisplay extends CleanupMixin {
     // Изменяем цвет в зависимости от уровня
     this.energyBar.className = 'energy-bar';
     
-    if (percentage <= ENERGY_CONSTANTS.CRITICAL_THRESHOLD) {
+    if (percentage <= GAME_CONSTANTS.CRITICAL_THRESHOLD) {
       this.energyBar.classList.add('energy-critical');
-    } else if (percentage <= ENERGY_CONSTANTS.WARNING_THRESHOLD) {
+    } else if (percentage <= GAME_CONSTANTS.WARNING_THRESHOLD) {
       this.energyBar.classList.add('energy-warning');
     } else {
       this.energyBar.classList.add('energy-normal');
@@ -161,7 +162,7 @@ export class EnergyDisplay extends CleanupMixin {
   updateWarnings(percentage) {
     if (!this.warningElement) return;
     
-    if (percentage <= ENERGY_CONSTANTS.PULSE_THRESHOLD) {
+    if (percentage <= GAME_CONSTANTS.PULSE_THRESHOLD) {
       this.warningElement.classList.remove('hidden');
       this.warningElement.classList.add('pulsing');
       this.warningElement.textContent = '⚡ Low!';
