@@ -66,6 +66,16 @@ export class GridGameCore extends CleanupMixin {
     const saveData = this.storageManager.load();
     this.gameState = new GameState();
     
+if (!this.gameState.energy) {
+    this.gameState.energy = {
+      current: GAME_CONSTANTS.INITIAL_ENERGY || 100,
+      max: GAME_CONSTANTS.INITIAL_MAX_ENERGY || 100,
+      lastRegenTime: Date.now(),
+      totalConsumed: 0,
+      totalRegenerated: 0
+    };
+  }
+
     if (saveData) {
       try {
         this.gameState.loadSaveData(saveData);
