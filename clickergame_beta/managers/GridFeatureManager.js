@@ -536,14 +536,14 @@ generateTreasure(comboLevel) {
   const treasures = {};
   
   // Базовые награды (всегда есть)
-  const baseRewards = ['gold', 'science', 'faith'];
+  const baseRewards = ['gold'];
   const baseResource = baseRewards[Math.floor(Math.random() * baseRewards.length)];
-  const baseAmount = Math.floor(5 + Math.random() * 10 + comboLevel * 0.5); // 5-15 + комбо бонус
+  const baseAmount = Math.floor(5 + Math.random() * 100 + comboLevel * 0.5); // 5-150 + комбо бонус
   treasures[baseResource] = baseAmount;
   
   // Дополнительные награды (50% шанс)
   if (Math.random() < 0.5) {
-    const bonusResources = ['iron', 'people', 'stone', 'wood'];
+    const bonusResources = ['iron', 'food', 'stone', 'wood'];
     const bonusResource = bonusResources[Math.floor(Math.random() * bonusResources.length)];
     const bonusAmount = Math.floor(2 + Math.random() * 5 + comboLevel * 0.3); // 2-7 + комбо бонус
     treasures[bonusResource] = bonusAmount;
@@ -556,8 +556,8 @@ generateTreasure(comboLevel) {
   
   // Очень редкие награды (5% шанс на много ресурсов)
   if (Math.random() < 0.05) {
-    treasures.gold = (treasures.gold || 0) + 50;
-    treasures.science = (treasures.science || 0) + 10;
+    treasures.gold = (treasures.gold || 0) + 500;
+    treasures.skillPoints = (treasures.skillPoints || 0) + 5;
   }
   
   return treasures;
