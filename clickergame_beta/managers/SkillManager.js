@@ -204,26 +204,27 @@ export class SkillManager extends CleanupMixin {
         this.startGeneration();
     }
 
-    initializeSkills() {
-        if (!this.gameState.skills) {
-            this.gameState.skills = {};
-        }
-        
-        SKILL_DEFS.forEach(def => {
-            if (!this.gameState.skills[def.id]) {
-                this.gameState.skills[def.id] = { level: 0 };
-            }
-        });
-        
-        this.validateSkillPoints();
-
-        if (!this.gameState.skillStates) {
-            this.gameState.skillStates = {
-                missProtectionCharges: 0,
-                autoClickerActive: false
-            };
-        }
+initializeSkills() {
+  if (!this.gameState.skills) {
+    this.gameState.skills = {};
+  }
+  
+  SKILL_DEFS.forEach(def => {
+    if (!this.gameState.skills[def.id]) {
+      this.gameState.skills[def.id] = { level: 0 };
     }
+  });
+  
+  this.validateSkillPoints();
+
+  if (!this.gameState.skillStates) {
+    this.gameState.skillStates = {
+      missProtectionCharges: 0,
+      autoClickerActive: false,
+      autoClickerPendingStart: false // НОВОЕ: флаг отложенного запуска
+    };
+  }
+}
 
     validateSkillPoints() {
         if (this.gameState.skillPoints === undefined || 
@@ -306,78 +307,225 @@ export class SkillManager extends CleanupMixin {
         }
     }
 
-    startGeneration() {
-        const autoClickerLevel = this.getSkillLevel('autoClicker');
-        if (autoClickerLevel > 0) {
-            this.startAutoClicker(autoClickerLevel);
-        }
+startGeneration() {
+  const autoClickerLevel = this.getSkillLevel('autoClicker');
+  if (autoClickerLevel > 0) {
+    // Проверяем рейд перед запуском
+    if (!this.isRaidInProgress()) {
+      this.startAutoClicker(autoClickerLevel);
+    } else {
+      console.log('🤖 Auto clicker start delayed: raid in progress');
+      this.gameState.skillStates.autoClickerPendingStart = true;
     }
+  }
+}
 
-    startAutoClicker(level) {
-        this.stopAutoClicker();
-        
-        this.gameState.skillStates.autoClickerActive = true;
-        
-        const baseInterval = GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL;
-        const intervalMs = Math.max(
-            GAME_CONSTANTS.AUTO_CLICKER_MIN_INTERVAL, 
-            Math.floor(baseInterval / level)
-        );
-        
-        this.autoClickerInterval = this.createInterval(() => {
-            this.performAutoClick();
-        }, intervalMs, 'auto-clicker');
-    }
+startAutoClicker(level) {
+  // Проверяем, не идет ли рейд
+  if (this.isRaidInProgress()) {
+    console.log('🤖 Auto clicker start blocked: raid in progress');
+    // Помечаем, что автокликер должен быть активен после рейда
+    this.gameState.skillStates.autoClickerPendingStart = true;
+    return;
+  }
+  
+  this.stopAutoClicker();
+  
+  this.gameState.skillStates.autoClickerActive = true;
+  this.gameState.skillStates.autoClickerPendingStart = false;
+  
+  const baseInterval = GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL;
+  const intervalMs = Math.max(
+    GAME_CONSTANTS.AUTO_CLICKER_MIN_INTERVAL, 
+    Math.floor(baseInterval / level)
+  );
+  
+  this.autoClickerInterval = this.createInterval(() => {
+    this.performAutoClick();
+  }, intervalMs, 'auto-clicker');
+  
+  console.log(`🤖 Auto clicker started: level ${level}, interval ${intervalMs}ms`);
+}
 
-    performAutoClick() {
-        if (!this.isActive()) return;
-        
-        try {
-            // ИСПРАВЛЕНИЕ: Работаем с GridManager вместо круглых зон
-            const gridManager = this.gameState.gridManager;
-            
-            if (!gridManager || !gridManager.isManagerReady()) {
-                console.log('GridManager not ready for auto-click');
-                return;
-            }
-            
-            const targetCell = gridManager.getTargetCell();
-            if (typeof targetCell !== 'number' || targetCell < 0) {
-                console.log('Invalid target cell for auto-click');
-                return;
-            }
-            
-            // Вычисляем координаты центра целевой клетки
-            const gridSize = 3; // 3x3 сетка
-            const cellSize = 400 / gridSize; // canvas 400x400
-            
-            const row = Math.floor(targetCell / gridSize);
-            const col = targetCell % gridSize;
-            
-            const centerX = col * cellSize + cellSize / 2;
-            const centerY = row * cellSize + cellSize / 2;
-            
-            // Добавляем небольшое случайное смещение для реалистичности
-            const offsetX = (Math.random() - 0.5) * cellSize * 0.3;
-            const offsetY = (Math.random() - 0.5) * cellSize * 0.3;
-            
-            const clickX = centerX + offsetX;
-            const clickY = centerY + offsetY;
-            
-            console.log(`🤖 Auto-click: cell ${targetCell} at (${clickX.toFixed(1)}, ${clickY.toFixed(1)})`);
-            
-            // Эмитируем событие клика для GridManager
-            eventBus.emit(GameEvents.CLICK, {
-                x: clickX,
-                y: clickY,
-                canvasWidth: 400,
-                canvasHeight: 400
-            });
-            
-        } catch (error) {
-            console.error('Auto clicker error:', error);
-        }
+    isRaidInProgress() {
+  return this.gameState.raidManager?.isRaidInProgress || false;
+}
+
+// managers/SkillManager.js - ОБНОВЛЕНО: методы для управления автокликером во время рейдов
+
+// В классе SkillManager добавить новые методы:
+
+// НОВЫЙ МЕТОД: Проверить, активен ли рейд
+isRaidInProgress() {
+  return this.gameState.raidManager?.isRaidInProgress || false;
+}
+
+// ОБНОВЛЕННЫЙ МЕТОД: performAutoClick с проверкой рейда
+performAutoClick() {
+  if (!this.isActive()) return;
+  
+  // НОВАЯ ПРОВЕРКА: Блокируем автокликер во время рейда
+  if (this.isRaidInProgress()) {
+    console.log('🤖 Auto clicker blocked: raid in progress');
+    return;
+  }
+  
+  try {
+    // Работаем с GridManager вместо круглых зон
+    const gridManager = this.gameState.gridManager;
+    
+    if (!gridManager || !gridManager.isManagerReady()) {
+      console.log('GridManager not ready for auto-click');
+      return;
     }
+    
+    const targetCell = gridManager.getTargetCell();
+    if (typeof targetCell !== 'number' || targetCell < 0) {
+      console.log('Invalid target cell for auto-click');
+      return;
+    }
+    
+    // Вычисляем координаты центра целевой клетки
+    const gridSize = 3; // 3x3 сетка
+    const cellSize = 400 / gridSize; // canvas 400x400
+    
+    const row = Math.floor(targetCell / gridSize);
+    const col = targetCell % gridSize;
+    
+    const centerX = col * cellSize + cellSize / 2;
+    const centerY = row * cellSize + cellSize / 2;
+    
+    // Добавляем небольшое случайное смещение для реалистичности
+    const offsetX = (Math.random() - 0.5) * cellSize * 0.3;
+    const offsetY = (Math.random() - 0.5) * cellSize * 0.3;
+    
+    const clickX = centerX + offsetX;
+    const clickY = centerY + offsetY;
+    
+    console.log(`🤖 Auto-click: cell ${targetCell} at (${clickX.toFixed(1)}, ${clickY.toFixed(1)})`);
+    
+    // Эмитируем событие клика для GridManager
+    eventBus.emit(GameEvents.CLICK, {
+      x: clickX,
+      y: clickY,
+      canvasWidth: 400,
+      canvasHeight: 400
+    });
+    
+  } catch (error) {
+    console.error('Auto clicker error:', error);
+  }
+}
+
+// ОБНОВЛЕННЫЙ МЕТОД: startAutoClicker с проверкой рейда
+startAutoClicker(level) {
+  // Проверяем, не идет ли рейд
+  if (this.isRaidInProgress()) {
+    console.log('🤖 Auto clicker start blocked: raid in progress');
+    // Помечаем, что автокликер должен быть активен после рейда
+    this.gameState.skillStates.autoClickerPendingStart = true;
+    return;
+  }
+  
+  this.stopAutoClicker();
+  
+  this.gameState.skillStates.autoClickerActive = true;
+  this.gameState.skillStates.autoClickerPendingStart = false;
+  
+  const baseInterval = GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL;
+  const intervalMs = Math.max(
+    GAME_CONSTANTS.AUTO_CLICKER_MIN_INTERVAL, 
+    Math.floor(baseInterval / level)
+  );
+  
+  this.autoClickerInterval = this.createInterval(() => {
+    this.performAutoClick();
+  }, intervalMs, 'auto-clicker');
+  
+  console.log(`🤖 Auto clicker started: level ${level}, interval ${intervalMs}ms`);
+}
+
+// НОВЫЙ МЕТОД: Остановить автокликер специально для рейда
+stopAutoClickerForRaid() {
+  if (this.autoClickerInterval) {
+    console.log('🤖 Stopping auto clicker for raid');
+    this.cleanupManager.clearInterval(this.autoClickerInterval);
+    this.autoClickerInterval = null;
+    this.gameState.skillStates.autoClickerActive = false;
+    
+    // Запоминаем, что нужно восстановить после рейда
+    this.gameState.skillStates.autoClickerPendingStart = true;
+  }
+}
+
+// НОВЫЙ МЕТОД: Восстановить автокликер после рейда
+restoreAutoClickerAfterRaid() {
+  // Проверяем, был ли автокликер активен до рейда
+  if (this.gameState.skillStates.autoClickerPendingStart) {
+    const level = this.getSkillLevel('autoClicker');
+    if (level > 0) {
+      console.log('🤖 Restoring auto clicker after raid');
+      this.startAutoClicker(level);
+    }
+    this.gameState.skillStates.autoClickerPendingStart = false;
+  }
+}
+
+performAutoClick() {
+  if (!this.isActive()) return;
+  
+  // НОВАЯ ПРОВЕРКА: Блокируем автокликер во время рейда
+  if (this.isRaidInProgress()) {
+    console.log('🤖 Auto clicker blocked: raid in progress');
+    return;
+  }
+  
+  try {
+    // Работаем с GridManager вместо круглых зон
+    const gridManager = this.gameState.gridManager;
+    
+    if (!gridManager || !gridManager.isManagerReady()) {
+      console.log('GridManager not ready for auto-click');
+      return;
+    }
+    
+    const targetCell = gridManager.getTargetCell();
+    if (typeof targetCell !== 'number' || targetCell < 0) {
+      console.log('Invalid target cell for auto-click');
+      return;
+    }
+    
+    // Вычисляем координаты центра целевой клетки
+    const gridSize = 3; // 3x3 сетка
+    const cellSize = 400 / gridSize; // canvas 400x400
+    
+    const row = Math.floor(targetCell / gridSize);
+    const col = targetCell % gridSize;
+    
+    const centerX = col * cellSize + cellSize / 2;
+    const centerY = row * cellSize + cellSize / 2;
+    
+    // Добавляем небольшое случайное смещение для реалистичности
+    const offsetX = (Math.random() - 0.5) * cellSize * 0.3;
+    const offsetY = (Math.random() - 0.5) * cellSize * 0.3;
+    
+    const clickX = centerX + offsetX;
+    const clickY = centerY + offsetY;
+    
+    console.log(`🤖 Auto-click: cell ${targetCell} at (${clickX.toFixed(1)}, ${clickY.toFixed(1)})`);
+    
+    // Эмитируем событие клика для GridManager
+    eventBus.emit(GameEvents.CLICK, {
+      x: clickX,
+      y: clickY,
+      canvasWidth: 400,
+      canvasHeight: 400
+    });
+    
+  } catch (error) {
+    console.error('Auto clicker error:', error);
+  }
+}
 
     stopAutoClicker() {
         if (this.autoClickerInterval) {
@@ -513,15 +661,24 @@ export class SkillManager extends CleanupMixin {
         eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
     }
 
-    getAutoClickerStats() {
-        return {
-            active: this.gameState.skillStates.autoClickerActive,
-            level: this.getSkillLevel('autoClicker'),
-            interval: this.autoClickerInterval ? 
-                Math.max(GAME_CONSTANTS.AUTO_CLICKER_MIN_INTERVAL, 
-                         Math.floor(GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL / this.getSkillLevel('autoClicker'))) : 0
-        };
-    }
+getAutoClickerStats() {
+  const level = this.getSkillLevel('autoClicker');
+  const isRaidBlocking = this.isRaidInProgress();
+  const isPending = this.gameState.skillStates.autoClickerPendingStart || false;
+  
+  return {
+    level: level,
+    active: this.gameState.skillStates.autoClickerActive && !isRaidBlocking,
+    blocked: isRaidBlocking,
+    pending: isPending,
+    interval: this.autoClickerInterval ? 
+      Math.max(GAME_CONSTANTS.AUTO_CLICKER_MIN_INTERVAL, 
+               Math.floor(GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL / level)) : 0,
+    status: isRaidBlocking ? 
+      (isPending ? 'Paused for raid (will resume)' : 'Blocked by raid') :
+      (this.gameState.skillStates.autoClickerActive ? 'Active' : 'Inactive')
+  };
+}
 
     getSkillStatistics() {
         const stats = {
@@ -557,16 +714,22 @@ export class SkillManager extends CleanupMixin {
         this.stopAutoClicker();
     }
 
-    reloadAutoClicker() {
-        const level = this.getSkillLevel('autoClicker');
-        if (level > 0) {
-            this.stopAutoClicker();
-            
-            this.createTimeout(() => {
-                this.startAutoClicker(level);
-            }, 100);
-        }
-    }
+reloadAutoClicker() {
+  const level = this.getSkillLevel('autoClicker');
+  if (level > 0) {
+    this.stopAutoClicker();
+    
+    this.createTimeout(() => {
+      // Проверяем рейд перед перезапуском
+      if (!this.isRaidInProgress()) {
+        this.startAutoClicker(level);
+      } else {
+        console.log('🤖 Auto clicker reload delayed: raid in progress');
+        this.gameState.skillStates.autoClickerPendingStart = true;
+      }
+    }, 100);
+  }
+}
 
     destroy() {
         this.stopAllGeneration();

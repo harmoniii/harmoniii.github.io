@@ -80,49 +80,61 @@ export class RaidPanel extends CleanupMixin {
   }
 
   // Показать статус активного рейда
-  showActiveRaidStatus(panelElement, status) {
-    const statusSection = document.createElement('div');
-    statusSection.className = 'active-raid-status';
-    statusSection.innerHTML = `
-      <div class="raid-status-header">
-        <h3>🎯 Active Raid: ${status.raid.name}</h3>
-        <div class="raid-progress-container">
-          <div class="raid-progress-bar">
-            <div class="raid-progress-fill" style="width: ${status.progress}%"></div>
-          </div>
-          <div class="raid-time-remaining">${status.timeRemainingText}</div>
+showActiveRaidStatus(panelElement, status) {
+  const statusSection = document.createElement('div');
+  statusSection.className = 'active-raid-status';
+  
+  // Проверяем статус автокликера
+  const autoClickerPaused = this.gameState.raidManager?.autoClickerWasActive || false;
+  const autoClickerStatus = autoClickerPaused ? 
+    '🤖 Auto clicker paused' : 
+    '🤖 Auto clicker was not active';
+  
+  statusSection.innerHTML = `
+    <div class="raid-status-header">
+      <h3>🎯 Active Raid: ${status.raid.name}</h3>
+      <div class="raid-progress-container">
+        <div class="raid-progress-bar">
+          <div class="raid-progress-fill" style="width: ${status.progress}%"></div>
         </div>
+        <div class="raid-time-remaining">${status.timeRemainingText}</div>
       </div>
-      <div class="raid-status-details">
-        <p><strong>Difficulty:</strong> ${this.capitalize(status.raid.difficulty)}</p>
-        <p><strong>Risk:</strong> ${status.raid.riskPercentage}% chance of casualties</p>
-        <p><strong>Description:</strong> ${status.raid.description}</p>
+    </div>
+    <div class="raid-status-details">
+      <p><strong>Difficulty:</strong> ${this.capitalize(status.raid.difficulty)}</p>
+      <p><strong>Risk:</strong> ${status.raid.riskPercentage}% chance of casualties</p>
+      <p><strong>Status:</strong> ${autoClickerStatus}</p>
+      <p><strong>Description:</strong> ${status.raid.description}</p>
+      <div class="raid-blocking-notice">
+        ⚠️ <strong>Game Field Locked:</strong> All clicking disabled during raid
       </div>
-      <div class="raid-status-actions">
-        <button id="cancel-raid-btn" class="cancel-raid-button">
-          ❌ Cancel Raid (50% refund)
-        </button>
-      </div>
-    `;
-    
-    statusSection.style.cssText = `
-      background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
-      border: 2px solid #f39c12;
-      border-radius: 12px;
-      padding: 1.5rem;
-      margin: 1rem 0;
-    `;
-    
-    panelElement.appendChild(statusSection);
-    
-    // Привязываем обработчик отмены
-    const cancelBtn = statusSection.querySelector('#cancel-raid-btn');
-    if (cancelBtn) {
-      this.addEventListener(cancelBtn, 'click', () => {
-        this.handleCancelRaid();
-      });
-    }
+    </div>
+    <div class="raid-status-actions">
+      <button id="cancel-raid-btn" class="cancel-raid-button">
+        ❌ Cancel Raid (50% refund)
+      </button>
+    </div>
+  `;
+  
+  // Стилизация
+  statusSection.style.cssText = `
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 2px solid #f39c12;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+  `;
+  
+  panelElement.appendChild(statusSection);
+  
+  // Привязываем обработчик отмены
+  const cancelBtn = statusSection.querySelector('#cancel-raid-btn');
+  if (cancelBtn) {
+    this.addEventListener(cancelBtn, 'click', () => {
+      this.handleCancelRaid();
+    });
   }
+}
 
   // Показать доступные рейды
   showAvailableRaids(panelElement) {
@@ -500,169 +512,138 @@ export class RaidPanel extends CleanupMixin {
   }
 
   // Добавить CSS стили для рейдов
-  addRaidStyles() {
-    if (document.getElementById('raid-panel-styles')) return;
+addRaidStyles() {
+  if (document.getElementById('raid-panel-styles')) return;
+  
+  const style = document.createElement('style');
+  style.id = 'raid-panel-styles';
+  style.textContent = `
+    .raid-progress-container {
+      margin: 1rem 0;
+    }
     
-    const style = document.createElement('style');
-    style.id = 'raid-panel-styles';
-    style.textContent = `
-      .raid-progress-container {
-        margin: 1rem 0;
-      }
-      
-      .raid-progress-bar {
-        width: 100%;
-        height: 20px;
-        background: rgba(0,0,0,0.1);
-        border-radius: 10px;
-        overflow: hidden;
-        margin-bottom: 0.5rem;
-      }
-      
-      .raid-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
-        transition: width 0.3s ease;
-      }
-      
-      .raid-time-remaining {
-        text-align: center;
-        font-weight: bold;
-        font-size: 1.1em;
-      }
-      
-      .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 1rem;
-        margin: 1rem 0;
-      }
-      
-      .stat-item {
-        text-align: center;
-        padding: 0.75rem;
-        background: rgba(255,255,255,0.7);
-        border-radius: 8px;
-      }
-      
-      .stat-value {
-        font-size: 1.5rem;
-        font-weight: bold;
-        color: #2c3e50;
-      }
-      
-      .stat-label {
-        font-size: 0.85rem;
-        color: #6c757d;
-        margin-top: 0.25rem;
-      }
-      
-      .requirement-met {
-        color: #28a745;
-        font-weight: bold;
-      }
-      
-      .requirement-not-met {
-        color: #dc3545;
-        font-weight: bold;
-      }
-      
-      .start-raid-button {
-        width: 100%;
-        padding: 0.75rem;
-        background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
-        color: white;
-        border: none;
-        border-radius: 8px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: all 0.3s ease;
-      }
-      
-      .start-raid-button:hover:not(.disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      }
-      
-      .start-raid-button.disabled {
-        background: #6c757d;
-        cursor: not-allowed;
-        opacity: 0.6;
-      }
-      
-      .cancel-raid-button {
-        background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      
-      .use-reward-button {
-        background: linear-gradient(135deg, #9c27b0 0%, #8e24aa 100%);
-        color: white;
-        border: none;
-        padding: 0.5rem 1rem;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: bold;
-      }
-      
-      .raid-error-message {
-        color: #dc3545;
-        font-size: 0.85rem;
-        margin-top: 0.5rem;
-        text-align: center;
-      }
-      
-      .resource-stats {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-      }
-      
-      .resource-stat {
-        background: rgba(255,255,255,0.8);
-        padding: 0.25rem 0.5rem;
-        border-radius: 4px;
-        font-size: 0.85rem;
-      }
-      
-      .reward-info {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-grow: 1;
-      }
-      
-      .reward-icon {
-        font-size: 1.5rem;
-      }
-      
-      .reward-name {
-        font-weight: bold;
-        color: #2c3e50;
-      }
-      
-      .reward-description {
-        font-size: 0.85rem;
-        color: #6c757d;
-      }
-      
-      .reward-count {
-        background: #007bff;
-        color: white;
-        padding: 0.25rem 0.5rem;
-        border-radius: 12px;
-        font-size: 0.85rem;
-        font-weight: bold;
-      }
-    `;
+    .raid-progress-bar {
+      width: 100%;
+      height: 20px;
+      background: rgba(0,0,0,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 0.5rem;
+    }
     
-    document.head.appendChild(style);
-  }
+    .raid-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+      transition: width 0.3s ease;
+    }
+    
+    .raid-time-remaining {
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.1em;
+    }
+    
+    /* НОВОЕ: Стили для уведомления о блокировке */
+    .raid-blocking-notice {
+      background: rgba(255, 193, 7, 0.2);
+      border: 1px solid #ffc107;
+      border-radius: 6px;
+      padding: 0.75rem;
+      margin: 1rem 0;
+      font-size: 0.9em;
+      text-align: center;
+      color: #856404;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    
+    .stat-item {
+      text-align: center;
+      padding: 0.75rem;
+      background: rgba(255,255,255,0.7);
+      border-radius: 8px;
+    }
+    
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    
+    .stat-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+    
+    .requirement-met {
+      color: #28a745;
+      font-weight: bold;
+    }
+    
+    .requirement-not-met {
+      color: #dc3545;
+      font-weight: bold;
+    }
+    
+    .start-raid-button {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .start-raid-button:hover:not(.disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+    
+    .start-raid-button.disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .cancel-raid-button {
+      background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .use-reward-button {
+      background: linear-gradient(135deg, #9c27b0 0%, #8e24aa 100%);
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    
+    .raid-error-message {
+      color: #dc3545;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+  `;
+  
+  document.head.appendChild(style);
+}
 
   // Деструктор
   destroy() {
