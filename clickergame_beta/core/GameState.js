@@ -494,56 +494,55 @@ loadSaveData(data) {
     this.achievements = this.validateAchievements(data.achievements);
   }
 
-  // ИСПРАВЛЕНИЕ: Улучшенная загрузка рейдов с восстановлением активного рейда
+  // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Улучшенная загрузка рейдов с множественными источниками
+  this.raids = {
+    completed: [],
+    specialRewards: {},
+    statistics: {
+      totalRaids: 0,
+      successfulRaids: 0,
+      resourcesGained: {},
+      peopleLost: 0
+    },
+    activeRaid: null,
+    isRaidInProgress: false,
+    raidStartTime: 0,
+    raidProgress: 0,
+    autoClickerWasActive: false
+  };
+
+  // Источник 1: Основные данные рейдов
   if (data.raids && typeof data.raids === 'object') {
-    this.raids = {
-      completed: Array.isArray(data.raids.completed) ? data.raids.completed : [],
-      specialRewards: data.raids.specialRewards || {},
-      statistics: {
-        totalRaids: Math.max(0, data.raids.statistics?.totalRaids || 0),
-        successfulRaids: Math.max(0, data.raids.statistics?.successfulRaids || 0),
-        resourcesGained: data.raids.statistics?.resourcesGained || {},
-        peopleLost: Math.max(0, data.raids.statistics?.peopleLost || 0)
-      },
-      // ВАЖНО: Восстанавливаем состояние активного рейда
-      activeRaid: data.raids.activeRaid || null,
-      isRaidInProgress: Boolean(data.raids.isRaidInProgress),
-      raidStartTime: data.raids.raidStartTime || 0,
-      raidProgress: Math.max(0, Math.min(100, data.raids.raidProgress || 0)),
-      autoClickerWasActive: Boolean(data.raids.autoClickerWasActive)
+    this.raids.completed = Array.isArray(data.raids.completed) ? data.raids.completed : [];
+    this.raids.specialRewards = data.raids.specialRewards || {};
+    this.raids.statistics = {
+      totalRaids: Math.max(0, data.raids.statistics?.totalRaids || 0),
+      successfulRaids: Math.max(0, data.raids.statistics?.successfulRaids || 0),
+      resourcesGained: data.raids.statistics?.resourcesGained || {},
+      peopleLost: Math.max(0, data.raids.statistics?.peopleLost || 0)
     };
-  } else {
-    // Инициализируем пустое состояние рейдов
-    this.raids = {
-      completed: [],
-      specialRewards: {},
-      statistics: {
-        totalRaids: 0,
-        successfulRaids: 0,
-        resourcesGained: {},
-        peopleLost: 0
-      },
-      activeRaid: null,
-      isRaidInProgress: false,
-      raidStartTime: 0,
-      raidProgress: 0,
-      autoClickerWasActive: false
-    };
+    
+    // Загружаем активный рейд
+    if (data.raids.isRaidInProgress && data.raids.activeRaid) {
+      this.raids.activeRaid = data.raids.activeRaid;
+      this.raids.isRaidInProgress = true;
+      this.raids.raidStartTime = data.raids.raidStartTime || 0;
+      this.raids.raidProgress = Math.max(0, Math.min(100, data.raids.raidProgress || 0));
+      this.raids.autoClickerWasActive = Boolean(data.raids.autoClickerWasActive);
+      
+      console.log('📥 Loaded active raid from main data:', this.raids.activeRaid?.id);
+    }
   }
 
-  // НОВОЕ: Дополнительная проверка из raidState (приоритет отдается более свежим данным)
+  // Источник 2: Резервные данные рейда (приоритет при наличии активного рейда)
   if (data.raidState && typeof data.raidState === 'object') {
-    console.log('📥 Found raidState backup, checking if newer...');
-    
     const raidStateSaveTime = data.raidState.savedAt || 0;
     const regularSaveTime = data.saveTimestamp || 0;
     
-    // Если raidState более свежий или содержит активный рейд
     if (data.raidState.isRaidInProgress && 
         (raidStateSaveTime >= regularSaveTime || !this.raids.isRaidInProgress)) {
       
-      console.log('📥 Using raidState backup as it\'s more recent or contains active raid');
-      
+      console.log('📥 Using raidState backup (newer or fallback)');
       this.raids.activeRaid = data.raidState.activeRaid;
       this.raids.isRaidInProgress = data.raidState.isRaidInProgress;
       this.raids.raidStartTime = data.raidState.raidStartTime;
@@ -552,17 +551,41 @@ loadSaveData(data) {
     }
   }
 
-  // НОВОЕ: Проверяем activeRaidBackup (из корня saveData)
-  if (data.activeRaidBackup && typeof data.activeRaidBackup === 'object') {
-    console.log('📥 Found activeRaidBackup, using as fallback...');
+  // Источник 3: Экстренный резерв (высший приоритет)
+  if (data.activeRaidEmergencyBackup && typeof data.activeRaidEmergencyBackup === 'object') {
+    const emergencyBackup = data.activeRaidEmergencyBackup;
+    console.log('📥 Found emergency raid backup:', emergencyBackup);
     
-    if (!this.raids.isRaidInProgress) {
-      this.raids.activeRaid = { id: data.activeRaidBackup.raidId };
+    if (emergencyBackup.emergencyFlag && emergencyBackup.raidId) {
+      console.log('🚨 Using emergency raid backup as primary source');
+      
+      // Воссоздаем объект activeRaid из резервных данных
+      this.raids.activeRaid = {
+        id: emergencyBackup.raidId,
+        name: emergencyBackup.name || 'Recovered Raid',
+        difficulty: emergencyBackup.difficulty || 'unknown'
+      };
       this.raids.isRaidInProgress = true;
-      this.raids.raidStartTime = data.activeRaidBackup.startTime;
-      this.raids.raidProgress = data.activeRaidBackup.progress;
-      this.raids.autoClickerWasActive = data.activeRaidBackup.autoClickerWasActive;
+      this.raids.raidStartTime = emergencyBackup.startTime;
+      this.raids.raidProgress = emergencyBackup.progress;
+      this.raids.autoClickerWasActive = emergencyBackup.autoClickerWasActive;
+      
+      console.log('🚨 Emergency raid recovery successful:', {
+        raidId: this.raids.activeRaid.id,
+        progress: this.raids.raidProgress,
+        startTime: this.raids.raidStartTime
+      });
     }
+  }
+
+  // Источник 4: Совместимость со старыми сохранениями
+  if (data.activeRaidBackup && typeof data.activeRaidBackup === 'object' && !this.raids.isRaidInProgress) {
+    console.log('📥 Using legacy activeRaidBackup as fallback');
+    this.raids.activeRaid = { id: data.activeRaidBackup.raidId };
+    this.raids.isRaidInProgress = true;
+    this.raids.raidStartTime = data.activeRaidBackup.startTime;
+    this.raids.raidProgress = data.activeRaidBackup.progress;
+    this.raids.autoClickerWasActive = data.activeRaidBackup.autoClickerWasActive;
   }
 
   // Сбрасываем временные эффекты
@@ -580,11 +603,12 @@ loadSaveData(data) {
   this.lastTimestamp = Date.now();
   
   console.log('✅ GameState data loaded successfully');
-  console.log('📊 Raid state after load:', {
+  console.log('📊 Final raid state after load:', {
     isRaidInProgress: this.raids.isRaidInProgress,
     activeRaid: this.raids.activeRaid?.id || 'none',
     startTime: this.raids.raidStartTime,
-    progress: this.raids.raidProgress
+    progress: this.raids.raidProgress,
+    autoClickerWasActive: this.raids.autoClickerWasActive
   });
 }
 

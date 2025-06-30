@@ -140,25 +140,48 @@ restoreRaidStateFromSave() {
   if (raids.isRaidInProgress && raids.activeRaid) {
     console.log('🔄 Restoring active raid from save:', raids.activeRaid.name || raids.activeRaid.id);
     
-    // ИСПРАВЛЕНИЕ: Находим полное определение рейда
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Находим полное определение рейда по ID
     const fullRaidDef = this.getRaidDefinition(raids.activeRaid.id);
     if (!fullRaidDef) {
       console.error('❌ Raid definition not found for ID:', raids.activeRaid.id);
-      this.clearRaidState();
-      return;
+      console.log('📝 Available raid definitions:', RAID_DEFS.map(r => r.id));
+      
+      // Пытаемся восстановить из частичных данных
+      if (raids.activeRaid.id && raids.activeRaid.name) {
+        console.log('🔧 Attempting to reconstruct raid from partial data...');
+        this.activeRaid = {
+          id: raids.activeRaid.id,
+          name: raids.activeRaid.name,
+          difficulty: raids.activeRaid.difficulty || 'unknown',
+          duration: 120000, // Стандартная длительность как fallback
+          riskPercentage: 20,
+          description: 'Restored raid from save data'
+        };
+      } else {
+        this.clearRaidState();
+        return;
+      }
+    } else {
+      // Используем полное определение рейда
+      this.activeRaid = fullRaidDef;
     }
     
     // Восстанавливаем состояние
-    this.activeRaid = fullRaidDef; // Используем полное определение
     this.isRaidInProgress = raids.isRaidInProgress;
     this.raidStartTime = raids.raidStartTime;
     this.raidProgress = raids.raidProgress;
     this.autoClickerWasActive = raids.autoClickerWasActive;
     
-    // Проверяем, не истек ли рейд за время отсутствия
+    // ВАЖНАЯ ПРОВЕРКА: Рассчитываем, не истек ли рейд
     const now = Date.now();
     const elapsed = now - this.raidStartTime;
-    const raidDuration = this.activeRaid.duration;
+    const raidDuration = this.activeRaid.duration || 120000;
+    
+    console.log('⏰ Raid timing check:', {
+      elapsed: Math.round(elapsed / 1000) + 's',
+      duration: Math.round(raidDuration / 1000) + 's',
+      remaining: Math.round((raidDuration - elapsed) / 1000) + 's'
+    });
     
     if (elapsed >= raidDuration) {
       console.log('⏰ Raid expired while away, completing it...');
@@ -176,17 +199,60 @@ restoreRaidStateFromSave() {
       // Блокируем игровое поле
       this.blockGameField(true);
       
-      // Запускаем таймер
+      // Запускаем таймер с корректировкой времени
       this.startRaidTimer();
       
       // Уведомляем о возобновлении
       eventBus.emit(GameEvents.NOTIFICATION, `⚔️ Resumed: ${this.activeRaid.name}`);
       
-      console.log('✅ Active raid restored successfully');
+      console.log('✅ Active raid restored and resumed successfully');
     }
   } else {
     console.log('ℹ️ No active raid to restore');
   }
+  // НОВОЕ: Проверяем экстренный резерв из localStorage
+try {
+  const emergencyBackup = localStorage.getItem('emergency_raid_backup');
+  if (emergencyBackup && !this.isRaidInProgress) {
+    const backupData = JSON.parse(emergencyBackup);
+    console.log('🚨 Found emergency raid backup in localStorage:', backupData);
+    
+    if (backupData.emergencyFlag && backupData.raidId) {
+      const raidDef = this.getRaidDefinition(backupData.raidId);
+      if (raidDef) {
+        console.log('🚨 Restoring raid from emergency backup...');
+        
+        this.activeRaid = raidDef;
+        this.isRaidInProgress = true;
+        this.raidStartTime = backupData.startTime;
+        this.raidProgress = backupData.progress;
+        this.autoClickerWasActive = backupData.autoClickerWasActive;
+        
+        // Проверяем, не истек ли рейд
+        const now = Date.now();
+        const elapsed = now - this.raidStartTime;
+        
+        if (elapsed >= raidDef.duration) {
+          console.log('🚨 Emergency backup raid expired, completing...');
+          this.completeRaid();
+        } else {
+          console.log('🚨 Emergency backup raid still active, resuming...');
+          this.raidProgress = Math.min(100, (elapsed / raidDef.duration) * 100);
+          this.saveRaidStateToGameState();
+          this.blockGameField(true);
+          this.startRaidTimer();
+          
+          eventBus.emit(GameEvents.NOTIFICATION, `🚨 Emergency recovery: ${this.activeRaid.name}`);
+        }
+      }
+    }
+    
+    // Удаляем использованный резерв
+    localStorage.removeItem('emergency_raid_backup');
+  }
+} catch (error) {
+  console.warn('⚠️ Error checking emergency backup:', error);
+}
 }
 
 clearRaidState() {

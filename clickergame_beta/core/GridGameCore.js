@@ -217,30 +217,45 @@ autoSave() {
   }
 
   try {
-    // Сохраняем текущую целевую клетку
+    // ИСПРАВЛЕНИЕ: Сохраняем текущую целевую клетку
     if (this.gridManager) {
       this.gameState.targetZone = this.gridManager.getTargetCell();
     }
     
-    // ИСПРАВЛЕНИЕ: Обязательно сохраняем состояние рейда перед получением saveData
+    // КРИТИЧЕСКИ ВАЖНО: Принудительно сохраняем состояние рейда ПЕРЕД получением saveData
     if (this.managers.raid && this.managers.raid.isRaidInProgress) {
-      console.log('💾 Saving active raid state...');
-      this.managers.raid.saveRaidStateToGameState();
+      console.log('💾 Force saving active raid state before auto-save...');
+      
+      // Обновляем все поля состояния рейда в gameState
+      this.gameState.raids.activeRaid = this.managers.raid.activeRaid;
+      this.gameState.raids.isRaidInProgress = this.managers.raid.isRaidInProgress;
+      this.gameState.raids.raidStartTime = this.managers.raid.raidStartTime;
+      this.gameState.raids.raidProgress = this.managers.raid.raidProgress;
+      this.gameState.raids.autoClickerWasActive = this.managers.raid.autoClickerWasActive;
+      
+      console.log('💾 Raid state updated in gameState:', {
+        raidId: this.managers.raid.activeRaid?.id,
+        progress: this.managers.raid.raidProgress,
+        startTime: this.managers.raid.raidStartTime
+      });
     }
     
     const saveData = this.gameState.getSaveData();
     if (!saveData) return false;
     
-    // НОВОЕ: Дополнительно добавляем информацию о рейде в корень saveData
+    // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Добавляем резервные данные рейда в корень saveData
     if (this.managers.raid && this.managers.raid.isRaidInProgress) {
-      saveData.activeRaidBackup = {
+      saveData.activeRaidEmergencyBackup = {
         raidId: this.managers.raid.activeRaid?.id,
+        name: this.managers.raid.activeRaid?.name,
         startTime: this.managers.raid.raidStartTime,
         progress: this.managers.raid.raidProgress,
         autoClickerWasActive: this.managers.raid.autoClickerWasActive,
-        savedAt: Date.now()
+        difficulty: this.managers.raid.activeRaid?.difficulty,
+        savedAt: Date.now(),
+        emergencyFlag: true
       };
-      console.log('💾 Active raid backup saved:', saveData.activeRaidBackup);
+      console.log('💾 Emergency raid backup added to save:', saveData.activeRaidEmergencyBackup);
     }
     
     const success = this.storageManager.safeSave({
@@ -249,7 +264,7 @@ autoSave() {
     });
     
     if (success) {
-      console.log('💾 Auto-save completed with raid state');
+      console.log('💾 Auto-save completed with raid protection');
     }
     
     return success;
