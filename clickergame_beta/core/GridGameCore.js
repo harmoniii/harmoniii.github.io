@@ -1,4 +1,4 @@
-// core/GridGameCore.js - ИСПРАВЛЕННАЯ версия для сетки 3x3
+// core/GridGameCore.js - ОБНОВЛЕНО: интеграция RaidManager
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -8,6 +8,7 @@ import { GridFeatureManager } from '../managers/GridFeatureManager.js';
 import { BuildingManager } from '../managers/BuildingManager.js';
 import { SkillManager } from '../managers/SkillManager.js';
 import { MarketManager } from '../managers/MarketManager.js';
+import { RaidManager } from '../managers/RaidManager.js'; // НОВОЕ: RaidManager
 import { BuffManager } from '../effects/BuffManager.js';
 import { AchievementManager } from '../managers/AchievementManager.js';
 import { EnergyManager } from '../managers/EnergyManager.js';
@@ -29,7 +30,7 @@ export class GridGameCore extends CleanupMixin {
 
   async initialize() {
     try {
-      console.log('🎮 Initializing Grid Clicker...');
+      console.log('🎮 Initializing Grid Clicker with Raid System...');
       
       // Шаг 1: Инициализируем состояние игры
       await this.initializeGameState();
@@ -51,8 +52,8 @@ export class GridGameCore extends CleanupMixin {
       
       this.bindSystemEvents();
       
-      console.log('✅ Grid Game initialized successfully');
-      eventBus.emit(GameEvents.NOTIFICATION, '🎮 Grid Game loaded successfully!');
+      console.log('✅ Grid Game with Raids initialized successfully');
+      eventBus.emit(GameEvents.NOTIFICATION, '🎮 Grid Game with Raid System loaded!');
       
     } catch (error) {
       console.error('💀 Critical error during initialization:', error);
@@ -66,15 +67,15 @@ export class GridGameCore extends CleanupMixin {
     const saveData = this.storageManager.load();
     this.gameState = new GameState();
     
-if (!this.gameState.energy) {
-    this.gameState.energy = {
-      current: GAME_CONSTANTS.INITIAL_ENERGY || 100,
-      max: GAME_CONSTANTS.INITIAL_MAX_ENERGY || 100,
-      lastRegenTime: Date.now(),
-      totalConsumed: 0,
-      totalRegenerated: 0
-    };
-  }
+    if (!this.gameState.energy) {
+      this.gameState.energy = {
+        current: GAME_CONSTANTS.INITIAL_ENERGY || 100,
+        max: GAME_CONSTANTS.INITIAL_MAX_ENERGY || 100,
+        lastRegenTime: Date.now(),
+        totalConsumed: 0,
+        totalRegenerated: 0
+      };
+    }
 
     if (saveData) {
       try {
@@ -104,7 +105,7 @@ if (!this.gameState.energy) {
   }
 
   async initializeManagers() {
-    console.log('🔧 Initializing managers...');
+    console.log('🔧 Initializing managers with raid support...');
     
     try {
       // Базовые менеджеры
@@ -115,6 +116,9 @@ if (!this.gameState.energy) {
       this.managers.market = new MarketManager(this.gameState);
       this.managers.buff = new BuffManager(this.gameState);
       
+      // НОВОЕ: RaidManager после BuildingManager
+      this.managers.raid = new RaidManager(this.gameState);
+      
       // GridFeatureManager получает готовый GridManager
       this.managers.feature = new GridFeatureManager(this.gameState, this.gridManager, this.managers.buff);
       
@@ -123,7 +127,7 @@ if (!this.gameState.energy) {
         this.cleanupManager.registerComponent(manager, `${name}Manager`);
       });
       
-      console.log('✅ All managers initialized');
+      console.log('✅ All managers initialized including raids');
       
     } catch (error) {
       console.error('💀 Failed to initialize managers:', error);
@@ -143,18 +147,19 @@ if (!this.gameState.energy) {
     this.gameState.skillManager = this.managers.skill;
     this.gameState.marketManager = this.managers.market;
     this.gameState.featureManager = this.managers.feature;
+    this.gameState.raidManager = this.managers.raid; // НОВОЕ: RaidManager
     this.gameState.managers = this.managers;
     
-    console.log('✅ Manager references set up');
+    console.log('✅ Manager references set up including raids');
   }
 
   async initializeUI() {
-    console.log('🖥️ Initializing UI...');
+    console.log('🖥️ Initializing UI with raid support...');
     
     this.managers.ui = new UIManager(this.gameState);
     this.cleanupManager.registerComponent(this.managers.ui, 'UIManager');
     
-    console.log('✅ UI initialized');
+    console.log('✅ UI initialized with raid support');
   }
 
   async startGameLoop() {
@@ -177,6 +182,17 @@ if (!this.gameState.energy) {
     // События сброса игры
     eventBus.subscribe(GameEvents.GAME_RESET, () => {
       this.handleGameReset();
+    });
+    
+    // НОВОЕ: События рейдов
+    eventBus.subscribe('raid:started', (data) => {
+      console.log('⚔️ Raid started:', data.raid?.name);
+    });
+    
+    eventBus.subscribe('raid:completed', (data) => {
+      console.log('⚔️ Raid completed at:', new Date(data.timestamp));
+      // Автосохранение после завершения рейда
+      this.autoSave();
     });
     
     // Обработка закрытия страницы
@@ -206,8 +222,14 @@ if (!this.gameState.energy) {
         this.gameState.targetZone = this.gridManager.getTargetCell();
       }
       
+      // НОВОЕ: Сохраняем данные рейдов
       const saveData = this.gameState.getSaveData();
       if (!saveData) return false;
+      
+      // НОВОЕ: Добавляем данные рейдов в сохранение
+      if (this.managers.raid) {
+        saveData.raids = this.gameState.raids;
+      }
       
       const success = this.storageManager.safeSave({
         ...saveData,
@@ -215,7 +237,7 @@ if (!this.gameState.energy) {
       });
       
       if (success) {
-        console.log('💾 Auto-save completed');
+        console.log('💾 Auto-save completed with raids');
       }
       
       return success;
@@ -232,6 +254,11 @@ if (!this.gameState.energy) {
     try {
       if (this.gameLoop) {
         this.gameLoop.stop();
+      }
+      
+      // НОВОЕ: Отменяем активные рейды при сбросе
+      if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+        this.managers.raid.endRaid();
       }
       
       this.destroy();
@@ -277,6 +304,11 @@ if (!this.gameState.energy) {
     return this.managers;
   }
 
+  // НОВОЕ: Получить RaidManager
+  getRaidManager() {
+    return this.managers.raid;
+  }
+
   isGameActive() {
     return this.isActive() && 
            this.gameState && 
@@ -284,13 +316,19 @@ if (!this.gameState.energy) {
            this.gameLoop?.running === true;
   }
 
+  // НОВОЕ: Проверить, заблокирована ли игра рейдом
+  isGameBlocked() {
+    return this.managers.raid?.isRaidInProgress || false;
+  }
+
   enableDebugMode() {
-    console.log('🐛 Enabling debug mode for grid game...');
+    console.log('🐛 Enabling debug mode for grid game with raids...');
     
     window.gameDebug = {
       getGameState: () => this.gameState,
       getGridManager: () => this.gridManager,
       getManagers: () => this.managers,
+      getRaidManager: () => this.managers.raid, // НОВОЕ
       getGameCore: () => this,
       
       // Клетки сетки
@@ -300,6 +338,22 @@ if (!this.gameState.energy) {
         shuffle: () => this.gridManager?.shuffleCells(),
         setTarget: (index) => this.gridManager?.setTargetCell(index),
         isReady: () => this.gridManager?.isManagerReady()
+      },
+      
+      // НОВОЕ: Отладка рейдов
+      raids: {
+        getAvailable: () => this.managers.raid?.getAvailableRaids(),
+        getCurrentStatus: () => this.managers.raid?.getCurrentRaidStatus(),
+        getStatistics: () => this.managers.raid?.getRaidStatistics(),
+        getSpecialRewards: () => this.managers.raid?.getSpecialRewards(),
+        isSystemUnlocked: () => this.managers.raid?.isRaidSystemUnlocked(),
+        startRaid: (raidId) => this.managers.raid?.startRaid(raidId),
+        cancelRaid: () => this.managers.raid?.cancelRaid(),
+        forceCompleteRaid: () => {
+          if (this.managers.raid?.activeRaid) {
+            this.managers.raid.completeRaid();
+          }
+        }
       },
       
       // Энергия
@@ -321,12 +375,14 @@ if (!this.gameState.energy) {
         gameState: this.getGameStats(),
         grid: this.gridManager?.getStats(),
         cleanup: this.cleanupManager.getStats(),
-        gameLoop: this.gameLoop?.getRenderStats()
+        gameLoop: this.gameLoop?.getRenderStats(),
+        raids: this.managers.raid?.getRaidStatistics() // НОВОЕ
       })
     };
     
-    console.log('✅ Debug mode enabled for grid game');
+    console.log('✅ Debug mode enabled for grid game with raids');
     console.log('🔧 Available commands: window.gameDebug.*');
+    console.log('⚔️ Raid commands: window.gameDebug.raids.*');
   }
 
   getGameStats() {
@@ -339,8 +395,92 @@ if (!this.gameState.energy) {
       activeBuffs: this.gameState.buffs.length,
       activeDebuffs: this.gameState.debuffs.length,
       targetCell: this.gridManager?.getTargetCell(),
-      gridReady: this.gridManager?.isManagerReady()
+      gridReady: this.gridManager?.isManagerReady(),
+      // НОВОЕ: статистика рейдов
+      raidsUnlocked: this.managers.raid?.isRaidSystemUnlocked() || false,
+      activeRaid: this.managers.raid?.isRaidInProgress || false,
+      totalRaids: this.gameState.raids?.statistics?.totalRaids || 0
     };
+  }
+
+  // НОВОЕ: Получить полную статистику игры включая рейды
+  getFullGameStats() {
+    const baseStats = this.getGameStats();
+    if (!baseStats) return null;
+    
+    return {
+      ...baseStats,
+      buildings: this.managers.building?.getBuildingStatistics(),
+      skills: this.managers.skill?.getSkillStatistics(),
+      raids: this.managers.raid?.getRaidStatistics(),
+      energy: this.managers.energy?.getEnergyInfo(),
+      effects: this.managers.buff?.getEffectStatistics()
+    };
+  }
+
+  // НОВОЕ: Экспорт данных для анализа
+  exportGameData() {
+    try {
+      const exportData = {
+        timestamp: Date.now(),
+        gameStats: this.getFullGameStats(),
+        gameState: {
+          resources: this.gameState.resources,
+          buildings: this.gameState.buildings,
+          skills: this.gameState.skills,
+          raids: this.gameState.raids,
+          combo: this.gameState.combo,
+          skillPoints: this.gameState.skillPoints
+        },
+        managers: {
+          grid: this.gridManager?.getDebugInfo(),
+          raids: this.managers.raid?.getDebugInfo?.() || null
+        }
+      };
+      
+      console.log('📊 Game data exported:', exportData);
+      return exportData;
+      
+    } catch (error) {
+      console.error('❌ Failed to export game data:', error);
+      return null;
+    }
+  }
+
+  // НОВОЕ: Тестирование системы рейдов
+  testRaidSystem() {
+    console.log('🧪 Testing raid system...');
+    
+    try {
+      const raidManager = this.managers.raid;
+      if (!raidManager) {
+        console.log('❌ RaidManager not available');
+        return false;
+      }
+      
+      // Проверяем разблокировку системы
+      const isUnlocked = raidManager.isRaidSystemUnlocked();
+      console.log('🔓 Raid system unlocked:', isUnlocked);
+      
+      // Получаем доступные рейды
+      const availableRaids = raidManager.getAvailableRaids();
+      console.log('📋 Available raids:', availableRaids.length);
+      
+      // Проверяем статистику
+      const stats = raidManager.getRaidStatistics();
+      console.log('📊 Raid statistics:', stats);
+      
+      // Проверяем текущий статус
+      const status = raidManager.getCurrentRaidStatus();
+      console.log('⚔️ Current raid status:', status);
+      
+      console.log('✅ Raid system test completed');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Raid system test failed:', error);
+      return false;
+    }
   }
 
   destroy() {
@@ -349,6 +489,12 @@ if (!this.gameState.energy) {
     // Останавливаем игровой цикл
     if (this.gameLoop) {
       this.gameLoop.stop();
+    }
+    
+    // НОВОЕ: Завершаем активные рейды при уничтожении
+    if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+      console.log('⚔️ Ending active raid during cleanup...');
+      this.managers.raid.endRaid();
     }
     
     super.destroy();

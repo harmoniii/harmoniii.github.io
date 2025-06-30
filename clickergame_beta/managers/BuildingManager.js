@@ -1,11 +1,11 @@
-// managers/BuildingManager.js - Fixed version with correct cleanup methods
+// managers/BuildingManager.js - ОБНОВЛЕНО: добавлена Watch Tower для рейдов
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 
-// Определения зданий
+// ОБНОВЛЕННЫЕ определения зданий с Watch Tower
 export const BUILDING_DEFS = [
-  {
+  { 
     id: 'sawmill',
     img: '🪚',
     name: 'Sawmill',
@@ -109,6 +109,21 @@ export const BUILDING_DEFS = [
     },
     maxLevel: 3,
     category: 'special'
+  },
+  // НОВОЕ ЗДАНИЕ: Watch Tower для рейдов
+  {
+    id: 'watchTower',
+    img: '🗼',
+    name: 'Watch Tower',
+    description: 'A tall fortified structure that serves as both lookout post and command center for expeditions into the wasteland. From its heights, scouts can identify potential raid targets and coordinate dangerous missions to recover lost resources and technology. Unlocks raid system',
+    price: { wood: 50, stone: 80, iron: 30, people: 8 },
+    special: {
+      effect: 'unlock_raids',
+      description: 'Unlocks the raid system for expeditions',
+      value: 1
+    },
+    maxLevel: 5,
+    category: 'military'
   }
 ];
 
@@ -169,7 +184,7 @@ export class BuildingManager extends CleanupMixin {
     this.initializeBuildings();
     this.startProduction();
     
-    console.log('🏗️ BuildingManager initialized');
+    console.log('🏗️ BuildingManager initialized with Watch Tower');
   }
 
   // Инициализация зданий
@@ -230,33 +245,52 @@ export class BuildingManager extends CleanupMixin {
     if (building.level >= def.maxLevel) return false;
     
     const price = this.calculatePrice(def.price, building.level);
-    return this.gameState.canAffordResources(price);
+    
+    // НОВОЕ: Проверяем скидку от Ancient Blueprint
+    const finalPrice = this.applyBuildingDiscounts(price);
+    
+    return this.gameState.canAffordResources(finalPrice);
+  }
+
+  // НОВОЕ: Применить скидки на здания
+  applyBuildingDiscounts(basePrice) {
+    let finalPrice = { ...basePrice };
+    
+    // Проверяем временную скидку от Ancient Blueprint
+    if (this.gameState.tempBuildingDiscount && this.gameState.tempBuildingDiscount.uses > 0) {
+      const discount = this.gameState.tempBuildingDiscount.discount;
+      Object.keys(finalPrice).forEach(resource => {
+        finalPrice[resource] = Math.max(1, Math.floor(finalPrice[resource] * (1 - discount)));
+      });
+    }
+    
+    return finalPrice;
   }
 
   // Рассчитать цену здания для текущего уровня
-calculatePrice(basePrice, level) {
-  if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
-    // ЛИНЕЙНОЕ масштабирование вместо экспоненциального
-    const linearMultiplier = 1 + (level * 0.5); // +50% за каждый уровень
-    const scaledPrice = {};
-    
-    Object.entries(basePrice).forEach(([resource, amount]) => {
-      scaledPrice[resource] = Math.max(1, Math.floor(amount * linearMultiplier));
-    });
-    
-    return scaledPrice;
-  } else {
-    // Старое экспоненциальное масштабирование
-    const scalingFactor = Math.pow(1.5, level);
-    const scaledPrice = {};
-    
-    Object.entries(basePrice).forEach(([resource, amount]) => {
-      scaledPrice[resource] = Math.max(1, Math.floor(amount * scalingFactor));
-    });
-    
-    return scaledPrice;
+  calculatePrice(basePrice, level) {
+    if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
+      // ЛИНЕЙНОЕ масштабирование вместо экспоненциального
+      const linearMultiplier = 1 + (level * 0.5); // +50% за каждый уровень
+      const scaledPrice = {};
+      
+      Object.entries(basePrice).forEach(([resource, amount]) => {
+        scaledPrice[resource] = Math.max(1, Math.floor(amount * linearMultiplier));
+      });
+      
+      return scaledPrice;
+    } else {
+      // Старое экспоненциальное масштабирование
+      const scalingFactor = Math.pow(1.5, level);
+      const scaledPrice = {};
+      
+      Object.entries(basePrice).forEach(([resource, amount]) => {
+        scaledPrice[resource] = Math.max(1, Math.floor(amount * scalingFactor));
+      });
+      
+      return scaledPrice;
+    }
   }
-}
 
   // Купить/улучшить здание
   buyBuilding(buildingId) {
@@ -272,11 +306,21 @@ calculatePrice(basePrice, level) {
       return false;
     }
 
-    const price = this.calculatePrice(def.price, building.level);
+    const basePrice = this.calculatePrice(def.price, building.level);
+    const finalPrice = this.applyBuildingDiscounts(basePrice);
     
-    if (!this.gameState.spendResources(price)) {
+    if (!this.gameState.spendResources(finalPrice)) {
       console.warn(`Cannot afford building ${buildingId}`);
       return false;
+    }
+
+    // НОВОЕ: Используем скидку от Ancient Blueprint если есть
+    if (this.gameState.tempBuildingDiscount && this.gameState.tempBuildingDiscount.uses > 0) {
+      this.gameState.tempBuildingDiscount.uses--;
+      if (this.gameState.tempBuildingDiscount.uses <= 0) {
+        delete this.gameState.tempBuildingDiscount;
+      }
+      eventBus.emit(GameEvents.NOTIFICATION, '📜 Ancient Blueprint used! Discount applied');
     }
 
     // Повышаем уровень
@@ -286,6 +330,12 @@ calculatePrice(basePrice, level) {
     // Запускаем производство если это первый уровень
     if (building.level === 1) {
       this.startBuildingProduction(buildingId);
+    }
+
+    // НОВОЕ: Проверяем разблокировку рейдов
+    if (buildingId === 'watchTower' && building.level === 1) {
+      eventBus.emit(GameEvents.NOTIFICATION, '🗼 Watch Tower built! Raid system unlocked!');
+      eventBus.emit('raid:system_unlocked', { buildingId, level: building.level });
     }
 
     eventBus.emit(GameEvents.BUILDING_BOUGHT, { 
@@ -334,56 +384,55 @@ calculatePrice(basePrice, level) {
   }
 
   // Произвести ресурс от здания
-produceBuildingResource(buildingId) {
-  const def = this.getBuildingDefinition(buildingId);
-  const building = this.gameState.buildings[buildingId];
-  
-  if (!def || !building || !building.active) return;
+  produceBuildingResource(buildingId) {
+    const def = this.getBuildingDefinition(buildingId);
+    const building = this.gameState.buildings[buildingId];
+    
+    if (!def || !building || !building.active) return;
 
-  const production = def.production;
-  if (!production) return;
+    const production = def.production;
+    if (!production) return;
 
-  // ИЗМЕНЕНО: Линейное увеличение производства
-  let amount;
-  if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
-    // Линейный рост: каждый уровень добавляет базовое количество
-    amount = production.amount * building.level;
-  } else {
-    // Старая система: прямое умножение на уровень
-    amount = production.amount * building.level;
+    // ИЗМЕНЕНО: Линейное увеличение производства
+    let amount;
+    if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
+      // Линейный рост: каждый уровень добавляет базовое количество
+      amount = production.amount * building.level;
+    } else {
+      // Старая система: прямое умножение на уровень
+      amount = production.amount * building.level;
+    }
+
+    // Time Warp buff - ограниченное ускорение
+    if (this.gameState.buffs && this.gameState.buffs.includes('timeWarp')) {
+      amount *= 2; // было 5x, теперь только 2x
+    }
+
+    // Добавляем ресурс
+    this.gameState.addResource(production.resource, amount);
+
+    // Обрабатываем специальные эффекты с линейным масштабированием
+    if (def.special && def.special.reduces) {
+      const reduceAmount = def.special.amount * building.level;
+      const currentAmount = this.gameState.resources[def.special.reduces] || 0;
+      const newAmount = Math.max(0, currentAmount - reduceAmount);
+      this.gameState.resources[def.special.reduces] = newAmount;
+    }
+
+    eventBus.emit(GameEvents.BUILDING_PRODUCED, {
+      buildingId,
+      resource: production.resource,
+      amount,
+      level: building.level
+    });
+
+    eventBus.emit(GameEvents.RESOURCE_CHANGED);
   }
 
-  // Time Warp buff - ограниченное ускорение
-  if (this.gameState.buffs && this.gameState.buffs.includes('timeWarp')) {
-    amount *= 2; // было 5x, теперь только 2x
-  }
-
-  // Добавляем ресурс
-  this.gameState.addResource(production.resource, amount);
-
-  // Обрабатываем специальные эффекты с линейным масштабированием
-  if (def.special && def.special.reduces) {
-    const reduceAmount = def.special.amount * building.level;
-    const currentAmount = this.gameState.resources[def.special.reduces] || 0;
-    const newAmount = Math.max(0, currentAmount - reduceAmount);
-    this.gameState.resources[def.special.reduces] = newAmount;
-  }
-
-  eventBus.emit(GameEvents.BUILDING_PRODUCED, {
-    buildingId,
-    resource: production.resource,
-    amount,
-    level: building.level
-  });
-
-  eventBus.emit(GameEvents.RESOURCE_CHANGED);
-}
-
-  // Остановить производство здания - FIXED: Use correct CleanupManager method
+  // Остановить производство здания
   stopBuildingProduction(buildingId) {
     if (this.productionIntervals.has(buildingId)) {
       const intervalId = this.productionIntervals.get(buildingId);
-      // FIXED: Use the CleanupManager method correctly
       this.cleanupManager.clearInterval(intervalId);
       this.productionIntervals.delete(buildingId);
     }
@@ -396,19 +445,23 @@ produceBuildingResource(buildingId) {
     
     if (!def || !building) return null;
 
-    const nextPrice = building.level < def.maxLevel ? 
+    const basePrice = building.level < def.maxLevel ? 
       this.calculatePrice(def.price, building.level) : null;
+    
+    const nextPrice = basePrice ? this.applyBuildingDiscounts(basePrice) : null;
 
     return {
       ...def,
       currentLevel: building.level,
       nextPrice,
+      basePrice, // Показываем и базовую цену для сравнения
       canAfford: building.level < def.maxLevel ? this.canAfford(buildingId) : false,
       isMaxLevel: building.level >= def.maxLevel,
       isActive: building.active,
       productionRate: def.production ? 
         `${def.production.amount * building.level} per ${def.production.interval/1000}s` : null,
-      specialEffect: def.special ? def.special.description : null
+      specialEffect: def.special ? def.special.description : null,
+      hasDiscount: this.gameState.tempBuildingDiscount && this.gameState.tempBuildingDiscount.uses > 0
     };
   }
 
@@ -451,6 +504,12 @@ produceBuildingResource(buildingId) {
     return Math.min(bonus, 1.0); // Ограничиваем максимальный бонус
   }
 
+  // Проверить, разблокирована ли система рейдов
+  isRaidSystemUnlocked() {
+    const watchTower = this.gameState.buildings.watchTower;
+    return watchTower && watchTower.level >= 1;
+  }
+
   // Получить общую статистику зданий
   getBuildingStatistics() {
     const stats = {
@@ -460,6 +519,7 @@ produceBuildingResource(buildingId) {
       productionBuildings: 0,
       specialBuildings: 0,
       maxLevelBuildings: 0,
+      militaryBuildings: 0, // НОВОЕ: военные здания
       categories: {}
     };
 
@@ -481,6 +541,11 @@ produceBuildingResource(buildingId) {
 
         if (def.special) {
           stats.specialBuildings++;
+        }
+
+        // НОВОЕ: подсчет военных зданий
+        if (def.category === 'military') {
+          stats.militaryBuildings++;
         }
 
         // Статистика по категориям
@@ -560,19 +625,22 @@ produceBuildingResource(buildingId) {
       return this.gameState.resources.gold >= 50;
     }
 
+    // НОВОЕ: военные здания требуют определенный прогресс
+    if (buildingId === 'watchTower') {
+      return this.gameState.resources.people >= 8 && this.gameState.resources.iron >= 20;
+    }
+
     return true;
   }
 
-  // Остановить все производство - FIXED: Use correct CleanupManager method
+  // Остановить все производство
   stopAllProduction() {
     console.log('🛑 Stopping all building production...');
     
-    // FIXED: Iterate safely and use correct cleanup method
     const intervalsToStop = Array.from(this.productionIntervals.entries());
     
     intervalsToStop.forEach(([buildingId, intervalId]) => {
       try {
-        // Use the CleanupManager method correctly
         this.cleanupManager.clearInterval(intervalId);
         console.log(`Stopped production for ${buildingId}`);
       } catch (error) {
@@ -584,7 +652,7 @@ produceBuildingResource(buildingId) {
     console.log('✅ All building production stopped');
   }
 
-  // Деструктор - FIXED: Use correct cleanup method
+  // Деструктор
   destroy() {
     if (this.isDestroyed) return;
     
