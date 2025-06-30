@@ -61,10 +61,13 @@ constructor(gameState) {
   this.raidProgress = 0;
   this.raidStartTime = 0;
   this.isRaidInProgress = false;
-  this.autoClickerWasActive = false; // НОВОЕ: отслеживание состояния автокликера
+  this.autoClickerWasActive = false;
   
   this.initializeRaidState();
   this.bindEvents();
+  
+  // НОВОЕ: Восстанавливаем состояние рейда после загрузки
+  this.restoreRaidStateFromSave();
   
   console.log('⚔️ RaidManager initialized');
 }
@@ -87,6 +90,49 @@ constructor(gameState) {
     // Валидация состояния рейдов
     this.validateRaidState();
   }
+
+  restoreRaidStateFromSave() {
+  if (!this.gameState.raids) return;
+  
+  const raids = this.gameState.raids;
+  
+  // Проверяем, был ли активный рейд
+  if (raids.isRaidInProgress && raids.activeRaid) {
+    console.log('🔄 Restoring active raid from save:', raids.activeRaid.name);
+    
+    // Восстанавливаем состояние
+    this.activeRaid = raids.activeRaid;
+    this.isRaidInProgress = raids.isRaidInProgress;
+    this.raidStartTime = raids.raidStartTime;
+    this.raidProgress = raids.raidProgress;
+    this.autoClickerWasActive = raids.autoClickerWasActive;
+    
+    // Проверяем, не истек ли рейд за время отсутствия
+    const now = Date.now();
+    const elapsed = now - this.raidStartTime;
+    const raidDuration = this.activeRaid.duration;
+    
+    if (elapsed >= raidDuration) {
+      console.log('⏰ Raid expired while away, completing it...');
+      // Рейд завершился пока игрок был в офлайне
+      this.completeRaid();
+    } else {
+      console.log('⚔️ Raid still in progress, resuming...');
+      
+      // Обновляем прогресс
+      this.raidProgress = Math.min(100, (elapsed / raidDuration) * 100);
+      
+      // Блокируем игровое поле
+      this.blockGameField(true);
+      
+      // Запускаем таймер
+      this.startRaidTimer();
+      
+      // Уведомляем о возобновлении
+      eventBus.emit(GameEvents.NOTIFICATION, `⚔️ Resumed: ${this.activeRaid.name}`);
+    }
+  }
+}
 
   // Валидация состояния рейдов
   validateRaidState() {
@@ -208,10 +254,13 @@ startRaid(raidId) {
     this.raidStartTime = Date.now();
     this.raidProgress = 0;
     
+    // НОВОЕ: Сохраняем состояние в GameState
+    this.saveRaidStateToGameState();
+    
     // Блокируем игровое поле
     this.blockGameField(true);
     
-    // НОВОЕ: Отключаем автокликер во время рейда
+    // Отключаем автокликер во время рейда
     this.pauseAutoClicker();
     
     // Запускаем таймер рейда
@@ -251,6 +300,31 @@ pauseAutoClicker() {
     console.log('🤖 Auto clicker was not active, no pause needed');
   }
 }
+
+saveRaidStateToGameState() {
+  if (!this.gameState.raids) {
+    this.gameState.raids = {
+      completed: [],
+      specialRewards: {},
+      statistics: {
+        totalRaids: 0,
+        successfulRaids: 0,
+        resourcesGained: {},
+        peopleLost: 0
+      }
+    };
+  }
+  
+  // Сохраняем текущее состояние активного рейда
+  this.gameState.raids.activeRaid = this.activeRaid;
+  this.gameState.raids.isRaidInProgress = this.isRaidInProgress;
+  this.gameState.raids.raidStartTime = this.raidStartTime;
+  this.gameState.raids.raidProgress = this.raidProgress;
+  this.gameState.raids.autoClickerWasActive = this.autoClickerWasActive;
+  
+  console.log('💾 Raid state saved to GameState');
+}
+
 
 // НОВЫЙ МЕТОД: Восстановить автокликер
 resumeAutoClicker() {
@@ -362,29 +436,32 @@ resumeAutoClicker() {
   }
 
   // Запустить таймер рейда
-  startRaidTimer() {
-    const updateTimer = () => {
-      if (!this.isRaidInProgress || !this.activeRaid) return;
-      
-      const elapsed = Date.now() - this.raidStartTime;
-      const remaining = Math.max(0, this.activeRaid.duration - elapsed);
-      this.raidProgress = Math.min(100, (elapsed / this.activeRaid.duration) * 100);
-      
-      // Обновляем таймер в оверлее
-      this.updateRaidTimer(remaining);
-      
-      // Проверяем завершение
-      if (remaining <= 0) {
-        this.completeRaid();
-        return;
-      }
-      
-      // Продолжаем обновление
-      this.createTimeout(updateTimer, 1000);
-    };
+startRaidTimer() {
+  const updateTimer = () => {
+    if (!this.isRaidInProgress || !this.activeRaid) return;
     
-    updateTimer();
-  }
+    const elapsed = Date.now() - this.raidStartTime;
+    const remaining = Math.max(0, this.activeRaid.duration - elapsed);
+    this.raidProgress = Math.min(100, (elapsed / this.activeRaid.duration) * 100);
+    
+    // НОВОЕ: Периодически сохраняем прогресс
+    this.saveRaidStateToGameState();
+    
+    // Обновляем таймер в оверлее
+    this.updateRaidTimer(remaining);
+    
+    // Проверяем завершение
+    if (remaining <= 0) {
+      this.completeRaid();
+      return;
+    }
+    
+    // Продолжаем обновление
+    this.createTimeout(updateTimer, 1000);
+  };
+  
+  updateTimer();
+}
 
   // Обновить таймер в оверлее
   updateRaidTimer(remainingMs) {
@@ -561,10 +638,19 @@ endRaid() {
   this.raidProgress = 0;
   this.raidStartTime = 0;
   
+  // НОВОЕ: Очищаем состояние рейда в GameState
+  if (this.gameState.raids) {
+    this.gameState.raids.activeRaid = null;
+    this.gameState.raids.isRaidInProgress = false;
+    this.gameState.raids.raidStartTime = 0;
+    this.gameState.raids.raidProgress = 0;
+    this.gameState.raids.autoClickerWasActive = false;
+  }
+  
   // Разблокируем игровое поле
   this.blockGameField(false);
   
-  // НОВОЕ: Восстанавливаем автокликер после рейда
+  // Восстанавливаем автокликер после рейда
   this.resumeAutoClicker();
   
   eventBus.emit(GameEvents.RAID_COMPLETED, {

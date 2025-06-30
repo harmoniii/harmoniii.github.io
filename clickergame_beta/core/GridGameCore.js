@@ -212,41 +212,40 @@ export class GridGameCore extends CleanupMixin {
   }
 
   autoSave() {
-    if (!this.gameState || this.gameState.isDestroyed || !this.storageManager) {
-      return false;
-    }
-
-    try {
-      // Сохраняем текущую целевую клетку
-      if (this.gridManager) {
-        this.gameState.targetZone = this.gridManager.getTargetCell();
-      }
-      
-      // НОВОЕ: Сохраняем данные рейдов
-      const saveData = this.gameState.getSaveData();
-      if (!saveData) return false;
-      
-      // НОВОЕ: Добавляем данные рейдов в сохранение
-      if (this.managers.raid) {
-        saveData.raids = this.gameState.raids;
-      }
-      
-      const success = this.storageManager.safeSave({
-        ...saveData,
-        getSaveData: () => saveData
-      });
-      
-      if (success) {
-        console.log('💾 Auto-save completed with raids');
-      }
-      
-      return success;
-      
-    } catch (error) {
-      console.error('❌ Auto-save failed:', error);
-      return false;
-    }
+  if (!this.gameState || this.gameState.isDestroyed || !this.storageManager) {
+    return false;
   }
+
+  try {
+    // Сохраняем текущую целевую клетку
+    if (this.gridManager) {
+      this.gameState.targetZone = this.gridManager.getTargetCell();
+    }
+    
+    // НОВОЕ: Обновляем состояние рейда перед сохранением
+    if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+      this.managers.raid.saveRaidStateToGameState();
+    }
+    
+    const saveData = this.gameState.getSaveData();
+    if (!saveData) return false;
+    
+    const success = this.storageManager.safeSave({
+      ...saveData,
+      getSaveData: () => saveData
+    });
+    
+    if (success) {
+      console.log('💾 Auto-save completed with raid state');
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('❌ Auto-save failed:', error);
+    return false;
+  }
+}
 
   handleGameReset() {
     console.log('🔥 Handling game reset...');

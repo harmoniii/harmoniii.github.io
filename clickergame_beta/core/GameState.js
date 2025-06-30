@@ -34,6 +34,23 @@ export class GameState {
       lastAngle: null
     };
 
+    this.raids = {
+  completed: [],
+  specialRewards: {},
+  statistics: {
+    totalRaids: 0,
+    successfulRaids: 0,
+    resourcesGained: {},
+    peopleLost: 0
+  },
+  // НОВОЕ: состояние активного рейда
+  activeRaid: null,
+  isRaidInProgress: false,
+  raidStartTime: 0,
+  raidProgress: 0,
+  autoClickerWasActive: false
+};
+
     // УДАЛЕНО: targetZone и previousTargetZone теперь управляются ZoneManager
     // Зоны больше НЕ хранятся в GameState!
 
@@ -209,6 +226,14 @@ validateSkillPoints(value) {
     }
   
     try {
+      const raidState = this.raidManager ? {
+        activeRaid: this.raidManager.activeRaid,
+        isRaidInProgress: this.raidManager.isRaidInProgress,
+        raidStartTime: this.raidManager.raidStartTime,
+        raidProgress: this.raidManager.raidProgress,
+        autoClickerWasActive: this.raidManager.autoClickerWasActive
+      } : null;
+
       const saveData = {
         // Основные ресурсы (БЕЗ энергии)
         resources: this.resources ? { ...this.resources } : {},
@@ -266,6 +291,25 @@ validateSkillPoints(value) {
           reverseDirection: 1,
           frozenCombo: false
         },
+
+         raids: this.raids ? { ...this.raids } : {
+        completed: [],
+        specialRewards: {},
+        statistics: {
+          totalRaids: 0,
+          successfulRaids: 0,
+          resourcesGained: {},
+          peopleLost: 0
+        },
+        activeRaid: null,
+        isRaidInProgress: false,
+        raidStartTime: 0,
+        raidProgress: 0,
+        autoClickerWasActive: false
+      },
+      
+      // НОВОЕ: Временное состояние активного рейда
+      raidState: raidState,
         
         // Метаданные
         saveTimestamp: Date.now(),
@@ -433,6 +477,56 @@ validateSkillPoints(value) {
     };
 
     this.lastTimestamp = Date.now();
+
+    if (data.raids && typeof data.raids === 'object') {
+    this.raids = {
+      completed: Array.isArray(data.raids.completed) ? data.raids.completed : [],
+      specialRewards: data.raids.specialRewards || {},
+      statistics: {
+        totalRaids: Math.max(0, data.raids.statistics?.totalRaids || 0),
+        successfulRaids: Math.max(0, data.raids.statistics?.successfulRaids || 0),
+        resourcesGained: data.raids.statistics?.resourcesGained || {},
+        peopleLost: Math.max(0, data.raids.statistics?.peopleLost || 0)
+      },
+      // НОВОЕ: сохраняем состояние активного рейда
+      activeRaid: data.raids.activeRaid || null,
+      isRaidInProgress: Boolean(data.raids.isRaidInProgress),
+      raidStartTime: data.raids.raidStartTime || 0,
+      raidProgress: Math.max(0, Math.min(100, data.raids.raidProgress || 0)),
+      autoClickerWasActive: Boolean(data.raids.autoClickerWasActive)
+    };
+  } else {
+    // Инициализируем пустое состояние рейдов
+    this.raids = {
+      completed: [],
+      specialRewards: {},
+      statistics: {
+        totalRaids: 0,
+        successfulRaids: 0,
+        resourcesGained: {},
+        peopleLost: 0
+      },
+      activeRaid: null,
+      isRaidInProgress: false,
+      raidStartTime: 0,
+      raidProgress: 0,
+      autoClickerWasActive: false
+    };
+  }
+
+  // НОВОЕ: Обрабатываем временное состояние рейда из raidState
+  if (data.raidState && typeof data.raidState === 'object') {
+    console.log('📥 Restoring active raid state from save...');
+    
+    // Копируем данные из raidState в raids если они более свежие
+    if (data.raidState.isRaidInProgress) {
+      this.raids.activeRaid = data.raidState.activeRaid;
+      this.raids.isRaidInProgress = data.raidState.isRaidInProgress;
+      this.raids.raidStartTime = data.raidState.raidStartTime;
+      this.raids.raidProgress = data.raidState.raidProgress;
+      this.raids.autoClickerWasActive = data.raidState.autoClickerWasActive;
+    }
+  }
     
     console.log('✅ GameState data loaded successfully');
   }
