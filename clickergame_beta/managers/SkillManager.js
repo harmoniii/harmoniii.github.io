@@ -12,140 +12,184 @@ export const SKILL_CATEGORIES = {
     energy: 'Energy Skills'
 };
 
-export const SKILL_DEFS = [
-    // Clicking Skills
-    {
-        id: 'goldMultiplier',
-        name: 'Golden Touch',
-        icon: '💰',
-        description: 'Increase gold gain from clicks',
-        category: 'clicking',
-        maxLevel: 20,
-        baseCost: 1,
-        costMultiplier: 1.3,
-        effect: { type: 'multiplier', target: 'gold', value: 0.1 }
-    },
-    {
-        id: 'criticalHit',
-        name: 'Critical Strike',
-        icon: '💥',
-        description: 'Chance for double damage on clicks',
-        category: 'clicking',
-        maxLevel: 10,
-        baseCost: 2,
-        costMultiplier: 1.5,
-        effect: { type: 'chance', target: 'critical', value: 0.05 }
-    },
-    {
-        id: 'resourceBonus',
-        name: 'Resource Finder',
-        icon: '🔍',
-        description: 'Chance to find bonus resources when clicking',
-        category: 'clicking',
-        maxLevel: 15,
-        baseCost: 3,
-        costMultiplier: 1.4,
-        effect: { type: 'chance', target: 'bonus_resource', value: 0.03 }
-    },
-
-    // Combo Skills
-    {
-        id: 'comboProtection',
-        name: 'Steady Hand',
-        icon: '🎯',
-        description: 'Protection against combo breaks',
-        category: 'combo',
-        maxLevel: 5,
-        baseCost: 5,
-        costMultiplier: 2.0,
-        effect: { type: 'charges', target: 'miss_protection', value: 1 }
-    },
-    {
-        id: 'comboExtension',
-        name: 'Time Stretch',
-        icon: '⏰',
-        description: 'Extend combo timeout duration',
-        category: 'combo',
-        maxLevel: 10,
-        baseCost: 3,
-        costMultiplier: 1.6,
-        effect: { type: 'duration', target: 'combo_timeout', value: 1000 }
-    },
-    {
-        id: 'comboMultiplier',
-        name: 'Combo Master',
-        icon: '🔥',
-        description: 'Increase effectiveness of combos',
-        category: 'combo',
-        maxLevel: 15,
-        baseCost: 4,
-        costMultiplier: 1.5,
-        effect: { type: 'multiplier', target: 'combo', value: 0.15 }
-    },
-
-    // Energy Skills
-    {
-        id: 'energyEfficiency',
-        name: 'Energy Efficiency',
-        icon: '💡',
-        description: 'Reduce energy consumption',
-        category: 'energy',
-        maxLevel: 3,
-        baseCost: 5,
-        costMultiplier: 2.0,
-        effect: { type: 'reduction', target: 'energy_cost', value: 0.25 }
-    },
-    {
-        id: 'energyMastery',
-        name: 'Energy Mastery',
-        icon: '⚡',
-        description: 'Increase energy regeneration rate',
-        category: 'energy',
-        maxLevel: 5,
-        baseCost: 8,
-        costMultiplier: 1.8,
-        effect: { type: 'multiplier', target: 'energy_regen', value: 1.0 }
-    },
-    {
-        id: 'powerStorage',
-        name: 'Power Storage',
-        icon: '🔋',
-        description: 'Increase maximum energy capacity',
-        category: 'energy',
-        maxLevel: 4,
-        baseCost: 10,
-        costMultiplier: 2.2,
-        effect: { type: 'bonus', target: 'max_energy', value: 50 }
-    },
-
-    // Special Skills
-    {
-        id: 'autoClicker',
-        name: 'Auto Clicker',
-        icon: '🤖',
-        description: 'Automatically click the target zone',
-        category: 'special',
-        maxLevel: 3,
-        baseCost: 20,
-        costMultiplier: 3.0,
-        effect: { 
-            type: 'automation', 
-            target: 'clicking', 
-            value: 1, 
-            interval: GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL 
-        }
-    },
-    {
-        id: 'zonePreview',
-        name: 'Future Sight',
-        icon: '👁️',
-        description: 'Preview the next target zone',
-        category: 'special',
-        maxLevel: 1,
-        baseCost: 15,
-        costMultiplier: 1.0,
-        effect: { type: 'preview', target: 'zone', value: 1 }
+export const LINEAR_SKILL_DEFS = [
+  // Clicking Skills - с убывающей отдачей
+  {
+    id: 'goldMultiplier',
+    name: 'Golden Touch',
+    icon: '💰',
+    description: 'Increase gold gain from clicks',
+    category: 'clicking',
+    maxLevel: 20,
+    baseCost: 1,
+    costMultiplier: 1.2, // было 1.3
+    effect: { 
+      type: 'multiplier', 
+      target: 'gold', 
+      value: 0.05, // было 0.1
+      diminishing: true, // новое поле
+      diminishingFactor: 0.8 // каждый уровень дает 80% от предыдущего
     }
+  },
+  {
+    id: 'criticalHit',
+    name: 'Critical Strike',
+    icon: '💥',
+    description: 'Chance for double damage on clicks',
+    category: 'clicking',
+    maxLevel: 10,
+    baseCost: 2,
+    costMultiplier: 1.3, // было 1.5
+    effect: { 
+      type: 'chance', 
+      target: 'critical', 
+      value: 0.03, // было 0.05
+      cap: 0.25 // максимум 25% шанс крита
+    }
+  },
+  {
+    id: 'resourceBonus',
+    name: 'Resource Finder',
+    icon: '🔍',
+    description: 'Chance to find bonus resources when clicking',
+    category: 'clicking',
+    maxLevel: 15,
+    baseCost: 3,
+    costMultiplier: 1.25, // было 1.4
+    effect: { 
+      type: 'chance', 
+      target: 'bonus_resource', 
+      value: 0.02, // было 0.03
+      cap: 0.2 // максимум 20% шанс
+    }
+  },
+
+  // Combo Skills - с ограничениями
+  {
+    id: 'comboProtection',
+    name: 'Steady Hand',
+    icon: '🎯',
+    description: 'Protection against combo breaks',
+    category: 'combo',
+    maxLevel: 3, // было 5
+    baseCost: 8, // было 5
+    costMultiplier: 2.5, // было 2.0
+    effect: { type: 'charges', target: 'miss_protection', value: 1 }
+  },
+  {
+    id: 'comboExtension',
+    name: 'Time Stretch',
+    icon: '⏰',
+    description: 'Extend combo timeout duration',
+    category: 'combo',
+    maxLevel: 8, // было 10
+    baseCost: 4, // было 3
+    costMultiplier: 1.4, // было 1.6
+    effect: { 
+      type: 'duration', 
+      target: 'combo_timeout', 
+      value: 800, // было 1000
+      diminishing: true,
+      diminishingFactor: 0.7 // сильно убывающая отдача
+    }
+  },
+  {
+    id: 'comboMultiplier',
+    name: 'Combo Master',
+    icon: '🔥',
+    description: 'Increase effectiveness of combos',
+    category: 'combo',
+    maxLevel: 10, // было 15
+    baseCost: 6, // было 4
+    costMultiplier: 1.6, // было 1.5
+    effect: { 
+      type: 'multiplier', 
+      target: 'combo', 
+      value: 0.08, // было 0.15
+      cap: 0.5 // максимум 50% бонус к комбо
+    }
+  },
+
+  // Energy Skills - сбалансированные
+  {
+    id: 'energyEfficiency',
+    name: 'Energy Efficiency',
+    icon: '💡',
+    description: 'Reduce energy consumption',
+    category: 'energy',
+    maxLevel: 3,
+    baseCost: 8, // было 5
+    costMultiplier: 2.5, // было 2.0
+    effect: { 
+      type: 'reduction', 
+      target: 'energy_cost', 
+      value: 0.15, // было 0.25
+      cap: 0.4 // максимум 40% снижение
+    }
+  },
+  {
+    id: 'energyMastery',
+    name: 'Energy Mastery',
+    icon: '⚡',
+    description: 'Increase energy regeneration rate',
+    category: 'energy',
+    maxLevel: 5,
+    baseCost: 10, // было 8
+    costMultiplier: 2.0, // было 1.8
+    effect: { 
+      type: 'multiplier', 
+      target: 'energy_regen', 
+      value: 0.4, // было 1.0
+      diminishing: true,
+      diminishingFactor: 0.75
+    }
+  },
+  {
+    id: 'powerStorage',
+    name: 'Power Storage',
+    icon: '🔋',
+    description: 'Increase maximum energy capacity',
+    category: 'energy',
+    maxLevel: 4,
+    baseCost: 12, // было 10
+    costMultiplier: 2.0, // было 2.2
+    effect: { 
+      type: 'bonus', 
+      target: 'max_energy', 
+      value: 25, // было 50
+      diminishing: true,
+      diminishingFactor: 0.8
+    }
+  },
+
+  // Special Skills - дорогие и ограниченные
+  {
+    id: 'autoClicker',
+    name: 'Auto Clicker',
+    icon: '🤖',
+    description: 'Automatically click the target zone',
+    category: 'special',
+    maxLevel: 3,
+    baseCost: 30, // было 20
+    costMultiplier: 4.0, // было 3.0
+    effect: { 
+      type: 'automation', 
+      target: 'clicking', 
+      value: 1, 
+      interval: GAME_CONSTANTS.AUTO_CLICKER_BASE_INTERVAL 
+    }
+  },
+  {
+    id: 'zonePreview',
+    name: 'Future Sight',
+    icon: '👁️',
+    description: 'Preview the next target zone',
+    category: 'special',
+    maxLevel: 1,
+    baseCost: 25, // было 15
+    costMultiplier: 1.0,
+    effect: { type: 'preview', target: 'zone', value: 1 }
+  }
 ];
 
 export class SkillManager extends CleanupMixin {
@@ -353,19 +397,41 @@ export class SkillManager extends CleanupMixin {
         return skill ? skill.level : 0;
     }
 
-    getSkillBonus(type, target = null) {
-        let bonus = 0;
-        
-        SKILL_DEFS.forEach(def => {
-            const level = this.getSkillLevel(def.id);
-            if (level > 0 && def.effect.type === type && 
-                (target === null || def.effect.target === target)) {
-                bonus += def.effect.value * level;
-            }
-        });
-        
-        return bonus;
+getSkillBonus(type, target = null) {
+  let bonus = 0;
+  
+  const skillDefs = GAME_CONSTANTS.SKILL_DIMINISHING_RETURNS ? 
+    LINEAR_SKILL_DEFS : SKILL_DEFS;
+  
+  skillDefs.forEach(def => {
+    const level = this.getSkillLevel(def.id);
+    if (level > 0 && def.effect.type === type && 
+        (target === null || def.effect.target === target)) {
+      
+      let skillBonus = 0;
+      
+      if (def.effect.diminishing && GAME_CONSTANTS.SKILL_DIMINISHING_RETURNS) {
+        // Убывающая отдача: каждый уровень дает меньше
+        const factor = def.effect.diminishingFactor || 0.8;
+        for (let i = 1; i <= level; i++) {
+          skillBonus += def.effect.value * Math.pow(factor, i - 1);
+        }
+      } else {
+        // Линейный бонус
+        skillBonus = def.effect.value * level;
+      }
+      
+      // Применяем кап если есть
+      if (def.effect.cap) {
+        skillBonus = Math.min(skillBonus, def.effect.cap);
+      }
+      
+      bonus += skillBonus;
     }
+  });
+  
+  return bonus;
+}
 
     canUseMissProtection() {
         return this.gameState.skillStates.missProtectionCharges > 0;

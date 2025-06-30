@@ -234,7 +234,19 @@ export class BuildingManager extends CleanupMixin {
   }
 
   // Рассчитать цену здания для текущего уровня
-  calculatePrice(basePrice, level) {
+calculatePrice(basePrice, level) {
+  if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
+    // ЛИНЕЙНОЕ масштабирование вместо экспоненциального
+    const linearMultiplier = 1 + (level * 0.5); // +50% за каждый уровень
+    const scaledPrice = {};
+    
+    Object.entries(basePrice).forEach(([resource, amount]) => {
+      scaledPrice[resource] = Math.max(1, Math.floor(amount * linearMultiplier));
+    });
+    
+    return scaledPrice;
+  } else {
+    // Старое экспоненциальное масштабирование
     const scalingFactor = Math.pow(1.5, level);
     const scaledPrice = {};
     
@@ -244,6 +256,7 @@ export class BuildingManager extends CleanupMixin {
     
     return scaledPrice;
   }
+}
 
   // Купить/улучшить здание
   buyBuilding(buildingId) {
@@ -321,43 +334,50 @@ export class BuildingManager extends CleanupMixin {
   }
 
   // Произвести ресурс от здания
-  produceBuildingResource(buildingId) {
-    const def = this.getBuildingDefinition(buildingId);
-    const building = this.gameState.buildings[buildingId];
-    
-    if (!def || !building || !building.active) return;
+produceBuildingResource(buildingId) {
+  const def = this.getBuildingDefinition(buildingId);
+  const building = this.gameState.buildings[buildingId];
+  
+  if (!def || !building || !building.active) return;
 
-    const production = def.production;
-    if (!production) return;
+  const production = def.production;
+  if (!production) return;
 
-    // Количество ресурса зависит от уровня здания
-    let amount = production.amount * building.level;
-
-    // Time Warp buff - ускорение производства
-    if (this.gameState.buffs && this.gameState.buffs.includes('timeWarp')) {
-      amount *= 5;
-    }
-
-    // Добавляем ресурс
-    this.gameState.addResource(production.resource, amount);
-
-    // Обрабатываем специальные эффекты
-    if (def.special && def.special.reduces) {
-      const reduceAmount = def.special.amount * building.level;
-      const currentAmount = this.gameState.resources[def.special.reduces] || 0;
-      const newAmount = Math.max(0, currentAmount - reduceAmount);
-      this.gameState.resources[def.special.reduces] = newAmount;
-    }
-
-    eventBus.emit(GameEvents.BUILDING_PRODUCED, {
-      buildingId,
-      resource: production.resource,
-      amount,
-      level: building.level
-    });
-
-    eventBus.emit(GameEvents.RESOURCE_CHANGED);
+  // ИЗМЕНЕНО: Линейное увеличение производства
+  let amount;
+  if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
+    // Линейный рост: каждый уровень добавляет базовое количество
+    amount = production.amount * building.level;
+  } else {
+    // Старая система: прямое умножение на уровень
+    amount = production.amount * building.level;
   }
+
+  // Time Warp buff - ограниченное ускорение
+  if (this.gameState.buffs && this.gameState.buffs.includes('timeWarp')) {
+    amount *= 2; // было 5x, теперь только 2x
+  }
+
+  // Добавляем ресурс
+  this.gameState.addResource(production.resource, amount);
+
+  // Обрабатываем специальные эффекты с линейным масштабированием
+  if (def.special && def.special.reduces) {
+    const reduceAmount = def.special.amount * building.level;
+    const currentAmount = this.gameState.resources[def.special.reduces] || 0;
+    const newAmount = Math.max(0, currentAmount - reduceAmount);
+    this.gameState.resources[def.special.reduces] = newAmount;
+  }
+
+  eventBus.emit(GameEvents.BUILDING_PRODUCED, {
+    buildingId,
+    resource: production.resource,
+    amount,
+    level: building.level
+  });
+
+  eventBus.emit(GameEvents.RESOURCE_CHANGED);
+}
 
   // Остановить производство здания - FIXED: Use correct CleanupManager method
   stopBuildingProduction(buildingId) {

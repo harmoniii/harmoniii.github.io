@@ -344,113 +344,138 @@ export class GridFeatureManager extends CleanupMixin {
   }
 
   // Обработка комбо
-  handleCombo(clickResult, now, accuracy = 0.5) {
-    const { cellIndex } = clickResult;
+handleCombo(clickResult, now, accuracy = 0.5) {
+  const { cellIndex } = clickResult;
+  
+  // Time Stretch skill с убывающей отдачей
+  const extraTime = this.getSkillBonus('duration', 'combo_timeout');
+  const comboTimeout = GAME_CONSTANTS.COMBO_TIMEOUT + extraTime;
+  
+  // Проверяем заморозку комбо
+  const isComboFrozen = this.gameState.debuffs && this.gameState.debuffs.includes('freeze');
+  
+  if (!isComboFrozen) {
+    const currentDeadline = this.gameState.combo?.deadline || 0;
+    const comboExpired = this.gameState.combo.count > 0 && now > currentDeadline;
     
-    // Time Stretch skill
-    const extraTime = this.getSkillBonus('duration', 'combo_timeout');
-    const comboTimeout = GAME_CONSTANTS.COMBO_TIMEOUT + extraTime;
-    
-    // Проверяем заморозку комбо
-    const isComboFrozen = this.gameState.debuffs && this.gameState.debuffs.includes('freeze');
-    
-    if (!isComboFrozen) {
-      const currentDeadline = this.gameState.combo?.deadline || 0;
-      const comboExpired = this.gameState.combo.count > 0 && now > currentDeadline;
-      
-      if (comboExpired) {
-        this.gameState.combo.count = 1;
-      } else {
-        this.gameState.combo.count++;
-      }
-      
-      this.gameState.combo.deadline = now + comboTimeout;
+    if (comboExpired) {
+      this.gameState.combo.count = 1;
+    } else {
+      this.gameState.combo.count++;
     }
     
-    this.gameState.combo.lastZone = cellIndex;
-    this.gameState.combo.count = Math.min(this.gameState.combo.count, GAME_CONSTANTS.MAX_COMBO_COUNT);
-    
-    // Combo Master skill
-    const comboMultiplier = 1 + this.getSkillBonus('multiplier', 'combo');
-    const effectiveCombo = Math.floor(this.gameState.combo.count * comboMultiplier);
-    
-    eventBus.emit(GameEvents.COMBO_CHANGED, {
-      count: this.gameState.combo.count,
-      effective: effectiveCombo,
-      cell: cellIndex,
-      target: this.gridManager?.getTargetCell(),
-      deadline: this.gameState.combo.deadline,
-      timeLeft: Math.max(0, this.gameState.combo.deadline - now),
-      accuracy: accuracy,
-      reason: 'target_hit'
-    });
-    
-    return effectiveCombo;
+    this.gameState.combo.deadline = now + comboTimeout;
   }
+  
+  this.gameState.combo.lastZone = cellIndex;
+  this.gameState.combo.count = Math.min(this.gameState.combo.count, GAME_CONSTANTS.MAX_COMBO_COUNT);
+  
+  // Combo Master skill с ограничением
+  const comboMultiplierBonus = this.getSkillBonus('multiplier', 'combo');
+  const comboMultiplier = 1 + Math.min(0.5, comboMultiplierBonus); // максимум 50% бонус
+  
+  let effectiveCombo = Math.floor(this.gameState.combo.count * comboMultiplier);
+  
+  // НОВОЕ: Экспоненциальное затухание комбо-бонуса
+  if (GAME_CONSTANTS.LINEAR_SCALING_ENABLED && effectiveCombo > 20) {
+    const excess = effectiveCombo - 20;
+    effectiveCombo = 20 + Math.floor(excess * 0.5); // 50% эффективность после 20
+  }
+  
+  eventBus.emit(GameEvents.COMBO_CHANGED, {
+    count: this.gameState.combo.count,
+    effective: effectiveCombo,
+    cell: cellIndex,
+    target: this.gridManager?.getTargetCell(),
+    deadline: this.gameState.combo.deadline,
+    timeLeft: Math.max(0, this.gameState.combo.deadline - now),
+    accuracy: accuracy,
+    reason: 'target_hit'
+  });
+  
+  return effectiveCombo;
+}
 
   // ОБНОВЛЕНО: Обработка получения золота с новыми эффектами
   handleGoldGain(clickResult, effectiveCombo, accuracy = 0.5) {
-    let clickMultiplier = 1;
-    
-    // Double Tap buff
-    if (this.gameState.buffs && this.gameState.buffs.includes('doubleTap')) {
-      clickMultiplier = GAME_CONSTANTS.DOUBLE_TAP_MULTIPLIER;
-    }
-    
-    let goldGain = Math.max(1, effectiveCombo * clickMultiplier);
-    
-    // Бонус за точность
-    const accuracyBonus = 1 + (accuracy * 0.5);
-    goldGain = Math.floor(goldGain * accuracyBonus);
-    
-    // Golden Touch skill
-    const goldMultiplier = 1 + this.getSkillBonus('multiplier', 'gold');
-    goldGain = Math.floor(goldGain * goldMultiplier);
-    
-    // Frenzy buff
-    if (this.gameState.buffs && this.gameState.buffs.includes('frenzy')) {
-      goldGain *= GAME_CONSTANTS.FRENZY_MULTIPLIER;
-    }
-    
-    // Golden Touch buff
-    if (this.gameState.buffs && this.gameState.buffs.includes('goldenTouch')) {
-      goldGain *= 3;
-    }
-    
-    // НОВОЕ: Crystal Focus - принудительные критические удары
-    let isCritical = false;
-    if (this.gameState.effectStates?.crystalFocusActive) {
-      isCritical = true;
-    } else {
-      // Обычная проверка критических ударов
-      const critChance = this.getSkillBonus('chance', 'critical');
-      isCritical = Math.random() < critChance;
-    }
-    
-    if (isCritical) {
-      goldGain *= 2;
-      eventBus.emit(GameEvents.CRITICAL_HIT, { damage: goldGain });
-    }
-    
-    // Добавляем золото
-    this.addResource('gold', goldGain);
-    
-    // Обрабатываем специальные эффекты
-    this.handleStarPower();
-    this.handleSlotMachine();
-    this.handleResourceFinder(effectiveCombo, accuracy);
-    
-    eventBus.emit(GameEvents.RESOURCE_CHANGED, { 
-      resource: 'gold', 
-      amount: this.gameState.resources.gold 
-    });
-    
-    eventBus.emit(GameEvents.RESOURCE_GAINED, {
-      resource: 'gold',
-      amount: goldGain,
-      accuracy: accuracy
-    });
+  let clickMultiplier = 1;
+  
+  // Double Tap buff - уменьшен
+  if (this.gameState.buffs && this.gameState.buffs.includes('doubleTap')) {
+    clickMultiplier = GAME_CONSTANTS.DOUBLE_TAP_MULTIPLIER; // теперь 1.5 вместо 2
   }
+  
+  // ЛИНЕЙНОЕ ОГРАНИЧЕНИЕ КОМБО
+  let comboBonus = effectiveCombo;
+  if (GAME_CONSTANTS.LINEAR_SCALING_ENABLED) {
+    // Комбо дает уменьшающийся бонус после определенного порога
+    if (effectiveCombo > GAME_CONSTANTS.COMBO_BENEFIT_CAP) {
+      comboBonus = GAME_CONSTANTS.COMBO_BENEFIT_CAP + 
+        Math.log(effectiveCombo - GAME_CONSTANTS.COMBO_BENEFIT_CAP + 1) * 5;
+    }
+    // Максимальный бонус от комбо
+    comboBonus = Math.min(comboBonus, GAME_CONSTANTS.MAX_COMBO_BENEFIT);
+  }
+  
+  let goldGain = Math.max(1, comboBonus * clickMultiplier);
+  
+  // Бонус за точность - ограничен
+  const accuracyBonus = 1 + (accuracy * 0.3); // было 0.5
+  goldGain = Math.floor(goldGain * accuracyBonus);
+  
+  // Golden Touch skill - с убывающей отдачей
+  const goldMultiplier = 1 + this.getSkillBonus('multiplier', 'gold');
+  goldGain = Math.floor(goldGain * goldMultiplier);
+  
+  // Frenzy buff - уменьшен
+  if (this.gameState.buffs && this.gameState.buffs.includes('frenzy')) {
+    goldGain *= GAME_CONSTANTS.FRENZY_MULTIPLIER; // теперь 1.5x вместо 2x
+  }
+  
+  // Golden Touch buff - ограничен
+  if (this.gameState.buffs && this.gameState.buffs.includes('goldenTouch')) {
+    goldGain *= 2; // было 3x, теперь 2x
+  }
+  
+  // Критические удары с ограничением частоты
+  let isCritical = false;
+  if (this.gameState.effectStates?.crystalFocusActive) {
+    isCritical = true;
+  } else {
+    const critChance = Math.min(0.25, this.getSkillBonus('chance', 'critical')); // макс 25%
+    isCritical = Math.random() < critChance;
+  }
+  
+  if (isCritical) {
+    goldGain *= 1.5; // было 2x, теперь 1.5x
+    eventBus.emit(GameEvents.CRITICAL_HIT, { damage: goldGain });
+  }
+  
+  // ОГРАНИЧЕНИЕ МАКСИМАЛЬНОГО ЗАРАБОТКА ЗА КЛИК
+  if (GAME_CONSTANTS.LINEAR_SCALING_ENABLED) {
+    const maxGoldPerClick = 100 + (this.gameState.skillPoints || 0) * 2;
+    goldGain = Math.min(goldGain, maxGoldPerClick);
+  }
+  
+  // Добавляем золото
+  this.addResource('gold', goldGain);
+  
+  // Обрабатываем специальные эффекты
+  this.handleStarPower();
+  this.handleSlotMachine();
+  this.handleResourceFinder(effectiveCombo, accuracy);
+  
+  eventBus.emit(GameEvents.RESOURCE_CHANGED, { 
+    resource: 'gold', 
+    amount: this.gameState.resources.gold 
+  });
+  
+  eventBus.emit(GameEvents.RESOURCE_GAINED, {
+    resource: 'gold',
+    amount: goldGain,
+    accuracy: accuracy
+  });
+}
 
   // Восстановление энергии
   handleEnergyRestore(amount, source) {
