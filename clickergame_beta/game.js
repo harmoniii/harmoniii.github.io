@@ -65,34 +65,63 @@ function setupErrorHandlers() {
 
 function setupModernPageHandlers() {
   const handlePageUnload = () => {
-    console.log('👋 Page unloading, attempting save...');
+    console.log('👋 Page unloading, performing emergency save...');
     
-    // БЕЗОПАСНАЯ проверка перед сохранением
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительное сохранение состояния рейда
     if (gameCore && 
         typeof gameCore.autoSave === 'function' && 
         gameCore.isDestroyed !== true) {
       try {
+        // Дополнительная защита для активных рейдов
+        if (gameCore.managers?.raid?.isRaidInProgress) {
+          console.log('🚨 Active raid detected, forcing state save...');
+          
+          // Принудительно обновляем состояние рейда в gameState
+          const raidManager = gameCore.managers.raid;
+          gameCore.gameState.raids.activeRaid = raidManager.activeRaid;
+          gameCore.gameState.raids.isRaidInProgress = raidManager.isRaidInProgress;
+          gameCore.gameState.raids.raidStartTime = raidManager.raidStartTime;
+          gameCore.gameState.raids.raidProgress = raidManager.raidProgress;
+          gameCore.gameState.raids.autoClickerWasActive = raidManager.autoClickerWasActive;
+        }
+        
         const saveResult = gameCore.autoSave();
         if (saveResult) {
-          console.log('✅ Final save completed successfully');
+          console.log('✅ Emergency save completed successfully');
         } else {
-          console.log('⚠️ Final save completed with warnings');
+          console.log('⚠️ Emergency save completed with warnings');
         }
       } catch (error) {
-        console.warn('⚠️ Error during final save:', error);
+        console.warn('⚠️ Error during emergency save:', error);
+        
+        // Fallback: используем StorageManager напрямую
+        try {
+          if (gameCore.storageManager && gameCore.gameState) {
+            gameCore.storageManager.autoSaveToLocalStorage(gameCore.gameState);
+            console.log('✅ Fallback emergency save completed');
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback emergency save failed:', fallbackError);
+        }
       }
     } else {
-      console.log('⚠️ GameCore not available or destroyed, skipping final save');
+      console.log('⚠️ GameCore not available or destroyed, skipping emergency save');
     }
   };
 
-  // Обработчик beforeunload для автосохранения
-  window.addEventListener('beforeunload', handlePageUnload);
+  // МНОЖЕСТВЕННЫЕ ТОЧКИ СОХРАНЕНИЯ для максимальной защиты
   
-  // Обработчик unload для очистки
+  // 1. Стандартный beforeunload
+  window.addEventListener('beforeunload', (e) => {
+    handlePageUnload();
+    // НЕ показываем диалог подтверждения, так как он мешает автосохранению
+  });
+  
+  // 2. Обработчик unload как резерв
   window.addEventListener('unload', () => {
     if (gameCore && typeof gameCore.destroy === 'function') {
       try {
+        handlePageUnload(); // Ещё одна попытка сохранения
         gameCore.destroy();
         console.log('🧹 GameCore destroyed on page unload');
       } catch (error) {
@@ -101,10 +130,31 @@ function setupModernPageHandlers() {
     }
   });
 
-  // Обработчик потери фокуса для автосохранения
+  // 3. Обработчик потери фокуса страницы
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
+      console.log('📱 Page hidden, performing background save...');
       handlePageUnload();
+    }
+  });
+  
+  // 4. НОВОЕ: Паника-сохранение перед перезагрузкой
+  window.addEventListener('beforeunload', (e) => {
+    if (gameCore?.managers?.raid?.isRaidInProgress) {
+      // Последняя попытка сохранить рейд
+      try {
+        localStorage.setItem('emergency_raid_backup', JSON.stringify({
+          raidId: gameCore.managers.raid.activeRaid?.id,
+          startTime: gameCore.managers.raid.raidStartTime,
+          progress: gameCore.managers.raid.raidProgress,
+          autoClickerWasActive: gameCore.managers.raid.autoClickerWasActive,
+          timestamp: Date.now(),
+          emergencyFlag: true
+        }));
+        console.log('🚨 Emergency raid backup created in localStorage');
+      } catch (error) {
+        console.error('❌ Failed to create emergency backup:', error);
+      }
     }
   });
 }
