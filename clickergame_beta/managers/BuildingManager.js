@@ -384,50 +384,64 @@ export class BuildingManager extends CleanupMixin {
   }
 
   // Произвести ресурс от здания
-  produceBuildingResource(buildingId) {
-    const def = this.getBuildingDefinition(buildingId);
-    const building = this.gameState.buildings[buildingId];
-    
-    if (!def || !building || !building.active) return;
+produceBuildingResource(buildingId) {
+  const def = this.getBuildingDefinition(buildingId);
+  const building = this.gameState.buildings[buildingId];
+  
+  if (!def || !building || !building.active) return;
 
-    const production = def.production;
-    if (!production) return;
+  const production = def.production;
+  if (!production) return;
 
-    // ИЗМЕНЕНО: Линейное увеличение производства
-    let amount;
-    if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
-      // Линейный рост: каждый уровень добавляет базовое количество
-      amount = production.amount * building.level;
-    } else {
-      // Старая система: прямое умножение на уровень
-      amount = production.amount * building.level;
-    }
-
-    // Time Warp buff - ограниченное ускорение
-    if (this.gameState.buffs && this.gameState.buffs.includes('timeWarp')) {
-      amount *= 2; // было 5x, теперь только 2x
-    }
-
-    // Добавляем ресурс
-    this.gameState.addResource(production.resource, amount);
-
-    // Обрабатываем специальные эффекты с линейным масштабированием
-    if (def.special && def.special.reduces) {
-      const reduceAmount = def.special.amount * building.level;
-      const currentAmount = this.gameState.resources[def.special.reduces] || 0;
-      const newAmount = Math.max(0, currentAmount - reduceAmount);
-      this.gameState.resources[def.special.reduces] = newAmount;
-    }
-
-    eventBus.emit(GameEvents.BUILDING_PRODUCED, {
-      buildingId,
-      resource: production.resource,
-      amount,
-      level: building.level
-    });
-
-    eventBus.emit(GameEvents.RESOURCE_CHANGED);
+  // ИЗМЕНЕНО: Линейное увеличение производства
+  let amount;
+  if (GAME_CONSTANTS.BUILDING_LINEAR_SCALING) {
+    amount = production.amount * building.level;
+  } else {
+    amount = production.amount * building.level;
   }
+
+  // Time Warp buff - ограниченное ускорение
+  if (this.gameState.buffs && this.gameState.buffs.includes('timeWarp')) {
+    amount *= 2;
+  }
+
+  // НОВОЕ: Abundance skill - бонус ко всему производству
+  const abundanceBonus = this.getAbundanceBonus();
+  if (abundanceBonus > 0) {
+    amount *= (1 + abundanceBonus);
+    console.log(`🌟 Abundance bonus: +${Math.floor(abundanceBonus * 100)}% to ${production.resource} production`);
+  }
+
+  // Добавляем ресурс
+  this.gameState.addResource(production.resource, amount);
+
+  // Обрабатываем специальные эффекты с линейным масштабированием
+  if (def.special && def.special.reduces) {
+    const reduceAmount = def.special.amount * building.level;
+    const currentAmount = this.gameState.resources[def.special.reduces] || 0;
+    const newAmount = Math.max(0, currentAmount - reduceAmount);
+    this.gameState.resources[def.special.reduces] = newAmount;
+  }
+
+  eventBus.emit(GameEvents.BUILDING_PRODUCED, {
+    buildingId,
+    resource: production.resource,
+    amount,
+    level: building.level
+  });
+
+  eventBus.emit(GameEvents.RESOURCE_CHANGED);
+}
+
+// ДОБАВИТЬ новый метод в класс BuildingManager:
+getAbundanceBonus() {
+  if (this.gameState.skillManager && 
+      typeof this.gameState.skillManager.getSkillBonus === 'function') {
+    return this.gameState.skillManager.getSkillBonus('multiplier', 'all_production');
+  }
+  return 0;
+}
 
   // Остановить производство здания
   stopBuildingProduction(buildingId) {

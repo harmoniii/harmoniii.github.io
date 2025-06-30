@@ -167,6 +167,8 @@ export class GridFeatureManager extends CleanupMixin {
       isTarget: true,
       timestamp: now
     });
+
+    this.handleTreasureHunter(effectiveCombo, accuracy);
   }
 
   // НОВОЕ: Рассчитать стоимость энергии с учетом эффектов
@@ -251,27 +253,49 @@ export class GridFeatureManager extends CleanupMixin {
   }
 
   // Сброс комбо
-  resetCombo(reason = 'unknown') {
-    if (this.gameState.combo && this.gameState.combo.count > 0) {
-      console.log(`💥 Combo reset: ${reason} (was ${this.gameState.combo.count})`);
+resetCombo(reason = 'unknown') {
+  if (this.gameState.combo && this.gameState.combo.count > 0) {
+    
+    // НОВОЕ: Проверяем Combo Shield перед сбросом
+    if (reason === 'miss' && this.gameState.skillManager) {
+      const hasShield = this.gameState.skillManager.getComboShieldCharges && 
+                       this.gameState.skillManager.getComboShieldCharges() > 0;
       
-      const oldCombo = this.gameState.combo.count;
-      this.gameState.combo.count = 0;
-      this.gameState.combo.deadline = 0;
-      this.gameState.combo.lastZone = null;
-      this.gameState.combo.lastAngle = null;
-      
-      eventBus.emit(GameEvents.COMBO_CHANGED, {
-        count: 0,
-        effective: 0,
-        cell: null,
-        target: this.gridManager?.getTargetCell(),
-        deadline: 0,
-        reason: reason,
-        previousCount: oldCombo
-      });
+      if (hasShield && this.gameState.skillManager.useComboShieldCharge) {
+        const remaining = this.gameState.skillManager.useComboShieldCharge();
+        if (remaining) {
+          const charges = this.gameState.skillManager.getComboShieldCharges();
+          eventBus.emit(GameEvents.NOTIFICATION, `🛡️ Combo Shield! ${charges} charges left`);
+          return; // НЕ сбрасываем комбо
+        }
+      }
     }
+    
+    console.log(`💥 Combo reset: ${reason} (was ${this.gameState.combo.count})`);
+    
+    const oldCombo = this.gameState.combo.count;
+    this.gameState.combo.count = 0;
+    this.gameState.combo.deadline = 0;
+    this.gameState.combo.lastZone = null;
+    this.gameState.combo.lastAngle = null;
+    
+    // НОВОЕ: Восстанавливаем заряды Combo Shield при сбросе комбо
+    if (this.gameState.skillManager && 
+        typeof this.gameState.skillManager.resetComboShield === 'function') {
+      this.gameState.skillManager.resetComboShield();
+    }
+    
+    eventBus.emit(GameEvents.COMBO_CHANGED, {
+      count: 0,
+      effective: 0,
+      cell: null,
+      target: this.gridManager?.getTargetCell(),
+      deadline: 0,
+      reason: reason,
+      previousCount: oldCombo
+    });
   }
+}
 
   // Проверка энергии
   checkEnergyForClick(energyCost) {
@@ -477,6 +501,68 @@ handleCombo(clickResult, now, accuracy = 0.5) {
   });
 }
 
+handleTreasureHunter(effectiveCombo, accuracy = 0.5) {
+  const treasureChance = this.getSkillBonus('chance', 'treasure');
+  if (treasureChance <= 0) return;
+  
+  // Бонус от комбо и точности (небольшой)
+  const comboBonus = Math.min(effectiveCombo * 0.005, 0.02); // максимум +2%
+  const accuracyBonus = accuracy * 0.01; // максимум +1%
+  const finalChance = treasureChance + comboBonus + accuracyBonus;
+  
+  if (Math.random() < finalChance) {
+    // Генерируем клад с редкими ресурсами
+    const treasureRewards = this.generateTreasure(effectiveCombo);
+    
+    // Применяем награды
+    Object.entries(treasureRewards).forEach(([resource, amount]) => {
+      this.addResource(resource, amount);
+    });
+    
+    // Формируем сообщение
+    const rewardText = Object.entries(treasureRewards)
+      .map(([resource, amount]) => `+${amount} ${resource}`)
+      .join(', ');
+    
+    eventBus.emit(GameEvents.NOTIFICATION, `💰 Treasure found! ${rewardText}`);
+    eventBus.emit(GameEvents.RESOURCE_CHANGED);
+    
+    console.log(`💰 Treasure Hunter triggered: ${rewardText} (chance: ${(finalChance * 100).toFixed(1)}%)`);
+  }
+}
+
+// ДОБАВИТЬ новый метод в класс GridFeatureManager:
+generateTreasure(comboLevel) {
+  const treasures = {};
+  
+  // Базовые награды (всегда есть)
+  const baseRewards = ['gold', 'science', 'faith'];
+  const baseResource = baseRewards[Math.floor(Math.random() * baseRewards.length)];
+  const baseAmount = Math.floor(5 + Math.random() * 10 + comboLevel * 0.5); // 5-15 + комбо бонус
+  treasures[baseResource] = baseAmount;
+  
+  // Дополнительные награды (50% шанс)
+  if (Math.random() < 0.5) {
+    const bonusResources = ['iron', 'people', 'stone', 'wood'];
+    const bonusResource = bonusResources[Math.floor(Math.random() * bonusResources.length)];
+    const bonusAmount = Math.floor(2 + Math.random() * 5 + comboLevel * 0.3); // 2-7 + комбо бонус
+    treasures[bonusResource] = bonusAmount;
+  }
+  
+  // Редкие награды (20% шанс на skill points)
+  if (Math.random() < 0.2) {
+    treasures.skillPoints = 1;
+  }
+  
+  // Очень редкие награды (5% шанс на много ресурсов)
+  if (Math.random() < 0.05) {
+    treasures.gold = (treasures.gold || 0) + 50;
+    treasures.science = (treasures.science || 0) + 10;
+  }
+  
+  return treasures;
+}
+
   // Восстановление энергии
   handleEnergyRestore(amount, source) {
     // НОВОЕ: Absolute Zero блокирует восстановление энергии
@@ -526,21 +612,34 @@ handleCombo(clickResult, now, accuracy = 0.5) {
   }
 
   // Добавление ресурса
-  addResource(resourceName, amount) {
-    if (!resourceName || typeof amount !== 'number' || amount <= 0) return false;
-    
-    try {
-      if (typeof this.gameState.addResource === 'function') {
-        this.gameState.addResource(resourceName, amount);
-      } else if (this.gameState.resources && this.gameState.resources.hasOwnProperty(resourceName)) {
-        this.gameState.resources[resourceName] = (this.gameState.resources[resourceName] || 0) + amount;
+addResource(resourceName, amount) {
+  if (!resourceName || typeof amount !== 'number' || amount <= 0) return false;
+  
+  try {
+    // НОВОЕ: Специальная обработка для skillPoints
+    if (resourceName === 'skillPoints') {
+      if (this.gameState.skillManager && 
+          typeof this.gameState.skillManager.addSkillPoints === 'function') {
+        this.gameState.skillManager.addSkillPoints(amount);
+      } else {
+        this.gameState.skillPoints = (this.gameState.skillPoints || 0) + amount;
+        eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
       }
       return true;
-    } catch (error) {
-      console.error('❌ Error adding resource:', error);
-      return false;
     }
+    
+    // Обычные ресурсы
+    if (typeof this.gameState.addResource === 'function') {
+      this.gameState.addResource(resourceName, amount);
+    } else if (this.gameState.resources && this.gameState.resources.hasOwnProperty(resourceName)) {
+      this.gameState.resources[resourceName] = (this.gameState.resources[resourceName] || 0) + amount;
+    }
+    return true;
+  } catch (error) {
+    console.error('❌ Error adding resource:', error);
+    return false;
   }
+}
 
   // Star Power эффект
   handleStarPower() {
