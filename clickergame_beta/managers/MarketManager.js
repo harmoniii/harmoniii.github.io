@@ -14,7 +14,7 @@ export const MARKET_CATEGORIES = {
 };
 
 // Товары маркета
-export const ADAPTIVE_MARKET_ITEMS = [
+export const MARKET_ITEMS = [
   {
     id: 'wood',
     name: 'Wood',
@@ -144,6 +144,31 @@ calculateAdaptivePrice(itemId) {
   });
   
   return scaledPrice;
+}
+
+calculateEffectivePrice(basePrice) {
+  const discount = this.getReputationDiscount();
+  const effectivePrice = {};
+  
+  Object.entries(basePrice).forEach(([resource, amount]) => {
+    effectivePrice[resource] = Math.floor(amount * discount);
+  });
+  
+  return effectivePrice;
+}
+
+canAfford(itemId) {
+  return this.canAffordAdaptive(itemId);
+}
+
+formatPrice(price) {
+  if (!price || typeof price !== 'object') {
+    return 'Invalid price';
+  }
+  
+  return Object.entries(price)
+    .map(([resource, amount]) => `${Math.floor(amount)} ${getResourceEmoji(resource)}`)
+    .join(' + ');
 }
 
   // Проверить, можем ли позволить себе товар

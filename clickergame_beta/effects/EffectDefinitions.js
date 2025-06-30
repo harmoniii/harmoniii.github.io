@@ -461,7 +461,7 @@ export function getBuffById(id) {
  * Получить определение дебаффа по ID
  */
 export function getDebuffById(id) {
-  return DEBUFF_DEFS.find(debuff => debuff.id === debuff);
+  return DEBUFF_DEFS.find(debuff => debuff.id === id);
 }
 
 /**

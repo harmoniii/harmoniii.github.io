@@ -12,7 +12,7 @@ export const SKILL_CATEGORIES = {
     energy: 'Energy Skills'
 };
 
-export const LINEAR_SKILL_DEFS = [
+export const SKILL_DEFS = [
   // Clicking Skills - с убывающей отдачей
   {
     id: 'goldMultiplier',
