@@ -1,4 +1,4 @@
-// managers/SkillManager.js - Упрощенная версия с рабочим автокликером
+// managers/SkillManager.js - ИСПРАВЛЕНО: убрана ссылка на несуществующий LINEAR_SKILL_DEFS
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
@@ -22,13 +22,13 @@ export const SKILL_DEFS = [
     category: 'clicking',
     maxLevel: 20,
     baseCost: 1,
-    costMultiplier: 1.2, // было 1.3
+    costMultiplier: 1.2,
     effect: { 
       type: 'multiplier', 
       target: 'gold', 
-      value: 0.05, // было 0.1
-      diminishing: true, // новое поле
-      diminishingFactor: 0.8 // каждый уровень дает 80% от предыдущего
+      value: 0.05,
+      diminishing: true,
+      diminishingFactor: 0.8
     }
   },
   {
@@ -39,12 +39,12 @@ export const SKILL_DEFS = [
     category: 'clicking',
     maxLevel: 10,
     baseCost: 2,
-    costMultiplier: 1.3, // было 1.5
+    costMultiplier: 1.3,
     effect: { 
       type: 'chance', 
       target: 'critical', 
-      value: 0.03, // было 0.05
-      cap: 0.25 // максимум 25% шанс крита
+      value: 0.03,
+      cap: 0.25
     }
   },
   {
@@ -55,12 +55,12 @@ export const SKILL_DEFS = [
     category: 'clicking',
     maxLevel: 15,
     baseCost: 3,
-    costMultiplier: 1.25, // было 1.4
+    costMultiplier: 1.25,
     effect: { 
       type: 'chance', 
       target: 'bonus_resource', 
-      value: 0.02, // было 0.03
-      cap: 0.2 // максимум 20% шанс
+      value: 0.02,
+      cap: 0.2
     }
   },
 
@@ -71,9 +71,9 @@ export const SKILL_DEFS = [
     icon: '🎯',
     description: 'Protection against combo breaks',
     category: 'combo',
-    maxLevel: 3, // было 5
-    baseCost: 8, // было 5
-    costMultiplier: 2.5, // было 2.0
+    maxLevel: 3,
+    baseCost: 8,
+    costMultiplier: 2.5,
     effect: { type: 'charges', target: 'miss_protection', value: 1 }
   },
   {
@@ -82,15 +82,15 @@ export const SKILL_DEFS = [
     icon: '⏰',
     description: 'Extend combo timeout duration',
     category: 'combo',
-    maxLevel: 8, // было 10
-    baseCost: 4, // было 3
-    costMultiplier: 1.4, // было 1.6
+    maxLevel: 8,
+    baseCost: 4,
+    costMultiplier: 1.4,
     effect: { 
       type: 'duration', 
       target: 'combo_timeout', 
-      value: 800, // было 1000
+      value: 800,
       diminishing: true,
-      diminishingFactor: 0.7 // сильно убывающая отдача
+      diminishingFactor: 0.7
     }
   },
   {
@@ -99,14 +99,14 @@ export const SKILL_DEFS = [
     icon: '🔥',
     description: 'Increase effectiveness of combos',
     category: 'combo',
-    maxLevel: 10, // было 15
-    baseCost: 6, // было 4
-    costMultiplier: 1.6, // было 1.5
+    maxLevel: 10,
+    baseCost: 6,
+    costMultiplier: 1.6,
     effect: { 
       type: 'multiplier', 
       target: 'combo', 
-      value: 0.08, // было 0.15
-      cap: 0.5 // максимум 50% бонус к комбо
+      value: 0.08,
+      cap: 0.5
     }
   },
 
@@ -118,13 +118,13 @@ export const SKILL_DEFS = [
     description: 'Reduce energy consumption',
     category: 'energy',
     maxLevel: 3,
-    baseCost: 8, // было 5
-    costMultiplier: 2.5, // было 2.0
+    baseCost: 8,
+    costMultiplier: 2.5,
     effect: { 
       type: 'reduction', 
       target: 'energy_cost', 
-      value: 0.15, // было 0.25
-      cap: 0.4 // максимум 40% снижение
+      value: 0.15,
+      cap: 0.4
     }
   },
   {
@@ -134,12 +134,12 @@ export const SKILL_DEFS = [
     description: 'Increase energy regeneration rate',
     category: 'energy',
     maxLevel: 5,
-    baseCost: 10, // было 8
-    costMultiplier: 2.0, // было 1.8
+    baseCost: 10,
+    costMultiplier: 2.0,
     effect: { 
       type: 'multiplier', 
       target: 'energy_regen', 
-      value: 0.4, // было 1.0
+      value: 0.4,
       diminishing: true,
       diminishingFactor: 0.75
     }
@@ -151,12 +151,12 @@ export const SKILL_DEFS = [
     description: 'Increase maximum energy capacity',
     category: 'energy',
     maxLevel: 4,
-    baseCost: 12, // было 10
-    costMultiplier: 2.0, // было 2.2
+    baseCost: 12,
+    costMultiplier: 2.0,
     effect: { 
       type: 'bonus', 
       target: 'max_energy', 
-      value: 25, // было 50
+      value: 25,
       diminishing: true,
       diminishingFactor: 0.8
     }
@@ -170,8 +170,8 @@ export const SKILL_DEFS = [
     description: 'Automatically click the target zone',
     category: 'special',
     maxLevel: 3,
-    baseCost: 30, // было 20
-    costMultiplier: 4.0, // было 3.0
+    baseCost: 30,
+    costMultiplier: 4.0,
     effect: { 
       type: 'automation', 
       target: 'clicking', 
@@ -186,7 +186,7 @@ export const SKILL_DEFS = [
     description: 'Preview the next target zone',
     category: 'special',
     maxLevel: 1,
-    baseCost: 25, // было 15
+    baseCost: 25,
     costMultiplier: 1.0,
     effect: { type: 'preview', target: 'zone', value: 1 }
   }
@@ -333,55 +333,50 @@ export class SkillManager extends CleanupMixin {
         if (!this.isActive()) return;
         
         try {
-            const featureManager = this.gameState.managers?.feature || 
-                                 this.gameState.featureManager;
+            // ИСПРАВЛЕНИЕ: Работаем с GridManager вместо круглых зон
+            const gridManager = this.gameState.gridManager;
             
-            if (!featureManager) return;
-            
-            const targetZone = this.gameState.targetZone;
-            if (typeof targetZone !== 'number' || targetZone < 0) return;
-            
-            const zones = featureManager.zones;
-            if (!zones || !Array.isArray(zones) || zones.length === 0) return;
-            
-            const zone = zones.find(z => z && z.index === targetZone);
-            if (!zone) return;
-            
-            let clickAngle;
-            
-            if (typeof zone.getCenterAngle === 'function') {
-                clickAngle = zone.getCenterAngle();
-                const zoneSize = zone.getSize ? zone.getSize() : (2 * Math.PI / zones.length);
-                const randomOffset = (Math.random() - 0.5) * zoneSize * 0.2;
-                clickAngle += randomOffset;
-            } else {
-                const zoneCount = zones.length;
-                const stepAngle = (2 * Math.PI) / zoneCount;
-                const centerAngle = stepAngle * targetZone + (stepAngle / 2);
-                const randomOffset = (Math.random() - 0.5) * stepAngle * 0.2;
-                clickAngle = centerAngle + randomOffset;
+            if (!gridManager || !gridManager.isManagerReady()) {
+                console.log('GridManager not ready for auto-click');
+                return;
             }
             
-            clickAngle = this.normalizeAngle(clickAngle);
+            const targetCell = gridManager.getTargetCell();
+            if (typeof targetCell !== 'number' || targetCell < 0) {
+                console.log('Invalid target cell for auto-click');
+                return;
+            }
             
-            eventBus.emit(GameEvents.CLICK, clickAngle);
+            // Вычисляем координаты центра целевой клетки
+            const gridSize = 3; // 3x3 сетка
+            const cellSize = 400 / gridSize; // canvas 400x400
+            
+            const row = Math.floor(targetCell / gridSize);
+            const col = targetCell % gridSize;
+            
+            const centerX = col * cellSize + cellSize / 2;
+            const centerY = row * cellSize + cellSize / 2;
+            
+            // Добавляем небольшое случайное смещение для реалистичности
+            const offsetX = (Math.random() - 0.5) * cellSize * 0.3;
+            const offsetY = (Math.random() - 0.5) * cellSize * 0.3;
+            
+            const clickX = centerX + offsetX;
+            const clickY = centerY + offsetY;
+            
+            console.log(`🤖 Auto-click: cell ${targetCell} at (${clickX.toFixed(1)}, ${clickY.toFixed(1)})`);
+            
+            // Эмитируем событие клика для GridManager
+            eventBus.emit(GameEvents.CLICK, {
+                x: clickX,
+                y: clickY,
+                canvasWidth: 400,
+                canvasHeight: 400
+            });
             
         } catch (error) {
             console.error('Auto clicker error:', error);
         }
-    }
-
-    normalizeAngle(angle) {
-        if (typeof angle !== 'number' || isNaN(angle)) return 0;
-        
-        const twoPi = 2 * Math.PI;
-        let normalized = angle % twoPi;
-        
-        if (normalized < 0) {
-            normalized += twoPi;
-        }
-        
-        return normalized;
     }
 
     stopAutoClicker() {
@@ -397,41 +392,40 @@ export class SkillManager extends CleanupMixin {
         return skill ? skill.level : 0;
     }
 
-getSkillBonus(type, target = null) {
-  let bonus = 0;
-  
-  const skillDefs = GAME_CONSTANTS.SKILL_DIMINISHING_RETURNS ? 
-    LINEAR_SKILL_DEFS : SKILL_DEFS;
-  
-  skillDefs.forEach(def => {
-    const level = this.getSkillLevel(def.id);
-    if (level > 0 && def.effect.type === type && 
-        (target === null || def.effect.target === target)) {
-      
-      let skillBonus = 0;
-      
-      if (def.effect.diminishing && GAME_CONSTANTS.SKILL_DIMINISHING_RETURNS) {
-        // Убывающая отдача: каждый уровень дает меньше
-        const factor = def.effect.diminishingFactor || 0.8;
-        for (let i = 1; i <= level; i++) {
-          skillBonus += def.effect.value * Math.pow(factor, i - 1);
-        }
-      } else {
-        // Линейный бонус
-        skillBonus = def.effect.value * level;
-      }
-      
-      // Применяем кап если есть
-      if (def.effect.cap) {
-        skillBonus = Math.min(skillBonus, def.effect.cap);
-      }
-      
-      bonus += skillBonus;
+    // ИСПРАВЛЕНИЕ: Убрана ссылка на несуществующий LINEAR_SKILL_DEFS
+    getSkillBonus(type, target = null) {
+        let bonus = 0;
+        
+        // ИСПРАВЛЕНИЕ: Используем только SKILL_DEFS
+        SKILL_DEFS.forEach(def => {
+            const level = this.getSkillLevel(def.id);
+            if (level > 0 && def.effect.type === type && 
+                (target === null || def.effect.target === target)) {
+              
+              let skillBonus = 0;
+              
+              if (def.effect.diminishing && GAME_CONSTANTS.SKILL_DIMINISHING_RETURNS) {
+                // Убывающая отдача: каждый уровень дает меньше
+                const factor = def.effect.diminishingFactor || 0.8;
+                for (let i = 1; i <= level; i++) {
+                  skillBonus += def.effect.value * Math.pow(factor, i - 1);
+                }
+              } else {
+                // Линейный бонус
+                skillBonus = def.effect.value * level;
+              }
+              
+              // Применяем кап если есть
+              if (def.effect.cap) {
+                skillBonus = Math.min(skillBonus, def.effect.cap);
+              }
+              
+              bonus += skillBonus;
+            }
+        });
+        
+        return bonus;
     }
-  });
-  
-  return bonus;
-}
 
     canUseMissProtection() {
         return this.gameState.skillStates.missProtectionCharges > 0;
