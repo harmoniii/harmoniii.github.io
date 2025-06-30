@@ -80,7 +80,7 @@ export const BUILDING_DEFS = [
     img: '🔬',
     name: 'Laboratory',
     description: 'The crucible of human knowledge, where surviving scientists piece together lost technologies. Every discovery is a weapon against chaos, every experiment a step towards understanding the cataclysm that nearly destroyed everything. Researches new technologies',
-    price: { iron: 30, energy: 10, people: 5 },
+    price: { iron: 30, people: 5 },
     production: { resource: 'science', amount: 1, interval: 20000 },
     maxLevel: 10,
     category: 'advanced'
@@ -89,10 +89,19 @@ export const BUILDING_DEFS = [
     id: 'temple',
     img: '⛪',
     name: 'Temple',
-    description: 'A sanctuary of spiritual resistance against the encroaching chaos. More than a religious site, it\'s a place of collective healing, where faith is both a shield and a weapon against the destructive energies that threaten to consume the world. Increases faith, reduces chaos',
+    description: 'A sanctuary of spiritual resistance against the encroaching chaos. More than a religious site, it\'s a place of collective healing, where faith is both a shield and a weapon against the destructive energies that threaten to consume the world. Increases faith',
     price: { wood: 40, stone: 50, gold: 100 },
     production: { resource: 'faith', amount: 1, interval: 25000 },
-    special: { reduces: 'chaos', amount: 0.5, interval: 25000 },
+    maxLevel: 5,
+    category: 'special'
+  },
+  {
+    id: 'boneyard',
+    img: '🪦',
+    name: 'Boneyard',
+    description: 'A hallowed ground of bone, a spiritual redoubt against the storm of chaos. Here, the veneration of mortality transforms relics of the past into both shield and conduit for faith, draining corruption from the world. Increases chaos',
+    price: { stone: 50, wood: 50, iron: 100, people: 1 },
+    production: { resource: 'chaos', amount: 1, interval: 30000 },
     maxLevel: 5,
     category: 'special'
   },
