@@ -1,4 +1,4 @@
-<!-- index.html - ИСПРАВЛЕННАЯ разметка для квадратной игры 3x3 -->
+<!-- index.html - ОБНОВЛЕНО: добавлена кнопка рейдов для системы сетки 3x3 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -8,15 +8,16 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <!-- Компактная навигация сверху -->
+  <!-- ОБНОВЛЕННАЯ компактная навигация с кнопкой рейдов -->
   <div id="ui-top">
     <button id="toggle-buildings">🏗️ Buildings</button>
     <button id="toggle-skills">🎯 Skills</button>
+    <button id="toggle-raids" style="display: none;">⚔️ Raids</button>
     <button id="toggle-market">🛒 Market</button>
     <button id="info-button">📚 Info</button>
   </div>
 
-  <!-- ИСПРАВЛЕНО: Игровая зона с правильным расположением для сетки -->
+  <!-- Игровая зона с правильным расположением для сетки -->
   <div id="game-area">
     <div class="grid-game-container">
       
@@ -79,7 +80,7 @@
     <button id="load-button">📁 Load</button>
     <button id="save-button">💾 Save</button>
     <button id="reset-button">🔄 Reset</button>
-    <button disabled>Alpha 5.0.4</button>
+    <button disabled>Alpha 5.1.0</button>
   </div>
 
   <div id="notifications"></div>
