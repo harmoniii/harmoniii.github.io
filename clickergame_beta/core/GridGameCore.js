@@ -211,7 +211,7 @@ export class GridGameCore extends CleanupMixin {
     });
   }
 
-  autoSave() {
+autoSave() {
   if (!this.gameState || this.gameState.isDestroyed || !this.storageManager) {
     return false;
   }
@@ -222,13 +222,26 @@ export class GridGameCore extends CleanupMixin {
       this.gameState.targetZone = this.gridManager.getTargetCell();
     }
     
-    // НОВОЕ: Обновляем состояние рейда перед сохранением
+    // ИСПРАВЛЕНИЕ: Обязательно сохраняем состояние рейда перед получением saveData
     if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+      console.log('💾 Saving active raid state...');
       this.managers.raid.saveRaidStateToGameState();
     }
     
     const saveData = this.gameState.getSaveData();
     if (!saveData) return false;
+    
+    // НОВОЕ: Дополнительно добавляем информацию о рейде в корень saveData
+    if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+      saveData.activeRaidBackup = {
+        raidId: this.managers.raid.activeRaid?.id,
+        startTime: this.managers.raid.raidStartTime,
+        progress: this.managers.raid.raidProgress,
+        autoClickerWasActive: this.managers.raid.autoClickerWasActive,
+        savedAt: Date.now()
+      };
+      console.log('💾 Active raid backup saved:', saveData.activeRaidBackup);
+    }
     
     const success = this.storageManager.safeSave({
       ...saveData,
@@ -289,7 +302,16 @@ export class GridGameCore extends CleanupMixin {
     `;
     
     document.body.appendChild(errorDiv);
+
+    if (this.gameState && !this.gameState.isDestroyed && this.storageManager) {
+  try {
+    console.log('💾 Emergency save before error handling...');
+    this.storageManager.autoSaveToLocalStorage(this.gameState);
+  } catch (saveError) {
+    console.error('❌ Emergency save failed:', saveError);
   }
+  }
+}
 
   getGameState() {
     return this.gameState;

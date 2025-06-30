@@ -135,6 +135,39 @@ export class StorageManager {
     }
   }
 
+  autoSaveToLocalStorage(gameState) {
+  try {
+    if (!gameState || gameState.isDestroyed) {
+      console.warn('⚠️ Cannot auto-save: game state not available');
+      return false;
+    }
+
+    console.log('💾 Performing auto-save to localStorage...');
+    
+    const saveData = gameState.getSaveData ? gameState.getSaveData() : null;
+    if (!saveData) {
+      console.warn('⚠️ Cannot get save data for auto-save');
+      return false;
+    }
+
+    // Добавляем метаданные автосохранения
+    saveData.autoSave = true;
+    saveData.autoSaveTimestamp = Date.now();
+    
+    const jsonString = JSON.stringify(saveData);
+    const encodedData = this.encodeData(jsonString);
+    
+    localStorage.setItem(this.STORAGE_KEY, encodedData);
+    
+    console.log('✅ Auto-save to localStorage completed');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Auto-save to localStorage failed:', error);
+    return false;
+  }
+}
+
   // Декодирование данных с поддержкой старых форматов
   decodeData(encodedData) {
     try {

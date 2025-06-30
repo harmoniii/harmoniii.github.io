@@ -124,17 +124,32 @@ constructor(gameState) {
     this.validateRaidState();
   }
 
-  restoreRaidStateFromSave() {
+restoreRaidStateFromSave() {
   if (!this.gameState.raids) return;
   
   const raids = this.gameState.raids;
   
+  console.log('🔄 Checking for active raid to restore...', {
+    isRaidInProgress: raids.isRaidInProgress,
+    activeRaid: raids.activeRaid?.id || 'none',
+    startTime: raids.raidStartTime,
+    progress: raids.raidProgress
+  });
+  
   // Проверяем, был ли активный рейд
   if (raids.isRaidInProgress && raids.activeRaid) {
-    console.log('🔄 Restoring active raid from save:', raids.activeRaid.name);
+    console.log('🔄 Restoring active raid from save:', raids.activeRaid.name || raids.activeRaid.id);
+    
+    // ИСПРАВЛЕНИЕ: Находим полное определение рейда
+    const fullRaidDef = this.getRaidDefinition(raids.activeRaid.id);
+    if (!fullRaidDef) {
+      console.error('❌ Raid definition not found for ID:', raids.activeRaid.id);
+      this.clearRaidState();
+      return;
+    }
     
     // Восстанавливаем состояние
-    this.activeRaid = raids.activeRaid;
+    this.activeRaid = fullRaidDef; // Используем полное определение
     this.isRaidInProgress = raids.isRaidInProgress;
     this.raidStartTime = raids.raidStartTime;
     this.raidProgress = raids.raidProgress;
@@ -152,8 +167,11 @@ constructor(gameState) {
     } else {
       console.log('⚔️ Raid still in progress, resuming...');
       
-      // Обновляем прогресс
+      // Обновляем прогресс с учетом прошедшего времени
       this.raidProgress = Math.min(100, (elapsed / raidDuration) * 100);
+      
+      // Обновляем состояние в GameState
+      this.saveRaidStateToGameState();
       
       // Блокируем игровое поле
       this.blockGameField(true);
@@ -163,8 +181,36 @@ constructor(gameState) {
       
       // Уведомляем о возобновлении
       eventBus.emit(GameEvents.NOTIFICATION, `⚔️ Resumed: ${this.activeRaid.name}`);
+      
+      console.log('✅ Active raid restored successfully');
     }
+  } else {
+    console.log('ℹ️ No active raid to restore');
   }
+}
+
+clearRaidState() {
+  console.log('🧹 Clearing invalid raid state...');
+  
+  this.activeRaid = null;
+  this.isRaidInProgress = false;
+  this.raidStartTime = 0;
+  this.raidProgress = 0;
+  this.autoClickerWasActive = false;
+  
+  // Очищаем в GameState
+  if (this.gameState.raids) {
+    this.gameState.raids.activeRaid = null;
+    this.gameState.raids.isRaidInProgress = false;
+    this.gameState.raids.raidStartTime = 0;
+    this.gameState.raids.raidProgress = 0;
+    this.gameState.raids.autoClickerWasActive = false;
+  }
+  
+  // Разблокируем игровое поле
+  this.blockGameField(false);
+  
+  console.log('✅ Raid state cleared');
 }
 
   // Валидация состояния рейдов

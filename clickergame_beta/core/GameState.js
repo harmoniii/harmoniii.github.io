@@ -219,80 +219,84 @@ validateSkillPoints(value) {
   }
 
   // ИСПРАВЛЕНИЕ: Получить состояние для сохранения БЕЗ данных зон
-  getSaveData() {
-    if (this.isDestroyed) {
-      console.warn('⚠️ GameState.getSaveData: Object is destroyed, returning null');
-      return null;
-    }
-  
-    try {
-      const raidState = this.raidManager ? {
+getSaveData() {
+  if (this.isDestroyed) {
+    console.warn('⚠️ GameState.getSaveData: Object is destroyed, returning null');
+    return null;
+  }
+
+  try {
+    // ИСПРАВЛЕНИЕ: Получаем актуальное состояние рейда
+    let raidState = null;
+    if (this.raidManager && this.raidManager.isRaidInProgress) {
+      raidState = {
         activeRaid: this.raidManager.activeRaid,
         isRaidInProgress: this.raidManager.isRaidInProgress,
         raidStartTime: this.raidManager.raidStartTime,
         raidProgress: this.raidManager.raidProgress,
-        autoClickerWasActive: this.raidManager.autoClickerWasActive
-      } : null;
+        autoClickerWasActive: this.raidManager.autoClickerWasActive,
+        savedAt: Date.now()
+      };
+      console.log('💾 Including active raid state in save:', raidState);
+    }
 
-      const saveData = {
-        // Основные ресурсы (БЕЗ энергии)
-        resources: this.resources ? { ...this.resources } : {},
-        
-        // Энергетическая система
-        energy: this.energy ? { ...this.energy } : {
-          current: GAME_CONSTANTS.INITIAL_ENERGY,
-          max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
-          lastRegenTime: Date.now(),
-          totalConsumed: 0,
-          totalRegenerated: 0
-        },
-        
-        // Комбо
-        combo: this.combo ? { ...this.combo } : { 
-          count: 0, 
-          deadline: 0, 
-          lastZone: null, 
-          lastAngle: null 
-        },
-        
-        // Skill Points
-        skillPoints: this.validateSkillPoints(this.skillPoints || 0),
-        
-        // ИСПРАВЛЕНИЕ: Сохраняем текущую целевую зону из ZoneManager
-        // (будет установлено в GameCore.autoSave перед сохранением)
-        targetZone: 0, // По умолчанию, будет перезаписано
-        
-        // Здания
-        buildings: this.buildings ? { ...this.buildings } : {},
-        
-        // Навыки
-        skills: this.skills ? { ...this.skills } : {},
-        
-        // Состояния навыков
-        skillStates: this.skillStates ? { ...this.skillStates } : {},
-        
-        // Маркет
-        market: this.market ? { ...this.market } : {},
-        
-        // Достижения
-        achievements: {
-          completed: Array.from(this.achievements.completed || []),
-          statistics: { ...this.achievements.statistics }
-        },
-        
-        // НЕ сохраняем временные эффекты
-        buffs: [],
-        debuffs: [],
-        blockedUntil: 0,
-        effectStates: {
-          starPowerClicks: 0,
-          shieldBlocks: 0,
-          heavyClickRequired: {},
-          reverseDirection: 1,
-          frozenCombo: false
-        },
-
-         raids: this.raids ? { ...this.raids } : {
+    const saveData = {
+      // Основные ресурсы (БЕЗ энергии)
+      resources: this.resources ? { ...this.resources } : {},
+      
+      // Энергетическая система
+      energy: this.energy ? { ...this.energy } : {
+        current: GAME_CONSTANTS.INITIAL_ENERGY,
+        max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
+        lastRegenTime: Date.now(),
+        totalConsumed: 0,
+        totalRegenerated: 0
+      },
+      
+      // Комбо
+      combo: this.combo ? { ...this.combo } : { 
+        count: 0, 
+        deadline: 0, 
+        lastZone: null, 
+        lastAngle: null 
+      },
+      
+      // Skill Points
+      skillPoints: this.validateSkillPoints(this.skillPoints || 0),
+      
+      // Целевая зона
+      targetZone: this.targetZone || 0,
+      
+      // Здания
+      buildings: this.buildings ? { ...this.buildings } : {},
+      
+      // Навыки
+      skills: this.skills ? { ...this.skills } : {},
+      
+      // Состояния навыков
+      skillStates: this.skillStates ? { ...this.skillStates } : {},
+      
+      // Маркет
+      market: this.market ? { ...this.market } : {},
+      
+      // Достижения
+      achievements: {
+        completed: Array.from(this.achievements.completed || []),
+        statistics: { ...this.achievements.statistics }
+      },
+      
+      // ИСПРАВЛЕНИЕ: Правильное сохранение рейдов
+      raids: this.raids ? { 
+        ...this.raids,
+        // Добавляем текущее состояние если рейд активен
+        ...(raidState ? {
+          activeRaid: raidState.activeRaid,
+          isRaidInProgress: raidState.isRaidInProgress,
+          raidStartTime: raidState.raidStartTime,
+          raidProgress: raidState.raidProgress,
+          autoClickerWasActive: raidState.autoClickerWasActive
+        } : {})
+      } : {
         completed: [],
         specialRewards: {},
         statistics: {
@@ -308,177 +312,190 @@ validateSkillPoints(value) {
         autoClickerWasActive: false
       },
       
-      // НОВОЕ: Временное состояние активного рейда
+      // НОВОЕ: Отдельное поле для состояния рейда (дублирование для надежности)
       raidState: raidState,
-        
-        // Метаданные
-        saveTimestamp: Date.now(),
-        saveVersion: '1.0.9'
-      };
-
-      // Валидация ресурсов
-      Object.keys(saveData.resources).forEach(resource => {
-        const value = saveData.resources[resource];
-        if (typeof value !== 'number' || isNaN(value) || value < 0) {
-          console.warn(`Invalid resource value for ${resource}: ${value}, setting to 0`);
-          saveData.resources[resource] = 0;
-        }
-      });
-
-      // Валидация энергии
-      saveData.energy = this.validateEnergy(saveData.energy);
-  
-      console.log('✅ GameState.getSaveData: Save data created successfully');
-      return saveData;
-  
-    } catch (error) {
-      console.error('❌ GameState.getSaveData: Error creating save data:', error);
       
-      // Возвращаем минимальные безопасные данные
-      return {
-        resources: {},
-        energy: {
-          current: GAME_CONSTANTS.INITIAL_ENERGY,
-          max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
-          lastRegenTime: Date.now(),
-          totalConsumed: 0,
-          totalRegenerated: 0
-        },
-        combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
-        skillPoints: 0,
-        targetZone: 0, // Будет установлено из ZoneManager
-        buildings: {},
-        skills: {},
-        skillStates: {},
-        market: {},
-        achievements: {
-          completed: [],
-          statistics: {
-            totalClicks: 0,
-            maxCombo: 0,
-            resourcesCollected: {},
-            totalResourcesCollected: 0
-          }
-        },
-        buffs: [],
-        debuffs: [],
-        blockedUntil: 0,
-        effectStates: {
-          starPowerClicks: 0,
-          shieldBlocks: 0,
-          heavyClickRequired: {},
-          reverseDirection: 1,
-          frozenCombo: false
-        },
-        saveTimestamp: Date.now(),
-        saveVersion: '1.0.9'
-      };
-    }
-  }
-  
-  // ИСПРАВЛЕНИЕ: Загрузить состояние БЕЗ управления зонами
-  loadSaveData(data) {
-    if (this.isDestroyed || !data || typeof data !== 'object') {
-      throw new Error('Invalid save data or GameState is destroyed');
-    }
+      // НЕ сохраняем временные эффекты
+      buffs: [],
+      debuffs: [],
+      blockedUntil: 0,
+      effectStates: {
+        starPowerClicks: 0,
+        shieldBlocks: 0,
+        heavyClickRequired: {},
+        reverseDirection: 1,
+        frozenCombo: false
+      },
+      
+      // Метаданные
+      saveTimestamp: Date.now(),
+      saveVersion: '1.0.10' // Увеличиваем версию
+    };
 
-    console.log('📥 Loading save data into GameState...');
+    // Валидация ресурсов
+    Object.keys(saveData.resources).forEach(resource => {
+      const value = saveData.resources[resource];
+      if (typeof value !== 'number' || isNaN(value) || value < 0) {
+        console.warn(`Invalid resource value for ${resource}: ${value}, setting to 0`);
+        saveData.resources[resource] = 0;
+      }
+    });
 
-    // Валидируем и загружаем ресурсы
-    if (data.resources && typeof data.resources === 'object') {
-      Object.entries(data.resources).forEach(([resource, value]) => {
-        if (RESOURCES.includes(resource)) {
-          this.resources[resource] = this.validateResource(resource, value);
-        }
-      });
-    }
+    // Валидация энергии
+    saveData.energy = this.validateEnergy(saveData.energy);
 
-    // Загружаем энергию
-    if (data.energy && typeof data.energy === 'object') {
-      this.energy = this.validateEnergy(data.energy);
-    } else {
-      this.energy = {
+    console.log('✅ GameState.getSaveData: Save data created successfully');
+    return saveData;
+
+  } catch (error) {
+    console.error('❌ GameState.getSaveData: Error creating save data:', error);
+    
+    // Возвращаем минимальные безопасные данные
+    return {
+      resources: {},
+      energy: {
         current: GAME_CONSTANTS.INITIAL_ENERGY,
         max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
         lastRegenTime: Date.now(),
         totalConsumed: 0,
         totalRegenerated: 0
-      };
-    }
-
-    // Загружаем комбо
-    this.combo = this.validateCombo(data.combo);
-    
-    // Загружаем skill points
-    this.skillPoints = this.validateSkillPoints(data.skillPoints);
-
-    // ИСПРАВЛЕНИЕ: Сохраняем targetZone для передачи в ZoneManager
-    // (но не управляем зонами в GameState)
-    this.targetZone = data.targetZone || 0;
-
-    // Загружаем здания
-    if (data.buildings && typeof data.buildings === 'object') {
-      Object.entries(this.buildings).forEach(([buildingId, defaultBuilding]) => {
-        if (data.buildings[buildingId]) {
-          const building = data.buildings[buildingId];
-          this.buildings[buildingId] = {
-            level: Math.max(0, Math.floor(building.level || 0)),
-            active: Boolean(building.active)
-          };
+      },
+      combo: { count: 0, deadline: 0, lastZone: null, lastAngle: null },
+      skillPoints: 0,
+      targetZone: 0,
+      buildings: {},
+      skills: {},
+      skillStates: {},
+      market: {},
+      achievements: {
+        completed: [],
+        statistics: {
+          totalClicks: 0,
+          maxCombo: 0,
+          resourcesCollected: {},
+          totalResourcesCollected: 0
         }
-      });
-    }
-
-    // Загружаем навыки
-    if (data.skills && typeof data.skills === 'object') {
-      Object.entries(this.skills).forEach(([skillId, defaultSkill]) => {
-        if (data.skills[skillId]) {
-          const skill = data.skills[skillId];
-          this.skills[skillId] = {
-            level: Math.max(0, Math.floor(skill.level || 0))
-          };
-        }
-      });
-    }
-
-    // Загружаем состояния навыков
-    if (data.skillStates && typeof data.skillStates === 'object') {
-      this.skillStates = {
-        ...this.skillStates,
-        ...data.skillStates
-      };
-    }
-
-    // Загружаем маркет
-    if (data.market && typeof data.market === 'object') {
-      this.market = {
-        dailyDeals: Array.isArray(data.market.dailyDeals) ? data.market.dailyDeals : [],
-        purchaseHistory: Array.isArray(data.market.purchaseHistory) ? data.market.purchaseHistory : [],
-        reputation: Math.max(0, Math.floor(data.market.reputation || 0)),
-        permanentBonuses: data.market.permanentBonuses || {}
-      };
-    }
-
-    // Загружаем достижения
-    if (data.achievements && typeof data.achievements === 'object') {
-      this.achievements = this.validateAchievements(data.achievements);
-    }
-
-    // Сбрасываем временные эффекты
-    this.buffs = [];
-    this.debuffs = [];
-    this.blockedUntil = 0;
-    this.effectStates = {
-      starPowerClicks: 0,
-      shieldBlocks: 0,
-      heavyClickRequired: {},
-      reverseDirection: 1,
-      frozenCombo: false
+      },
+      raids: {
+        completed: [],
+        specialRewards: {},
+        statistics: {
+          totalRaids: 0,
+          successfulRaids: 0,
+          resourcesGained: {},
+          peopleLost: 0
+        },
+        activeRaid: null,
+        isRaidInProgress: false,
+        raidStartTime: 0,
+        raidProgress: 0,
+        autoClickerWasActive: false
+      },
+      buffs: [],
+      debuffs: [],
+      blockedUntil: 0,
+      effectStates: {
+        starPowerClicks: 0,
+        shieldBlocks: 0,
+        heavyClickRequired: {},
+        reverseDirection: 1,
+        frozenCombo: false
+      },
+      saveTimestamp: Date.now(),
+      saveVersion: '1.0.10'
     };
+  }
+}
+  
+  // ИСПРАВЛЕНИЕ: Загрузить состояние БЕЗ управления зонами
+loadSaveData(data) {
+  if (this.isDestroyed || !data || typeof data !== 'object') {
+    throw new Error('Invalid save data or GameState is destroyed');
+  }
 
-    this.lastTimestamp = Date.now();
+  console.log('📥 Loading save data into GameState...');
 
-    if (data.raids && typeof data.raids === 'object') {
+  // Валидируем и загружаем ресурсы
+  if (data.resources && typeof data.resources === 'object') {
+    Object.entries(data.resources).forEach(([resource, value]) => {
+      if (RESOURCES.includes(resource)) {
+        this.resources[resource] = this.validateResource(resource, value);
+      }
+    });
+  }
+
+  // Загружаем энергию
+  if (data.energy && typeof data.energy === 'object') {
+    this.energy = this.validateEnergy(data.energy);
+  } else {
+    this.energy = {
+      current: GAME_CONSTANTS.INITIAL_ENERGY,
+      max: GAME_CONSTANTS.INITIAL_MAX_ENERGY,
+      lastRegenTime: Date.now(),
+      totalConsumed: 0,
+      totalRegenerated: 0
+    };
+  }
+
+  // Загружаем комбо
+  this.combo = this.validateCombo(data.combo);
+  
+  // Загружаем skill points
+  this.skillPoints = this.validateSkillPoints(data.skillPoints);
+
+  // Сохраняем targetZone для передачи в ZoneManager
+  this.targetZone = data.targetZone || 0;
+
+  // Загружаем здания
+  if (data.buildings && typeof data.buildings === 'object') {
+    Object.entries(this.buildings).forEach(([buildingId, defaultBuilding]) => {
+      if (data.buildings[buildingId]) {
+        const building = data.buildings[buildingId];
+        this.buildings[buildingId] = {
+          level: Math.max(0, Math.floor(building.level || 0)),
+          active: Boolean(building.active)
+        };
+      }
+    });
+  }
+
+  // Загружаем навыки
+  if (data.skills && typeof data.skills === 'object') {
+    Object.entries(this.skills).forEach(([skillId, defaultSkill]) => {
+      if (data.skills[skillId]) {
+        const skill = data.skills[skillId];
+        this.skills[skillId] = {
+          level: Math.max(0, Math.floor(skill.level || 0))
+        };
+      }
+    });
+  }
+
+  // Загружаем состояния навыков
+  if (data.skillStates && typeof data.skillStates === 'object') {
+    this.skillStates = {
+      ...this.skillStates,
+      ...data.skillStates
+    };
+  }
+
+  // Загружаем маркет
+  if (data.market && typeof data.market === 'object') {
+    this.market = {
+      dailyDeals: Array.isArray(data.market.dailyDeals) ? data.market.dailyDeals : [],
+      purchaseHistory: Array.isArray(data.market.purchaseHistory) ? data.market.purchaseHistory : [],
+      reputation: Math.max(0, Math.floor(data.market.reputation || 0)),
+      permanentBonuses: data.market.permanentBonuses || {}
+    };
+  }
+
+  // Загружаем достижения
+  if (data.achievements && typeof data.achievements === 'object') {
+    this.achievements = this.validateAchievements(data.achievements);
+  }
+
+  // ИСПРАВЛЕНИЕ: Улучшенная загрузка рейдов с восстановлением активного рейда
+  if (data.raids && typeof data.raids === 'object') {
     this.raids = {
       completed: Array.isArray(data.raids.completed) ? data.raids.completed : [],
       specialRewards: data.raids.specialRewards || {},
@@ -488,7 +505,7 @@ validateSkillPoints(value) {
         resourcesGained: data.raids.statistics?.resourcesGained || {},
         peopleLost: Math.max(0, data.raids.statistics?.peopleLost || 0)
       },
-      // НОВОЕ: сохраняем состояние активного рейда
+      // ВАЖНО: Восстанавливаем состояние активного рейда
       activeRaid: data.raids.activeRaid || null,
       isRaidInProgress: Boolean(data.raids.isRaidInProgress),
       raidStartTime: data.raids.raidStartTime || 0,
@@ -514,12 +531,19 @@ validateSkillPoints(value) {
     };
   }
 
-  // НОВОЕ: Обрабатываем временное состояние рейда из raidState
+  // НОВОЕ: Дополнительная проверка из raidState (приоритет отдается более свежим данным)
   if (data.raidState && typeof data.raidState === 'object') {
-    console.log('📥 Restoring active raid state from save...');
+    console.log('📥 Found raidState backup, checking if newer...');
     
-    // Копируем данные из raidState в raids если они более свежие
-    if (data.raidState.isRaidInProgress) {
+    const raidStateSaveTime = data.raidState.savedAt || 0;
+    const regularSaveTime = data.saveTimestamp || 0;
+    
+    // Если raidState более свежий или содержит активный рейд
+    if (data.raidState.isRaidInProgress && 
+        (raidStateSaveTime >= regularSaveTime || !this.raids.isRaidInProgress)) {
+      
+      console.log('📥 Using raidState backup as it\'s more recent or contains active raid');
+      
       this.raids.activeRaid = data.raidState.activeRaid;
       this.raids.isRaidInProgress = data.raidState.isRaidInProgress;
       this.raids.raidStartTime = data.raidState.raidStartTime;
@@ -527,9 +551,42 @@ validateSkillPoints(value) {
       this.raids.autoClickerWasActive = data.raidState.autoClickerWasActive;
     }
   }
+
+  // НОВОЕ: Проверяем activeRaidBackup (из корня saveData)
+  if (data.activeRaidBackup && typeof data.activeRaidBackup === 'object') {
+    console.log('📥 Found activeRaidBackup, using as fallback...');
     
-    console.log('✅ GameState data loaded successfully');
+    if (!this.raids.isRaidInProgress) {
+      this.raids.activeRaid = { id: data.activeRaidBackup.raidId };
+      this.raids.isRaidInProgress = true;
+      this.raids.raidStartTime = data.activeRaidBackup.startTime;
+      this.raids.raidProgress = data.activeRaidBackup.progress;
+      this.raids.autoClickerWasActive = data.activeRaidBackup.autoClickerWasActive;
+    }
   }
+
+  // Сбрасываем временные эффекты
+  this.buffs = [];
+  this.debuffs = [];
+  this.blockedUntil = 0;
+  this.effectStates = {
+    starPowerClicks: 0,
+    shieldBlocks: 0,
+    heavyClickRequired: {},
+    reverseDirection: 1,
+    frozenCombo: false
+  };
+
+  this.lastTimestamp = Date.now();
+  
+  console.log('✅ GameState data loaded successfully');
+  console.log('📊 Raid state after load:', {
+    isRaidInProgress: this.raids.isRaidInProgress,
+    activeRaid: this.raids.activeRaid?.id || 'none',
+    startTime: this.raids.raidStartTime,
+    progress: this.raids.raidProgress
+  });
+}
 
   // Проверить валидность состояния
   isValid() {
