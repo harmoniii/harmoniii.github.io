@@ -13,8 +13,8 @@ export const RAID_DEFS = [
     unlockCondition: { building: 'watchTower', level: 1 },
     requirements: {
       people: 4, // 3-5 people
-      food: 10,
-      water: 5
+      food: 12,
+      water: 8
     },
     duration: 120000, // 2 minutes in milliseconds
     riskPercentage: 20, // 20% chance of losses
@@ -38,7 +38,40 @@ export const RAID_DEFS = [
       ]
     },
     category: 'exploration'
-  }
+  },
+  {
+    id: 'forgotten_district',
+    name: '🏙️ Forgotten District',
+    description: 'Scout the abandoned district for usable machinery and parts',
+    difficulty: 'moderate',
+    unlockCondition: { building: 'watchTower', level: 2 },
+    requirements: {
+      people: 15,
+      food: 45,
+      water: 30
+    },
+    duration: 120000, // 2 minutes in milliseconds
+    riskPercentage: 28, // 20% chance of losses
+    rewards: {
+      guaranteed: [
+        { resource: 'iron', min: 10, max: 15 },
+        { resource: 'science', min: 10, max: 15 }
+      ],
+      chance: [
+        { 
+          probability: 0.35, // 35% chance
+          reward: { resource: 'skillPoints', amount: 3 },
+          description: 'Found ancient technology'
+        },
+        {
+          probability: 0.1, // 10% chance
+          reward: { type: 'special', id: 'ancient_blueprint' },
+          description: 'Discovered Ancient Blueprint'
+        }
+      ]
+    },
+    category: 'exploration'
+  },
   // Можно добавить больше рейдов в будущем
 ];
 
