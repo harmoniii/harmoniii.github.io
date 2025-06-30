@@ -79,16 +79,31 @@ export class EnergyManager extends CleanupMixin {
         return true;
     }
 
-    getClickEnergyCost() {
-        let cost = GAME_CONSTANTS.CLICK_COST;
-        
-        // Energy Efficiency skill
-        const efficiencyLevel = this.getSkillLevel('energyEfficiency');
-        const reduction = efficiencyLevel * GAME_CONSTANTS.EFFICIENCY_REDUCTION;
-        cost *= (1 - Math.min(0.75, reduction));
-        
-        return Math.max(0.1, Math.ceil(cost * 10) / 10);
+getClickEnergyCost() {
+  let cost = GAME_CONSTANTS.CLICK_COST;
+  
+  // Energy Efficiency skill с убывающей отдачей
+  const efficiencyLevel = this.getSkillLevel('energyEfficiency');
+  let reduction = 0;
+  
+  if (GAME_CONSTANTS.SKILL_DIMINISHING_RETURNS) {
+    // Убывающая отдача: первый уровень дает больше
+    for (let i = 1; i <= efficiencyLevel; i++) {
+      reduction += GAME_CONSTANTS.EFFICIENCY_REDUCTION * Math.pow(0.7, i - 1);
     }
+  } else {
+    reduction = efficiencyLevel * GAME_CONSTANTS.EFFICIENCY_REDUCTION;
+  }
+  
+  cost *= (1 - Math.min(0.6, reduction)); // максимум 60% снижение
+  
+  // Energy Parasite debuff
+  if (this.gameState.effectStates?.energyParasiteActive) {
+    cost *= 2;
+  }
+  
+  return Math.max(0.2, Math.ceil(cost * 10) / 10); // минимум 0.2 энергии
+}
 
     consumeEnergy(amount) {
         const oldEnergy = this.gameState.energy.current;
@@ -109,27 +124,43 @@ export class EnergyManager extends CleanupMixin {
         }
     }
 
-    restoreEnergy(amount, source = 'unknown') {
-        const oldEnergy = this.gameState.energy.current;
-        const maxEnergy = this.getEffectiveMaxEnergy();
-        
-        this.gameState.energy.current = Math.min(maxEnergy, this.gameState.energy.current + amount);
-        this.gameState.energy.totalRegenerated += amount;
-        
-        const actualRestored = this.gameState.energy.current - oldEnergy;
-        
-        eventBus.emit(GameEvents.ENERGY_CHANGED, {
-            current: this.gameState.energy.current,
-            max: maxEnergy,
-            restored: actualRestored,
-            source: source,
-            percentage: this.getEnergyPercentage()
-        });
+restoreEnergy(amount, source = 'unknown') {
+  const oldEnergy = this.gameState.energy.current;
+  const maxEnergy = this.getEffectiveMaxEnergy();
+  
+  // Ограничиваем восстановление в зависимости от источника
+  let cappedAmount = amount;
+  switch (source) {
+    case 'energy_zone':
+      cappedAmount = Math.min(amount, 10); // не больше 10 за клик
+      break;
+    case 'energy_pack':
+      cappedAmount = Math.min(amount, 50); // не больше 50 за пак
+      break;
+    case 'regeneration':
+      // Регенерация не ограничивается
+      break;
+    default:
+      cappedAmount = Math.min(amount, 25); // общий лимит
+  }
+  
+  this.gameState.energy.current = Math.min(maxEnergy, this.gameState.energy.current + cappedAmount);
+  this.gameState.energy.totalRegenerated += cappedAmount;
+  
+  const actualRestored = this.gameState.energy.current - oldEnergy;
+  
+  eventBus.emit(GameEvents.ENERGY_CHANGED, {
+    current: this.gameState.energy.current,
+    max: maxEnergy,
+    restored: actualRestored,
+    source: source,
+    percentage: this.getEnergyPercentage()
+  });
 
-        if (actualRestored > 0) {
-            eventBus.emit(GameEvents.NOTIFICATION, `⚡ +${actualRestored} Energy`);
-        }
-    }
+  if (actualRestored > 0 && source !== 'regeneration') {
+    eventBus.emit(GameEvents.NOTIFICATION, `⚡ +${actualRestored} Energy`);
+  }
+}
 
     regenerateEnergy() {
         const now = Date.now();
@@ -145,33 +176,63 @@ export class EnergyManager extends CleanupMixin {
         }
     }
 
-    getEffectiveRegenRate() {
-        let regen = GAME_CONSTANTS.BASE_REGEN_RATE;
-        
-        // Generator building bonus
-        const generatorLevel = this.getBuildingLevel('generator');
-        regen *= (1 + generatorLevel * GAME_CONSTANTS.GENERATOR_REGEN_BONUS);
-        
-        // Energy Mastery skill
-        const masteryLevel = this.getSkillLevel('energyMastery');
-        regen *= (1 + masteryLevel * GAME_CONSTANTS.MASTERY_REGEN_BONUS);
-        
-        return Math.max(0.1, regen);
+getEffectiveRegenRate() {
+  let regen = GAME_CONSTANTS.BASE_REGEN_RATE;
+  
+  // Generator building bonus - с убывающей отдачей
+  const generatorLevel = this.getBuildingLevel('generator');
+  if (generatorLevel > 0) {
+    let generatorBonus = 0;
+    for (let i = 1; i <= generatorLevel; i++) {
+      generatorBonus += GAME_CONSTANTS.GENERATOR_REGEN_BONUS * Math.pow(0.8, i - 1);
     }
+    regen *= (1 + generatorBonus);
+  }
+  
+  // Energy Mastery skill - с убывающей отдачей
+  const masteryLevel = this.getSkillLevel('energyMastery');
+  if (masteryLevel > 0) {
+    let masteryBonus = 0;
+    for (let i = 1; i <= masteryLevel; i++) {
+      masteryBonus += GAME_CONSTANTS.MASTERY_REGEN_BONUS * Math.pow(0.75, i - 1);
+    }
+    regen *= (1 + masteryBonus);
+  }
+  
+  // Ограничиваем максимальную регенерацию
+  const maxRegen = GAME_CONSTANTS.BASE_REGEN_RATE * 3; // не больше 3x базовой
+  
+  return Math.min(maxRegen, Math.max(0.1, regen));
+}
 
-    getEffectiveMaxEnergy() {
-        let maxEnergy = this.gameState.energy.max;
-        
-        // Generator building bonus
-        const generatorLevel = this.getBuildingLevel('generator');
-        maxEnergy += generatorLevel * GAME_CONSTANTS.GENERATOR_MAX_ENERGY_BONUS;
-        
-        // Power Storage skill
-        const storageLevel = this.getSkillLevel('powerStorage');
-        maxEnergy += storageLevel * GAME_CONSTANTS.STORAGE_MAX_BONUS;
-        
-        return Math.max(GAME_CONSTANTS.INITIAL_MAX_ENERGY, maxEnergy);
+getEffectiveMaxEnergy() {
+  let maxEnergy = this.gameState.energy.max;
+  
+  // Generator building bonus - с убывающей отдачей
+  const generatorLevel = this.getBuildingLevel('generator');
+  if (generatorLevel > 0) {
+    let generatorBonus = 0;
+    for (let i = 1; i <= generatorLevel; i++) {
+      generatorBonus += GAME_CONSTANTS.GENERATOR_MAX_ENERGY_BONUS * Math.pow(0.9, i - 1);
     }
+    maxEnergy += Math.floor(generatorBonus);
+  }
+  
+  // Power Storage skill - с убывающей отдачей
+  const storageLevel = this.getSkillLevel('powerStorage');
+  if (storageLevel > 0) {
+    let storageBonus = 0;
+    for (let i = 1; i <= storageLevel; i++) {
+      storageBonus += GAME_CONSTANTS.STORAGE_MAX_BONUS * Math.pow(0.8, i - 1);
+    }
+    maxEnergy += Math.floor(storageBonus);
+  }
+  
+  // Ограничиваем максимальную энергию
+  const absoluteMax = GAME_CONSTANTS.INITIAL_MAX_ENERGY * 4; // не больше 4x начальной
+  
+  return Math.min(absoluteMax, Math.max(GAME_CONSTANTS.INITIAL_MAX_ENERGY, maxEnergy));
+}
 
     updateMaxEnergy() {
         const newMaxEnergy = this.getEffectiveMaxEnergy();
