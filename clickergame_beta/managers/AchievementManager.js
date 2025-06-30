@@ -10,7 +10,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Click 100 times',
         category: 'clicks',
         target: 100,
-        reward: { skillPoints: 2 }
+        reward: { skillPoints: 0 }
     },
     {
         id: 'clicks_1000',
@@ -18,7 +18,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Click 1000 times',
         category: 'clicks',
         target: 1000,
-        reward: { skillPoints: 10 }
+        reward: { skillPoints: 0 }
     },
 
     // Достижения за комбо
@@ -28,7 +28,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Reach a combo of 10',
         category: 'combo',
         target: 10,
-        reward: { skillPoints: 1 }
+        reward: { skillPoints: 0 }
     },
     {
         id: 'combo_50',
@@ -36,7 +36,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Reach a combo of 50',
         category: 'combo',
         target: 50,
-        reward: { skillPoints: 8 }
+        reward: { skillPoints: 0 }
     },
 
     // Достижения за ресурсы
@@ -46,7 +46,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Collect 1000 total resources',
         category: 'total_resources',
         target: 1000,
-        reward: { skillPoints: 5 }
+        reward: { skillPoints: 0 }
     },
     {
         id: 'total_resources_10000',
@@ -54,7 +54,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Collect 10000 total resources',
         category: 'total_resources',
         target: 10000,
-        reward: { skillPoints: 35 }
+        reward: { skillPoints: 0 }
     },
 
     // Достижения за энергию
@@ -64,7 +64,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Hit 10 energy zones',
         category: 'energy_zones',
         target: 10,
-        reward: { skillPoints: 2 }
+        reward: { skillPoints: 0 }
     },
     {
         id: 'energy_zones_50',
@@ -72,7 +72,7 @@ export const ACHIEVEMENT_DEFS = [
         description: 'Hit 50 energy zones',
         category: 'energy_zones',
         target: 50,
-        reward: { skillPoints: 5 }
+        reward: { skillPoints: 0 }
     }
 ];
 

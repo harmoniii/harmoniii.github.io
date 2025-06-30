@@ -10,7 +10,10 @@ export const MARKET_CATEGORIES = {
   advanced: 'Advanced Materials',
   special: 'Special Items',
   premium: 'Premium Goods',
-  energy: 'Enegry Replenish'
+  energy: 'Energy Replenish',
+  consumables: 'Consumables',      // НОВАЯ
+  building_materials: 'Building Materials', // НОВАЯ
+  rare: 'Rare Artifacts'           // НОВАЯ
 };
 
 // Товары маркета
@@ -58,7 +61,172 @@ export const MARKET_ITEMS = [
     category: 'premium',
     adaptive: true,
     scalingFactor: 1.25 // растет значительно
-  }
+  },
+  {
+  id: 'food_package',
+  name: 'Food Package',
+  icon: '🍎',
+  description: 'Emergency food supplies',
+  basePrice: { gold: 600 },
+  reward: { food: 2 },
+  category: 'resources',
+  adaptive: true,
+  scalingFactor: 1.1
+  },
+  {
+  id: 'water_container', 
+  name: 'Water Container',
+  icon: '💧',
+  description: 'Pure drinking water',
+  basePrice: { gold: 400 },
+  reward: { water: 3 },
+  category: 'resources',
+  adaptive: true,
+  scalingFactor: 1.1
+  },
+  {
+  id: 'iron_ingot',
+  name: 'Iron Ingot',
+  icon: '⛓️',
+  description: 'Refined iron for construction',
+  basePrice: { gold: 800 },
+  reward: { iron: 1 },
+  category: 'resources', 
+  adaptive: true,
+  scalingFactor: 1.12
+  },
+  {
+  id: 'science_kit',
+  name: 'Science Kit',
+  icon: '🧪',
+  description: 'Research materials and tools',
+  basePrice: { gold: 1500, iron: 2 },
+  reward: { science: 3 },
+  category: 'advanced',
+  adaptive: true,
+  scalingFactor: 1.2
+  },
+  {
+  id: 'population_beacon',
+  name: 'Population Beacon',
+  icon: '📡',
+  description: 'Attracts new settlers',
+  basePrice: { gold: 2000, food: 5, water: 5 },
+  reward: { people: 3 },
+  category: 'advanced',
+  adaptive: true,
+  scalingFactor: 1.18
+  },
+  {
+  id: 'energy_core',
+  name: 'Energy Core',
+  icon: '⚡',
+  description: 'High-capacity energy storage',
+  basePrice: { gold: 3000, iron: 5, science: 2 },
+  reward: { energy: 50 },
+  category: 'advanced',
+  adaptive: true,
+  scalingFactor: 1.25
+  },
+  {
+  id: 'chaos_suppressor',
+  name: 'Chaos Suppressor',
+  icon: '🛡️',
+  description: 'Device that neutralizes chaotic energy',
+  basePrice: { gold: 12000, science: 8, faith: 5 },
+  reward: { chaos: -5 },
+  category: 'special',
+  adaptive: true,
+  scalingFactor: 1.35
+  },
+  {
+  id: 'experience_tome',
+  name: 'Experience Tome',
+  icon: '📚',
+  description: 'Ancient knowledge condensed into skill points',
+  basePrice: { gold: 15000, science: 10, faith: 8 },
+  reward: { skillPoints: 5 },
+  category: 'special',
+  adaptive: true,
+  scalingFactor: 1.4
+  },
+  {
+  id: 'master_crystal',
+  name: 'Master Crystal',
+  icon: '💎',
+  description: 'Ultimate source of knowledge and power',
+  basePrice: { gold: 50000, science: 25, faith: 20, people: 10 },
+  reward: { skillPoints: 15 },
+  category: 'premium',
+  adaptive: true,
+  scalingFactor: 1.5
+  },
+  {
+  id: 'small_energy_cell',
+  name: 'Small Energy Cell',
+  icon: '🔋',
+  description: 'Quick energy boost',
+  basePrice: { gold: 500 },
+  reward: { energy: 15 },
+  category: 'energy',
+  adaptive: true,
+  scalingFactor: 1.1
+  },
+  {
+  id: 'energy_amplifier',
+  name: 'Energy Amplifier',
+  icon: '⚡',
+  description: 'Permanently increases max energy',
+  basePrice: { gold: 10000, science: 8, iron: 10 },
+  reward: { maxEnergyBonus: 25 }, // Специальная награда
+  category: 'energy',
+  adaptive: true,
+  scalingFactor: 1.4
+  },
+  {
+  id: 'protection_ward',
+  name: 'Protection Ward',
+  icon: '🛡️',
+  description: 'Blocks next 5 debuffs',
+  basePrice: { gold: 5000, faith: 8, stone: 10 },
+  reward: { shieldCharges: 5 }, // Заряды щита
+  category: 'consumables',
+  adaptive: true,
+  scalingFactor: 1.25
+  },
+  {
+  id: 'advanced_blueprint',
+  name: 'Advanced Blueprint',
+  icon: '📋',
+  description: 'Reduces next building upgrade cost by 25%',
+  basePrice: { gold: 12000, science: 15 },
+  reward: { buildingDiscount: 0.25 }, // Скидка
+  category: 'building_materials',
+  adaptive: true,
+  scalingFactor: 1.35
+  },
+  {
+  id: 'void_fragment',
+  name: 'Void Fragment',
+  icon: '🕳️',
+  description: 'Dangerous artifact that doubles chaos but gives massive skill points',
+  basePrice: { gold: 40000, science: 30 },
+  reward: { skillPoints: 25, chaos: 50 },
+  category: 'rare',
+  adaptive: true,
+  scalingFactor: 1.7
+  },
+  {
+  id: 'phoenix_feather',
+  name: 'Phoenix Feather',
+  icon: '🪶',
+  description: 'Legendary item that restores all resources by 10%',
+  basePrice: { gold: 30000, faith: 25, science: 20 },
+  reward: { allResourcesPercent: 0.1 },
+  category: 'rare',
+  adaptive: true,
+  scalingFactor: 1.6
+  },
 ];
 
 export class MarketManager extends CleanupMixin {
