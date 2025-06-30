@@ -53,20 +53,21 @@ export const SPECIAL_REWARDS = {
 };
 
 export class RaidManager extends CleanupMixin {
-  constructor(gameState) {
-    super();
-    
-    this.gameState = gameState;
-    this.activeRaid = null;
-    this.raidProgress = 0;
-    this.raidStartTime = 0;
-    this.isRaidInProgress = false;
-    
-    this.initializeRaidState();
-    this.bindEvents();
-    
-    console.log('⚔️ RaidManager initialized');
-  }
+constructor(gameState) {
+  super();
+  
+  this.gameState = gameState;
+  this.activeRaid = null;
+  this.raidProgress = 0;
+  this.raidStartTime = 0;
+  this.isRaidInProgress = false;
+  this.autoClickerWasActive = false; // НОВОЕ: отслеживание состояния автокликера
+  
+  this.initializeRaidState();
+  this.bindEvents();
+  
+  console.log('⚔️ RaidManager initialized');
+}
 
   // Инициализация состояния рейдов
   initializeRaidState() {
@@ -186,49 +187,87 @@ export class RaidManager extends CleanupMixin {
   }
 
   // Запустить рейд
-  startRaid(raidId) {
-    const canStart = this.canStartRaid(raidId);
-    if (!canStart.can) {
-      eventBus.emit(GameEvents.NOTIFICATION, `❌ ${canStart.reason}`);
-      return false;
-    }
-    
-    const raidDef = this.getRaidDefinition(raidId);
-    
-    try {
-      // Тратим ресурсы
-      if (!this.spendRaidRequirements(raidDef)) {
-        throw new Error('Failed to spend raid requirements');
-      }
-      
-      // Запускаем рейд
-      this.activeRaid = raidDef;
-      this.isRaidInProgress = true;
-      this.raidStartTime = Date.now();
-      this.raidProgress = 0;
-      
-      // Блокируем игровое поле
-      this.blockGameField(true);
-      
-      // Запускаем таймер рейда
-      this.startRaidTimer();
-      
-      // Уведомления
-      eventBus.emit(GameEvents.NOTIFICATION, `⚔️ ${raidDef.name} started!`);
-      eventBus.emit(GameEvents.RAID_STARTED, {
-        raid: raidDef,
-        duration: raidDef.duration
-      });
-      
-      console.log(`⚔️ Raid started: ${raidDef.name}`);
-      return true;
-      
-    } catch (error) {
-      console.error('❌ Failed to start raid:', error);
-      eventBus.emit(GameEvents.NOTIFICATION, `❌ Failed to start raid: ${error.message}`);
-      return false;
-    }
+startRaid(raidId) {
+  const canStart = this.canStartRaid(raidId);
+  if (!canStart.can) {
+    eventBus.emit(GameEvents.NOTIFICATION, `❌ ${canStart.reason}`);
+    return false;
   }
+  
+  const raidDef = this.getRaidDefinition(raidId);
+  
+  try {
+    // Тратим ресурсы
+    if (!this.spendRaidRequirements(raidDef)) {
+      throw new Error('Failed to spend raid requirements');
+    }
+    
+    // Запускаем рейд
+    this.activeRaid = raidDef;
+    this.isRaidInProgress = true;
+    this.raidStartTime = Date.now();
+    this.raidProgress = 0;
+    
+    // Блокируем игровое поле
+    this.blockGameField(true);
+    
+    // НОВОЕ: Отключаем автокликер во время рейда
+    this.pauseAutoClicker();
+    
+    // Запускаем таймер рейда
+    this.startRaidTimer();
+    
+    // Уведомления
+    eventBus.emit(GameEvents.NOTIFICATION, `⚔️ ${raidDef.name} started!`);
+    eventBus.emit(GameEvents.RAID_STARTED, {
+      raid: raidDef,
+      duration: raidDef.duration
+    });
+    
+    console.log(`⚔️ Raid started: ${raidDef.name} (autoclicker paused)`);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Failed to start raid:', error);
+    eventBus.emit(GameEvents.NOTIFICATION, `❌ Failed to start raid: ${error.message}`);
+    return false;
+  }
+}
+
+// НОВЫЙ МЕТОД: Приостановить автокликер
+pauseAutoClicker() {
+  // Проверяем текущий статус автокликера
+  const autoClickerStats = this.gameState.skillManager?.getAutoClickerStats?.();
+  this.autoClickerWasActive = autoClickerStats?.active || false;
+  
+  if (this.autoClickerWasActive) {
+    // Отправляем событие для остановки автокликера
+    eventBus.emit(GameEvents.RAID_AUTOCLICKER_PAUSE);
+    console.log('🤖 Auto clicker pause requested for raid');
+    
+    // Уведомляем игрока
+    eventBus.emit(GameEvents.NOTIFICATION, '🤖 Auto clicker paused during raid');
+  } else {
+    console.log('🤖 Auto clicker was not active, no pause needed');
+  }
+}
+
+// НОВЫЙ МЕТОД: Восстановить автокликер
+resumeAutoClicker() {
+  if (this.autoClickerWasActive) {
+    // Отправляем событие для восстановления автокликера с задержкой
+    setTimeout(() => {
+      eventBus.emit(GameEvents.RAID_AUTOCLICKER_RESUME);
+      console.log('🤖 Auto clicker resume requested after raid');
+      
+      // Уведомляем игрока
+      eventBus.emit(GameEvents.NOTIFICATION, '🤖 Auto clicker resumed');
+    }, 500);
+  }
+  
+  // Сбрасываем флаг
+  this.autoClickerWasActive = false;
+}
 
   // Потратить ресурсы для рейда
   spendRaidRequirements(raidDef) {
@@ -516,43 +555,48 @@ export class RaidManager extends CleanupMixin {
   }
 
   // Завершить рейд
-  endRaid() {
-    this.activeRaid = null;
-    this.isRaidInProgress = false;
-    this.raidProgress = 0;
-    this.raidStartTime = 0;
-    
-    // Разблокируем игровое поле
-    this.blockGameField(false);
-    
-    eventBus.emit(GameEvents.RAID_COMPLETED, {
-      timestamp: Date.now()
-    });
-    
-    console.log('⚔️ Raid ended');
-  }
+endRaid() {
+  this.activeRaid = null;
+  this.isRaidInProgress = false;
+  this.raidProgress = 0;
+  this.raidStartTime = 0;
+  
+  // Разблокируем игровое поле
+  this.blockGameField(false);
+  
+  // НОВОЕ: Восстанавливаем автокликер после рейда
+  this.resumeAutoClicker();
+  
+  eventBus.emit(GameEvents.RAID_COMPLETED, {
+    timestamp: Date.now()
+  });
+  
+  console.log('⚔️ Raid ended (autoclicker resumed)');
+}
 
   // Отменить рейд (для экстренных случаев)
-  cancelRaid() {
-    if (!this.isRaidInProgress) return false;
-    
-    console.log('⚔️ Cancelling raid...');
-    
-    // Возвращаем ресурсы (50% штраф)
-    if (this.activeRaid) {
-      Object.entries(this.activeRaid.requirements).forEach(([resource, amount]) => {
-        const refund = Math.floor(amount * 0.5);
-        this.gameState.resources[resource] = 
-          (this.gameState.resources[resource] || 0) + refund;
-      });
-    }
-    
-    this.endRaid();
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Raid cancelled (50% resources refunded)');
-    eventBus.emit(GameEvents.RESOURCE_CHANGED);
-    
-    return true;
+cancelRaid() {
+  if (!this.isRaidInProgress) return false;
+  
+  console.log('⚔️ Cancelling raid...');
+  
+  // Возвращаем ресурсы (50% штраф)
+  if (this.activeRaid) {
+    Object.entries(this.activeRaid.requirements).forEach(([resource, amount]) => {
+      const refund = Math.floor(amount * 0.5);
+      this.gameState.resources[resource] = 
+        (this.gameState.resources[resource] || 0) + refund;
+    });
   }
+  
+  this.endRaid(); // Это автоматически восстановит автокликер
+  
+  eventBus.emit(GameEvents.NOTIFICATION, '❌ Raid cancelled (Auto clicker resumed)');
+  eventBus.emit(GameEvents.RESOURCE_CHANGED);
+  
+  return true;
+}
+
 
   // Получить определение рейда
   getRaidDefinition(raidId) {
