@@ -185,33 +185,36 @@ export class BuffManager extends CleanupMixin {
   }
 
   // Установить истечение баффа с правильной очисткой
-  setBuffExpiration(buffDef) {
-    // Buff Mastery skill - увеличение длительности баффов
-    const buffDurationBonus = this.getSkillBonus('duration', 'buffs');
-    const durationMultiplier = 1 + buffDurationBonus;
-    const finalDuration = Math.floor(buffDef.duration * durationMultiplier * 1000);
+setBuffExpiration(buffDef) {
+  // Buff Mastery skill + новый Buff Duration skill
+  const buffDurationBonus = this.getSkillBonus('duration', 'buffs');
+  const durationMultiplier = 1 + buffDurationBonus;
+  
+  // НОВОЕ: учитываем Buff Duration skill
+  const buffDurationSkill = this.getSkillBonus('duration', 'buffs'); // уже включено выше
+  
+  const finalDuration = Math.floor(buffDef.duration * durationMultiplier * 1000);
 
-    const timeoutId = this.createTimeout(() => {
-      console.log(`🕒 Buff ${buffDef.id} expired naturally`);
-      this.removeBuff(buffDef.id);
-      eventBus.emit(GameEvents.BUFF_EXPIRED, {
-        id: buffDef.id,
-        name: buffDef.name
-      });
-    }, finalDuration, `buff-${buffDef.id}`);
-
-    // Сохраняем полную информацию об эффекте
-    this.activeEffects.set(buffDef.id, {
-      timeoutId,
-      config: EFFECT_CONFIG[buffDef.id],
-      startTime: Date.now(),
-      duration: finalDuration,
-      type: 'buff',
-      definition: buffDef
+  const timeoutId = this.createTimeout(() => {
+    console.log(`🕒 Buff ${buffDef.id} expired naturally`);
+    this.removeBuff(buffDef.id);
+    eventBus.emit(GameEvents.BUFF_EXPIRED, {
+      id: buffDef.id,
+      name: buffDef.name
     });
+  }, finalDuration, `buff-${buffDef.id}`);
 
-    console.log(`⏰ Buff ${buffDef.id} will expire in ${finalDuration}ms`);
-  }
+  this.activeEffects.set(buffDef.id, {
+    timeoutId,
+    config: EFFECT_CONFIG[buffDef.id],
+    startTime: Date.now(),
+    duration: finalDuration,
+    type: 'buff',
+    definition: buffDef
+  });
+
+  console.log(`⏰ Buff ${buffDef.id} will expire in ${finalDuration}ms (duration bonus: +${Math.floor(buffDurationBonus * 100)}%)`);
+}
 
   // Удалить бафф
   removeBuff(buffId) {
@@ -379,32 +382,31 @@ export class BuffManager extends CleanupMixin {
   }
 
   // Установить истечение дебаффа с правильной очисткой
-  setDebuffExpiration(debuffDef) {
-    // Resilience skill - уменьшение длительности дебаффов
-    const debuffReduction = this.getSkillBonus('reduction', 'debuffs');
-    const finalDuration = Math.max(0.5, debuffDef.duration * (1 - debuffReduction));
+setDebuffExpiration(debuffDef) {
+  // Resilience skill + новый Debuff Resistance skill
+  const debuffReduction = this.getSkillBonus('reduction', 'debuffs');
+  const finalDuration = Math.max(0.5, debuffDef.duration * (1 - Math.min(0.8, debuffReduction)));
 
-    const timeoutId = this.createTimeout(() => {
-      console.log(`🕒 Debuff ${debuffDef.id} expired naturally`);
-      this.removeDebuff(debuffDef.id);
-      eventBus.emit(GameEvents.DEBUFF_EXPIRED, {
-        id: debuffDef.id,
-        name: debuffDef.name
-      });
-    }, finalDuration * 1000, `debuff-${debuffDef.id}`);
-
-    // Сохраняем полную информацию об эффекте
-    this.activeEffects.set(debuffDef.id, {
-      timeoutId,
-      config: EFFECT_CONFIG[debuffDef.id],
-      startTime: Date.now(),
-      duration: finalDuration * 1000,
-      type: 'debuff',
-      definition: debuffDef
+  const timeoutId = this.createTimeout(() => {
+    console.log(`🕒 Debuff ${debuffDef.id} expired naturally`);
+    this.removeDebuff(debuffDef.id);
+    eventBus.emit(GameEvents.DEBUFF_EXPIRED, {
+      id: debuffDef.id,
+      name: debuffDef.name
     });
+  }, finalDuration * 1000, `debuff-${debuffDef.id}`);
 
-    console.log(`⏰ Debuff ${debuffDef.id} will expire in ${finalDuration * 1000}ms`);
-  }
+  this.activeEffects.set(debuffDef.id, {
+    timeoutId,
+    config: EFFECT_CONFIG[debuffDef.id],
+    startTime: Date.now(),
+    duration: finalDuration * 1000,
+    type: 'debuff',
+    definition: debuffDef
+  });
+
+  console.log(`⏰ Debuff ${debuffDef.id} will expire in ${finalDuration * 1000}ms (resistance: -${Math.floor(debuffReduction * 100)}%)`);
+}
 
   // Удалить дебафф
   removeDebuff(debuffId) {

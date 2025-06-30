@@ -189,6 +189,91 @@ export const SKILL_DEFS = [
     baseCost: 25,
     costMultiplier: 1.0,
     effect: { type: 'preview', target: 'zone', value: 1 }
+  },
+  {
+    id: 'buffDuration',
+    name: 'Buff Duration',
+    icon: '⏱️',
+    description: 'Increase duration of positive effects',
+    category: 'effects',
+    maxLevel: 5,
+    baseCost: 15,
+    costMultiplier: 2.0,
+    effect: { 
+      type: 'duration', 
+      target: 'buffs', 
+      value: 0.25, // +25% длительности за уровень
+      diminishing: true,
+      diminishingFactor: 0.85,
+      cap: 1.0 // максимум +100% длительности
+    }
+  },
+  {
+    id: 'debuffResistance',
+    name: 'Debuff Resistance',
+    icon: '🛡️',
+    description: 'Reduce duration of negative effects',
+    category: 'effects',
+    maxLevel: 4,
+    baseCost: 20,
+    costMultiplier: 2.5,
+    effect: { 
+      type: 'reduction', 
+      target: 'debuffs', 
+      value: 0.2, // -20% длительности за уровень
+      diminishing: true,
+      diminishingFactor: 0.8,
+      cap: 0.6 // максимум -60% длительности
+    }
+  },
+  {
+    id: 'treasureHunter',
+    name: 'Treasure Hunter',
+    icon: '💰',
+    description: 'Chance to find treasure chests with rare resources',
+    category: 'special',
+    maxLevel: 8,
+    baseCost: 25,
+    costMultiplier: 1.8,
+    effect: { 
+      type: 'chance', 
+      target: 'treasure', 
+      value: 0.015, // 1.5% шанс за уровень
+      cap: 0.1 // максимум 10% шанс
+    }
+  },
+  {
+    id: 'abundance',
+    name: 'Abundance',
+    icon: '🌟',
+    description: 'All resource sources work more efficiently',
+    category: 'resources',
+    maxLevel: 6,
+    baseCost: 30,
+    costMultiplier: 2.2,
+    effect: { 
+      type: 'multiplier', 
+      target: 'all_production', 
+      value: 0.15, // +15% производства за уровень
+      diminishing: true,
+      diminishingFactor: 0.9,
+      cap: 0.75 // максимум +75% производства
+    }
+  },
+  {
+    id: 'comboShield',
+    name: 'Combo Shield',
+    icon: '🛡️',
+    description: 'First few misses in combo do not break it',
+    category: 'combo',
+    maxLevel: 3,
+    baseCost: 40,
+    costMultiplier: 3.0,
+    effect: { 
+      type: 'charges', 
+      target: 'combo_protection', 
+      value: 1 // +1 защищенный промах за уровень
+    }
   }
 ];
 
@@ -224,6 +309,27 @@ initializeSkills() {
       autoClickerPendingStart: false // НОВОЕ: флаг отложенного запуска
     };
   }
+
+  if (!this.gameState.skillStates.comboShieldCharges) {
+  this.gameState.skillStates.comboShieldCharges = 0;
+  }
+}
+
+  getComboShieldCharges() {
+  return this.gameState.skillStates.comboShieldCharges || 0;
+}
+
+useComboShieldCharge() {
+  if (this.gameState.skillStates.comboShieldCharges > 0) {
+    this.gameState.skillStates.comboShieldCharges--;
+    return true;
+  }
+  return false;
+}
+
+resetComboShield() {
+  const comboShieldLevel = this.getSkillLevel('comboShield');
+  this.gameState.skillStates.comboShieldCharges = comboShieldLevel;
 }
 
     validateSkillPoints() {
@@ -304,6 +410,14 @@ initializeSkills() {
                     this.startAutoClicker(level);
                 }
                 break;
+
+            case 'charges':
+                if (skillId === 'comboProtection') {
+                    this.gameState.skillStates.missProtectionCharges += def.effect.value;
+              } else if (skillId === 'comboShield') {
+                    this.gameState.skillStates.comboShieldCharges += def.effect.value;
+              }
+              break;
         }
     }
 
