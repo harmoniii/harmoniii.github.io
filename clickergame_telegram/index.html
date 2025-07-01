@@ -112,7 +112,7 @@
   <!-- Telegram Web App Scripts -->
   <script type="module">
     import { TelegramWebAppAdapter } from './telegram-webapp-adapter.js';
-    import { main } from './game.js';
+    import { initializeTelegramGame } from './telegram-game-integration.js';
 
     // Инициализация Telegram Web App
     const telegramAdapter = new TelegramWebAppAdapter();
@@ -133,7 +133,7 @@
         setupTelegramUI();
         
         // Запускаем основную игру
-        await main();
+        await initializeTelegramGame();
         
         // Интегрируем с Telegram после загрузки игры
         if (window.gameCore) {
