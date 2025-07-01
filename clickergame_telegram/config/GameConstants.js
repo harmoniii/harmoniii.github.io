@@ -1,0 +1,112 @@
+// config/GameConstants.js - Очищенная версия с убранными дублями
+export const GAME_CONSTANTS = {
+  // Timing constants
+  NOTIFICATION_DURATION: 3000,
+  SKILL_NOTIFICATION_DURATION: 4000,
+  SAVE_ELEMENT_TIMEOUT: 10000,
+  RELOAD_DELAY: 2000,
+  
+  // ИЗМЕНЕНО: Уменьшены мультипликаторы эффектов
+  FRENZY_MULTIPLIER: 1.5, // было 2
+  DOUBLE_TAP_MULTIPLIER: 1.5, // было 2
+  SPEED_BOOST_MULTIPLIER: 0.75, // было 0.5 (менее радикально)
+  RAPID_SPEED_MULTIPLIER: 2, // было 5
+  LUCKY_BUFF_BONUS: 15, // было 25
+  GHOST_CLICK_CHANCE: 0.3, // было 0.5
+  SLOT_MACHINE_CHANCE: 0.2, // было 0.3
+  SLOT_MACHINE_AMOUNT: 2, // было 3
+  STAR_POWER_CLICKS: 3, // было 5
+  STAR_POWER_BONUS: 3, // было 5
+  SHIELD_BLOCKS: 2, // было 3
+  HEAVY_CLICK_REQUIRED: 2,
+  TAX_COLLECTOR_PERCENT: 0.03, // было 0.05
+  TAX_COLLECTOR_INTERVAL: 4000, // было 3000 (реже)
+  EXPLOSION_DAMAGE_PERCENT: 0.05, // было 0.1
+  WATERFALL_INTERVAL: 1200, // было 900 (реже)
+  WATERFALL_AMOUNT: 1,
+
+  // НОВОЕ: Константы для линейного роста
+  LINEAR_SCALING_ENABLED: true,
+  MAX_COMBO_BENEFIT: 10, // Максимальный бонус от комбо
+  COMBO_BENEFIT_CAP: 50, // После этого комбо не дает больше бонуса
+  SKILL_DIMINISHING_RETURNS: true,
+  BUILDING_LINEAR_SCALING: true,
+
+  // Энергетические константы - без изменений
+  INITIAL_ENERGY: 100,
+  INITIAL_MAX_ENERGY: 100,
+  BASE_REGEN_RATE: 1,
+  REGEN_INTERVAL: 15000,
+  CLICK_COST: 1,
+  ZONE_RESTORE: 1,
+  GOLD_ZONE_RESTORE: 4,
+  WARNING_THRESHOLD: 20,
+  CRITICAL_THRESHOLD: 10,
+  PULSE_THRESHOLD: 10,
+  GENERATOR_REGEN_BONUS: 0.3, // было 0.5
+  GENERATOR_MAX_ENERGY_BONUS: 8, // было 10
+  MASTERY_REGEN_BONUS: 0.5, // было 1.0
+  STORAGE_MAX_BONUS: 30, // было 50
+  EFFICIENCY_REDUCTION: 0.15, // было 0.25
+  ENERGY_PACK_RESTORE: 50,
+  
+  // ИЗМЕНЕНО: Линейные цены в маркете
+  BASIC_RESOURCE_PRICE: 1000, // было 2000
+  ENERGY_PACK_PRICE: 2500, // было 5000
+  SCIENCE_BOOK_PRICE: 4000, // было 8000
+  FAITH_RELIC_PRICE: 5000, // было 10000
+  CHAOS_NEUTRALIZER_PRICE: 7500, // было 15000
+  SKILL_CRYSTAL_PRICE: 10000, // было 20000
+  
+  // ИЗМЕНЕНО: Автокликер более сбалансированный
+  AUTO_CLICKER_BASE_INTERVAL: 15000, // было 10000 (медленнее)
+  AUTO_CLICKER_MIN_INTERVAL: 3000, // было 1000 (не слишком быстро)
+  
+  // Achievement constants - без изменений
+  COMBO_CHECK_INTERVAL: 10000,
+  RESOURCE_CHECK_INTERVAL: 30000,
+  COMBO_MILESTONE_1: 10,
+  COMBO_MILESTONE_2: 25,
+  COMBO_MILESTONE_3: 50,
+  RESOURCE_MILESTONE_1: 1000,
+  RESOURCE_MILESTONE_2: 5000,
+  RESOURCE_MILESTONE_3: 10000,
+  
+  // UI constants
+  TOOLTIP_OFFSET: 10,
+  
+  // Validation constants
+  MAX_SAFE_RESOURCE_VALUE: Number.MAX_SAFE_INTEGER,
+  MIN_RESOURCE_VALUE: 0,
+  MAX_COMBO_COUNT: 999999,
+  MAX_SKILL_POINTS: 999999,
+  
+  // ИЗМЕНЕНО: Более консервативная механика комбо
+  COMBO_TIMEOUT: 5000,
+  MAX_COMBO_MULTIPLIER: 5, // было 10
+  ZONE_SHUFFLE_CHANCE: 75,
+  BASE_EFFECT_CHANCE: 8, // было 10
+  EFFECT_CHANCE_RANGE: { min: 3, max: 15 } // было 5-25
+};
+
+export const UI_CONFIG = {
+  CANVAS_SIZE: 500,
+  ROTATION_SPEED: 0.005,
+  BLOCK_DURATION: 3000
+};
+
+export const UI_COLORS = {
+  RARITY_COMMON: '#9E9E9E',
+  RARITY_UNCOMMON: '#4CAF50', 
+  RARITY_RARE: '#FF9800',
+  RARITY_EPIC: '#9C27B0',
+  
+  SEVERITY_MILD: '#FF9800',
+  SEVERITY_MODERATE: '#f44336',
+  SEVERITY_SEVERE: '#8E24AA',
+  
+  SUCCESS: '#4CAF50',
+  WARNING: '#FF9800',
+  ERROR: '#f44336',
+  INFO: '#2196F3'
+};
