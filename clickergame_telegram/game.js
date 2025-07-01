@@ -1,7 +1,7 @@
 // telegram-game-integration.js - Интеграция игры с Telegram Web App
 import { GridGameCore } from './core/GridGameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
-import { TelegramStorageManager } from './core/TelegramStorageManager.js';
+import { StorageManager } from './core/StorageManager.js';
 
 // Глобальные переменные
 let gameCore = null;
