@@ -1,98 +1,245 @@
-// core/TelegramStorageManager.js - Расширенный StorageManager для Telegram
-import { StorageManager } from './StorageManager.js';
-
-export class TelegramStorageManager extends StorageManager {
+// core/StorageManager.js - Обновленная версия с поддержкой Telegram Cloud Storage
+export class StorageManager {
   constructor() {
-    super();
+    this.STORAGE_KEY = 'advancedClickerState';
+    this.CURRENT_VERSION = '0.8.0';
     this.telegramAdapter = window.telegramAdapter;
     this.CLOUD_KEY = 'gamestate';
-    this.USER_KEY = 'userdata';
-    this.STATS_KEY = 'statistics';
+    this.isCloudEnabled = !!this.telegramAdapter;
   }
 
-  // Сохранить в облако Telegram
-  async saveToCloud(gameState) {
+  // ===== ОБЫЧНОЕ СОХРАНЕНИЕ/ЗАГРУЗКА =====
+
+  // Сохранить состояние игры
+  save(gameState) {
     try {
-      console.log('☁️ Saving to Telegram Cloud Storage...');
-      
       if (!gameState) {
-        throw new Error('GameState is null or undefined');
+        console.warn('⚠️ StorageManager.save: gameState is null/undefined');
+        return false;
       }
 
-      const saveData = gameState.getSaveData ? gameState.getSaveData() : gameState;
+      if (typeof gameState.getSaveData !== 'function') {
+        console.warn('⚠️ StorageManager.save: gameState.getSaveData is not a function');
+        return false;
+      }
+
+      const saveData = gameState.getSaveData();
+      
       if (!saveData) {
-        throw new Error('Failed to get save data');
+        console.warn('⚠️ StorageManager.save: getSaveData returned null/undefined');
+        return false;
       }
 
+      if (typeof saveData !== 'object') {
+        console.warn('⚠️ StorageManager.save: saveData is not an object:', typeof saveData);
+        return false;
+      }
+
+      // Добавляем метаданные
+      saveData.saveVersion = this.CURRENT_VERSION;
+      saveData.saveTimestamp = Date.now();
+
+      // Кодируем и сохраняем локально
+      const jsonString = JSON.stringify(saveData);
+      const encodedData = this.encodeData(jsonString);
+      
+      localStorage.setItem(this.STORAGE_KEY, encodedData);
+      
+      // Также сохраняем в облако Telegram если доступно
+      if (this.isCloudEnabled) {
+        this.saveToCloudAsync(saveData);
+      }
+      
+      console.log('✅ Game state saved successfully');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Failed to save game state:', error);
+      return false;
+    }
+  }
+
+  // Загрузить состояние игры
+  load() {
+    try {
+      // Сначала пытаемся загрузить из облака
+      if (this.isCloudEnabled) {
+        return this.loadFromCloudSync();
+      }
+      
+      // Fallback к локальному сохранению
+      return this.loadFromLocal();
+      
+    } catch (error) {
+      console.error('❌ Failed to load game state:', error);
+      return null;
+    }
+  }
+
+  // Загрузка из локального хранилища
+  loadFromLocal() {
+    try {
+      const encodedData = localStorage.getItem(this.STORAGE_KEY);
+      
+      if (!encodedData) {
+        console.log('ℹ️ No local save found');
+        return null;
+      }
+
+      const jsonString = this.decodeData(encodedData);
+      const saveData = JSON.parse(jsonString);
+      
+      // Валидируем данные
+      this.validateSaveData(saveData);
+      
+      console.log('✅ Game state loaded from local storage');
+      return saveData;
+      
+    } catch (error) {
+      console.error('❌ Failed to load from local storage:', error);
+      return null;
+    }
+  }
+
+  // ===== TELEGRAM CLOUD STORAGE =====
+
+  // Асинхронное сохранение в облако (не блокирует основной поток)
+  async saveToCloudAsync(saveData) {
+    try {
+      if (!this.telegramAdapter) return false;
+      
+      console.log('☁️ Saving to Telegram Cloud...');
+      
       // Добавляем метаданные для облака
       const cloudSaveData = {
         ...saveData,
         cloudSave: true,
         cloudSaveTimestamp: Date.now(),
-        telegramUserId: this.telegramAdapter?.getUserInfo()?.id,
+        telegramUserId: this.telegramAdapter.getUserInfo()?.id,
         version: this.CURRENT_VERSION
       };
 
-      // Сохраняем в облако Telegram
-      const success = await this.telegramAdapter?.cloudStorageSave(this.CLOUD_KEY, cloudSaveData);
+      const success = await this.telegramAdapter.cloudStorageSave(this.CLOUD_KEY, cloudSaveData);
       
       if (success) {
-        console.log('✅ Game saved to Telegram cloud successfully');
-        
-        // Также сохраняем локально как backup
-        this.saveToLocal(cloudSaveData);
-        
+        console.log('✅ Game saved to Telegram cloud');
         return true;
       } else {
-        throw new Error('Cloud storage failed');
+        console.warn('⚠️ Cloud save failed, using local only');
+        return false;
       }
       
     } catch (error) {
-      console.error('❌ Failed to save to Telegram cloud:', error);
-      
-      // Fallback к локальному сохранению
-      console.log('🔄 Falling back to local storage...');
-      return this.save(gameState);
-    }
-  }
-
-  // Загрузить из облака Telegram
-  async loadFromCloud() {
-    try {
-      console.log('☁️ Loading from Telegram Cloud Storage...');
-      
-      const cloudData = await this.telegramAdapter?.cloudStorageLoad(this.CLOUD_KEY);
-      
-      if (cloudData) {
-        console.log('✅ Game loaded from Telegram cloud successfully');
-        this.validateCloudData(cloudData);
-        return cloudData;
-      } else {
-        console.log('ℹ️ No cloud save found, checking local storage...');
-        return this.load();
-      }
-      
-    } catch (error) {
-      console.error('❌ Failed to load from Telegram cloud:', error);
-      
-      // Fallback к локальному сохранению
-      console.log('🔄 Falling back to local storage...');
-      return this.load();
-    }
-  }
-
-  // Сохранить локально (как backup)
-  saveToLocal(saveData) {
-    try {
-      const jsonString = JSON.stringify(saveData);
-      const encodedData = this.encodeData(jsonString);
-      localStorage.setItem(this.STORAGE_KEY, encodedData);
-      return true;
-    } catch (error) {
-      console.error('❌ Local backup save failed:', error);
+      console.error('❌ Failed to save to cloud:', error);
       return false;
     }
   }
+
+  // Синхронная попытка загрузки из облака (с fallback)
+  loadFromCloudSync() {
+    try {
+      // Запускаем асинхронную загрузку из облака
+      this.loadFromCloudAsync().then(cloudData => {
+        if (cloudData) {
+          console.log('☁️ Cloud data will be applied on next game start');
+          // Сохраняем облачные данные локально для следующего запуска
+          this.saveCloudDataToLocal(cloudData);
+        }
+      }).catch(error => {
+        console.error('❌ Async cloud load failed:', error);
+      });
+      
+      // Пока возвращаем локальные данные
+      return this.loadFromLocal();
+      
+    } catch (error) {
+      console.error('❌ Cloud sync load failed:', error);
+      return this.loadFromLocal();
+    }
+  }
+
+  // Асинхронная загрузка из облака
+  async loadFromCloudAsync() {
+    try {
+      if (!this.telegramAdapter) return null;
+      
+      console.log('☁️ Loading from Telegram Cloud...');
+      
+      const cloudData = await this.telegramAdapter.cloudStorageLoad(this.CLOUD_KEY);
+      
+      if (cloudData) {
+        // Проверяем, не очищено ли сохранение
+        if (cloudData.cleared) {
+          console.log('🗑️ Cloud storage was cleared');
+          return null;
+        }
+        
+        this.validateCloudData(cloudData);
+        console.log('✅ Game loaded from Telegram cloud');
+        return cloudData;
+      } else {
+        console.log('ℹ️ No cloud save found');
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('❌ Failed to load from cloud:', error);
+      return null;
+    }
+  }
+
+  // Сохранение облачных данных локально
+  saveCloudDataToLocal(cloudData) {
+    try {
+      const jsonString = JSON.stringify(cloudData);
+      const encodedData = this.encodeData(jsonString);
+      localStorage.setItem(this.STORAGE_KEY, encodedData);
+      console.log('💾 Cloud data saved to local storage');
+    } catch (error) {
+      console.error('❌ Failed to save cloud data locally:', error);
+    }
+  }
+
+  // Автосохранение (с поддержкой облака)
+  async autoSaveToLocalStorage(gameState) {
+    try {
+      if (!gameState || gameState.isDestroyed) {
+        console.warn('⚠️ Cannot auto-save: game state not available');
+        return false;
+      }
+
+      console.log('💾 Performing auto-save...');
+      
+      const saveData = gameState.getSaveData ? gameState.getSaveData() : null;
+      if (!saveData) {
+        console.warn('⚠️ Cannot get save data for auto-save');
+        return false;
+      }
+
+      // Добавляем метаданные автосохранения
+      saveData.autoSave = true;
+      saveData.autoSaveTimestamp = Date.now();
+      
+      // Сохраняем локально
+      const jsonString = JSON.stringify(saveData);
+      const encodedData = this.encodeData(jsonString);
+      localStorage.setItem(this.STORAGE_KEY, encodedData);
+      
+      // Также сохраняем в облако если доступно
+      if (this.isCloudEnabled) {
+        await this.saveToCloudAsync(saveData);
+      }
+      
+      console.log('✅ Auto-save completed');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+      return false;
+    }
+  }
+
+  // ===== TELEGRAM СПЕЦИФИЧЕСКИЕ МЕТОДЫ =====
 
   // Валидация облачных данных
   validateCloudData(data) {
@@ -115,146 +262,14 @@ export class TelegramStorageManager extends StorageManager {
     this.validateSaveData(data);
   }
 
-  // Сохранить статистику пользователя
-  async saveUserStats(stats) {
+  // Экспорт для Telegram бота
+  async exportForTelegramBot(gameState) {
     try {
-      const userInfo = this.telegramAdapter?.getUserInfo();
-      const userStats = {
-        ...stats,
-        userId: userInfo?.id,
-        username: userInfo?.username,
-        firstName: userInfo?.firstName,
-        lastUpdated: Date.now()
-      };
-
-      await this.telegramAdapter?.cloudStorageSave(this.STATS_KEY, userStats);
-      console.log('📊 User stats saved to cloud');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save user stats:', error);
-      return false;
-    }
-  }
-
-  // Загрузить статистику пользователя
-  async loadUserStats() {
-    try {
-      const userStats = await this.telegramAdapter?.cloudStorageLoad(this.STATS_KEY);
-      return userStats || null;
-    } catch (error) {
-      console.error('❌ Failed to load user stats:', error);
-      return null;
-    }
-  }
-
-  // Сохранить пользовательские данные
-  async saveUserData(userData) {
-    try {
-      const userInfo = this.telegramAdapter?.getUserInfo();
-      const fullUserData = {
-        ...userData,
-        telegramInfo: userInfo,
-        lastSeen: Date.now()
-      };
-
-      await this.telegramAdapter?.cloudStorageSave(this.USER_KEY, fullUserData);
-      console.log('👤 User data saved to cloud');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to save user data:', error);
-      return false;
-    }
-  }
-
-  // Автосохранение в облако
-  async autoSaveToCloud(gameState) {
-    try {
-      if (!gameState || gameState.isDestroyed) {
-        console.warn('⚠️ Cannot auto-save: game state not available');
+      if (!this.telegramAdapter) {
+        console.warn('⚠️ Telegram adapter not available for export');
         return false;
       }
 
-      console.log('☁️ Performing auto-save to Telegram cloud...');
-      
-      const saveData = gameState.getSaveData ? gameState.getSaveData() : null;
-      if (!saveData) {
-        console.warn('⚠️ Cannot get save data for auto-save');
-        return false;
-      }
-
-      // Добавляем метаданные автосохранения
-      saveData.autoSave = true;
-      saveData.autoSaveTimestamp = Date.now();
-      saveData.cloudAutoSave = true;
-      
-      const success = await this.telegramAdapter?.cloudStorageSave(this.CLOUD_KEY, saveData);
-      
-      if (success) {
-        console.log('✅ Auto-save to Telegram cloud completed');
-        // Также сохраняем локально
-        this.saveToLocal(saveData);
-        return true;
-      } else {
-        // Fallback к обычному автосохранению
-        return this.autoSaveToLocalStorage(gameState);
-      }
-      
-    } catch (error) {
-      console.error('❌ Auto-save to Telegram cloud failed:', error);
-      return this.autoSaveToLocalStorage(gameState);
-    }
-  }
-
-  // Синхронизация между локальным и облачным хранилищем
-  async syncStorages() {
-    try {
-      console.log('🔄 Syncing local and cloud storages...');
-      
-      const cloudData = await this.telegramAdapter?.cloudStorageLoad(this.CLOUD_KEY);
-      const localData = this.load();
-      
-      if (!cloudData && !localData) {
-        console.log('ℹ️ No data to sync');
-        return null;
-      }
-      
-      if (!cloudData) {
-        // Есть только локальные данные - загружаем в облако
-        console.log('📤 Uploading local data to cloud...');
-        await this.telegramAdapter?.cloudStorageSave(this.CLOUD_KEY, localData);
-        return localData;
-      }
-      
-      if (!localData) {
-        // Есть только облачные данные - сохраняем локально
-        console.log('📥 Downloading cloud data to local...');
-        this.saveToLocal(cloudData);
-        return cloudData;
-      }
-      
-      // Есть оба - используем более новые данные
-      const cloudTime = cloudData.cloudSaveTimestamp || cloudData.saveTimestamp || 0;
-      const localTime = localData.saveTimestamp || 0;
-      
-      if (cloudTime > localTime) {
-        console.log('☁️ Using cloud data (newer)');
-        this.saveToLocal(cloudData);
-        return cloudData;
-      } else {
-        console.log('💾 Using local data (newer)');
-        await this.telegramAdapter?.cloudStorageSave(this.CLOUD_KEY, localData);
-        return localData;
-      }
-      
-    } catch (error) {
-      console.error('❌ Storage sync failed:', error);
-      return this.load(); // Fallback к локальным данным
-    }
-  }
-
-  // Экспорт для отправки боту
-  async exportForBot(gameState) {
-    try {
       const saveData = gameState.getSaveData ? gameState.getSaveData() : gameState;
       if (!saveData) {
         throw new Error('No save data available');
@@ -263,28 +278,28 @@ export class TelegramStorageManager extends StorageManager {
       const exportData = {
         type: 'game_export',
         data: saveData,
-        user: this.telegramAdapter?.getUserInfo(),
+        user: this.telegramAdapter.getUserInfo(),
         timestamp: Date.now(),
         stats: this.generateGameStats(saveData)
       };
 
       // Отправляем боту
-      const success = this.telegramAdapter?.sendData(exportData);
+      const success = this.telegramAdapter.sendData(exportData);
       
       if (success) {
-        console.log('📤 Game data exported to bot');
+        console.log('📤 Game data exported to Telegram bot');
         return true;
       } else {
         throw new Error('Failed to send data to bot');
       }
       
     } catch (error) {
-      console.error('❌ Export to bot failed:', error);
+      console.error('❌ Export to Telegram bot failed:', error);
       return false;
     }
   }
 
-  // Генерация статистики игры
+  // Генерация статистики игры для Telegram
   generateGameStats(saveData) {
     const resources = saveData.resources || {};
     const buildings = saveData.buildings || {};
@@ -313,66 +328,327 @@ export class TelegramStorageManager extends StorageManager {
     return Math.floor(totalProgress / 100);
   }
 
-  // Резервное копирование
-  async createCloudBackup(gameState) {
+  // Синхронизация облачного и локального хранилищ
+  async syncStorages() {
     try {
-      const saveData = gameState.getSaveData ? gameState.getSaveData() : gameState;
-      const backupKey = `backup_${Date.now()}`;
-      
-      const backupData = {
-        ...saveData,
-        backupCreated: Date.now(),
-        originalKey: this.CLOUD_KEY
-      };
+      if (!this.isCloudEnabled) {
+        return this.loadFromLocal();
+      }
 
-      await this.telegramAdapter?.cloudStorageSave(backupKey, backupData);
-      console.log(`💾 Cloud backup created: ${backupKey}`);
+      console.log('🔄 Syncing local and cloud storages...');
+      
+      const cloudData = await this.loadFromCloudAsync();
+      const localData = this.loadFromLocal();
+      
+      if (!cloudData && !localData) {
+        console.log('ℹ️ No data to sync');
+        return null;
+      }
+      
+      if (!cloudData) {
+        // Есть только локальные данные - загружаем в облако
+        console.log('📤 Uploading local data to cloud...');
+        if (localData) {
+          await this.saveToCloudAsync(localData);
+        }
+        return localData;
+      }
+      
+      if (!localData) {
+        // Есть только облачные данные - сохраняем локально
+        console.log('📥 Downloading cloud data to local...');
+        this.saveCloudDataToLocal(cloudData);
+        return cloudData;
+      }
+      
+      // Есть оба - используем более новые данные
+      const cloudTime = cloudData.cloudSaveTimestamp || cloudData.saveTimestamp || 0;
+      const localTime = localData.saveTimestamp || 0;
+      
+      if (cloudTime > localTime) {
+        console.log('☁️ Using cloud data (newer)');
+        this.saveCloudDataToLocal(cloudData);
+        return cloudData;
+      } else {
+        console.log('💾 Using local data (newer)');
+        await this.saveToCloudAsync(localData);
+        return localData;
+      }
+      
+    } catch (error) {
+      console.error('❌ Storage sync failed:', error);
+      return this.loadFromLocal(); // Fallback к локальным данным
+    }
+  }
+
+  // ===== ОСТАЛЬНЫЕ МЕТОДЫ (БЕЗ ИЗМЕНЕНИЙ) =====
+
+  // Экспортировать в строку для пользователя
+  exportToString(gameState) {
+    try {
+      if (!gameState) {
+        throw new Error('GameState is null or undefined');
+      }
+
+      if (typeof gameState.getSaveData !== 'function') {
+        throw new Error('GameState does not have getSaveData method');
+      }
+
+      const saveData = gameState.getSaveData();
+      
+      if (!saveData) {
+        throw new Error('getSaveData returned null or undefined');
+      }
+
+      // Создаем копию для экспорта
+      const exportData = { ...saveData };
+      exportData.exportVersion = this.CURRENT_VERSION;
+      exportData.exportTimestamp = Date.now();
+      
+      const jsonString = JSON.stringify(exportData);
+      return this.encodeData(jsonString);
+      
+    } catch (error) {
+      console.error('❌ Failed to export save:', error);
+      throw new Error(`Export failed: ${error.message}`);
+    }
+  }
+
+  // Импортировать из строки пользователя
+  importFromString(saveString) {
+    try {
+      if (!saveString || typeof saveString !== 'string') {
+        throw new Error('Invalid save string');
+      }
+
+      const jsonString = this.decodeData(saveString.trim());
+      const saveData = JSON.parse(jsonString);
+      
+      this.validateSaveData(saveData);
+      
+      return saveData;
+      
+    } catch (error) {
+      console.error('❌ Failed to import save:', error);
+      throw new Error('Import failed: Invalid save format');
+    }
+  }
+
+  // Кодирование данных
+  encodeData(jsonString) {
+    try {
+      return btoa(encodeURIComponent(jsonString));
+    } catch (error) {
+      console.error('❌ Failed to encode data:', error);
+      throw new Error('Failed to encode save data');
+    }
+  }
+
+  // Декодирование данных с поддержкой старых форматов
+  decodeData(encodedData) {
+    try {
+      // Новый формат (с encodeURIComponent)
+      return decodeURIComponent(atob(encodedData));
+    } catch (e1) {
+      try {
+        // Старый формат (без encodeURIComponent)
+        return atob(encodedData);
+      } catch (e2) {
+        throw new Error('Could not decode save data');
+      }
+    }
+  }
+
+  // Валидация данных сохранения
+  validateSaveData(data) {
+    if (!data || typeof data !== 'object') {
+      throw new Error('Save data is not a valid object');
+    }
+
+    // Проверяем обязательные поля
+    const requiredFields = ['resources', 'combo'];
+    for (const field of requiredFields) {
+      if (!data[field]) {
+        console.warn(`Missing field: ${field}, will use default`);
+      }
+    }
+
+    // Проверяем версию
+    if (data.saveVersion || data.exportVersion) {
+      const version = data.saveVersion || data.exportVersion;
+      console.log(`Loading save version: ${version}`);
+      
+      if (version !== this.CURRENT_VERSION) {
+        console.warn(`Version mismatch: ${version} vs ${this.CURRENT_VERSION}`);
+      }
+    }
+
+    // Валидация ресурсов
+    if (data.resources && typeof data.resources === 'object') {
+      Object.entries(data.resources).forEach(([resource, value]) => {
+        if (typeof value !== 'number' || isNaN(value) || value < 0) {
+          console.warn(`Invalid resource value for ${resource}: ${value}`);
+          data.resources[resource] = 0;
+        }
+      });
+    }
+
+    // Валидация skill points
+    if (typeof data.skillPoints === 'number') {
+      if (isNaN(data.skillPoints) || data.skillPoints < 0) {
+        console.warn('Invalid skill points, resetting to 0');
+        data.skillPoints = 0;
+      } else {
+        data.skillPoints = Math.floor(data.skillPoints);
+      }
+    } else {
+      data.skillPoints = 0;
+    }
+  }
+
+  // Проверить наличие сохранения
+  hasSave() {
+    try {
+      return localStorage.getItem(this.STORAGE_KEY) !== null;
+    } catch (error) {
+      console.error('❌ Failed to check save existence:', error);
+      return false;
+    }
+  }
+
+  // Удалить сохранение
+  deleteSave() {
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+      console.log('🗑️ Save deleted');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to delete save:', error);
+      return false;
+    }
+  }
+
+  // Получить информацию о сохранении
+  getSaveInfo() {
+    try {
+      const encodedData = localStorage.getItem(this.STORAGE_KEY);
+      if (!encodedData) return null;
+
+      const jsonString = this.decodeData(encodedData);
+      const saveData = JSON.parse(jsonString);
+      
+      return {
+        version: saveData.saveVersion || 'unknown',
+        timestamp: saveData.saveTimestamp || 0,
+        cloudTimestamp: saveData.cloudSaveTimestamp || 0,
+        size: encodedData.length,
+        hasResources: !!saveData.resources,
+        hasBuildings: !!saveData.buildings,
+        hasSkills: !!saveData.skills,
+        isCloudSave: !!saveData.cloudSave
+      };
+      
+    } catch (error) {
+      console.error('❌ Failed to get save info:', error);
+      return null;
+    }
+  }
+
+  // Создать резервную копию
+  createBackup() {
+    try {
+      const currentSave = localStorage.getItem(this.STORAGE_KEY);
+      if (!currentSave) return false;
+
+      const backupKey = `${this.STORAGE_KEY}_backup_${Date.now()}`;
+      localStorage.setItem(backupKey, currentSave);
+      
+      console.log('💾 Backup created:', backupKey);
       return backupKey;
       
     } catch (error) {
-      console.error('❌ Failed to create cloud backup:', error);
-      return null;
+      console.error('❌ Failed to create backup:', error);
+      return false;
     }
   }
 
-  // Получить информацию об облачном хранилище
-  async getCloudStorageInfo() {
+  // Восстановить из резервной копии
+  restoreFromBackup(backupKey) {
     try {
-      const data = await this.telegramAdapter?.cloudStorageLoad(this.CLOUD_KEY);
-      const userStats = await this.loadUserStats();
-      
-      return {
-        hasCloudSave: !!data,
-        cloudSaveTime: data?.cloudSaveTimestamp || data?.saveTimestamp,
-        localSaveTime: this.getSaveInfo()?.timestamp,
-        userStats: userStats,
-        capabilities: this.telegramAdapter?.getCapabilities()
-      };
-      
-    } catch (error) {
-      console.error('❌ Failed to get cloud storage info:', error);
-      return null;
-    }
-  }
+      const backupData = localStorage.getItem(backupKey);
+      if (!backupData) {
+        throw new Error('Backup not found');
+      }
 
-  // Очистка облачного хранилища
-  async clearCloudStorage() {
-    try {
-      // В Telegram WebApp нет прямого способа удалить данные
-      // Поэтому сохраняем пустой объект
-      const emptyData = {
-        cleared: true,
-        clearedAt: Date.now(),
-        version: this.CURRENT_VERSION
-      };
-
-      await this.telegramAdapter?.cloudStorageSave(this.CLOUD_KEY, emptyData);
-      console.log('🧹 Cloud storage cleared');
+      localStorage.setItem(this.STORAGE_KEY, backupData);
+      console.log('♻️ Restored from backup:', backupKey);
       return true;
       
     } catch (error) {
-      console.error('❌ Failed to clear cloud storage:', error);
+      console.error('❌ Failed to restore from backup:', error);
       return false;
     }
+  }
+
+  // Очистить все данные (для полного сброса)
+  clearAllData() {
+    try {
+      // Очищаем основное сохранение
+      localStorage.removeItem(this.STORAGE_KEY);
+      
+      // Очищаем все резервные копии
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(`${this.STORAGE_KEY}_backup_`)) {
+          localStorage.removeItem(key);
+          i--; // Уменьшаем индекс, так как длина массива изменилась
+        }
+      }
+      
+      console.log('🧹 All save data cleared');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Failed to clear all data:', error);
+      return false;
+    }
+  }
+
+  // Безопасное сохранение с проверками
+  safeSave(gameState) {
+    if (!gameState) {
+      console.warn('⚠️ SafeSave: gameState is null, skipping save');
+      return false;
+    }
+
+    // Проверяем, что объект не уничтожен
+    if (gameState.isDestroyed === true) {
+      console.warn('⚠️ SafeSave: gameState is destroyed, skipping save');
+      return false;
+    }
+
+    // Проверяем наличие метода getSaveData
+    if (typeof gameState.getSaveData !== 'function') {
+      console.warn('⚠️ SafeSave: gameState does not have getSaveData method');
+      return false;
+    }
+
+    // Выполняем сохранение
+    return this.save(gameState);
+  }
+
+  // Получить отладочную информацию
+  getDebugInfo() {
+    return {
+      hasLocalSave: this.hasSave(),
+      localSaveInfo: this.getSaveInfo(),
+      isTelegramEnabled: this.isCloudEnabled,
+      telegramUser: this.telegramAdapter?.getUserInfo(),
+      storageCapabilities: {
+        localStorage: typeof Storage !== 'undefined',
+        telegramCloud: !!this.telegramAdapter?.tg?.CloudStorage,
+        hapticFeedback: !!this.telegramAdapter?.tg?.HapticFeedback
+      }
+    };
   }
 }
