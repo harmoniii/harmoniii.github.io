@@ -1,64 +1,90 @@
-<!-- index.html - ОБНОВЛЕНО: добавлена кнопка рейдов для системы сетки 3x3 -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Restoration: Chronicles of Survival — Grid Clicker</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+  <title>Restoration: Chronicles of Survival</title>
+  
+  <!-- Telegram Web App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Game Styles - адаптированные для мобильных -->
+  <link rel="stylesheet" href="styles-telegram.css">
+  
+  <!-- Preload критических ресурсов -->
+  <link rel="preload" href="game.js" as="script">
+  <link rel="preload" href="telegram-integration.js" as="script">
 </head>
-<body>
-  <!-- ОБНОВЛЕННАЯ компактная навигация с кнопкой рейдов -->
-  <div id="ui-top">
-    <button id="toggle-buildings">🏗️ Buildings</button>
-    <button id="toggle-skills">🎯 Skills</button>
-    <button id="toggle-raids" style="display: none;">⚔️ Raids</button>
-    <button id="toggle-market">🛒 Market</button>
-    <button id="info-button">📚 Info</button>
+<body class="telegram-webapp">
+  <!-- Telegram Web App Loading Screen -->
+  <div id="telegram-loading" class="telegram-loading">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <h2>🎮 Grid Clicker</h2>
+      <p>Loading Telegram Web App...</p>
+      <div class="loading-progress">
+        <div class="progress-bar" id="loading-progress"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Игровая зона с правильным расположением для сетки -->
-  <div id="game-area">
-    <div class="grid-game-container">
+  <!-- Error Screen -->
+  <div id="telegram-error" class="telegram-error hidden">
+    <div class="error-content">
+      <h2>❌ Error</h2>
+      <p id="error-message">Failed to load Telegram Web App</p>
+      <button id="retry-button" class="retry-btn">🔄 Retry</button>
+    </div>
+  </div>
+
+  <!-- Компактная навигация для Telegram -->
+  <div id="ui-top" class="telegram-nav">
+    <button id="toggle-buildings" class="nav-btn">🏗️</button>
+    <button id="toggle-skills" class="nav-btn">🎯</button>
+    <button id="toggle-raids" class="nav-btn" style="display: none;">⚔️</button>
+    <button id="toggle-market" class="nav-btn">🛒</button>
+    <button id="info-button" class="nav-btn">📚</button>
+  </div>
+
+  <!-- Игровая зона адаптированная для Telegram -->
+  <div id="game-area" class="telegram-game-area">
+    <div class="grid-game-container telegram-layout">
       
-      <!-- Все ресурсы слева от квадрата -->
-      <div class="left-panel">
-        <!-- Основные ресурсы -->
-        <div class="resources-section">
-          <h4>📦 Basic Resources</h4>
+      <!-- Левая панель ресурсов - компактная для мобильных -->
+      <div class="left-panel telegram-resources">
+        <div class="resources-section compact">
+          <h4>📦 Resources</h4>
           <div id="basic-resources" class="resources-group"></div>
         </div>
         
-        <!-- Дополнительные ресурсы -->
-        <div class="resources-section">
-          <h4>⚗️ Advanced Resources</h4>
+        <div class="resources-section compact">
+          <h4>⚗️ Advanced</h4>
           <div id="advanced-resources" class="resources-group"></div>
         </div>
         
-        <!-- Специальные ресурсы -->
-        <div class="resources-section">
+        <div class="resources-section compact">
           <h4>✨ Special</h4>
           <div id="special-resources" class="resources-group"></div>
         </div>
       </div>
 
-      <!-- Игровая сетка по центру -->
-      <div class="game-grid-center">
-        <canvas id="gameCanvas" width="400" height="400"></canvas>
+      <!-- Игровая сетка - оптимизирована для касаний -->
+      <div class="game-grid-center telegram-grid">
+        <canvas id="gameCanvas" width="300" height="300" class="telegram-canvas"></canvas>
       </div>
 
-      <!-- Информационные панели справа -->
-      <div class="right-panel">
+      <!-- Правая панель информации - компактная -->
+      <div class="right-panel telegram-info">
         
         <!-- Комбо индикатор -->
-        <div class="combo-indicator" id="combo-indicator">
+        <div class="combo-indicator telegram-combo" id="combo-indicator">
           <div class="combo-title">COMBO</div>
           <div class="combo-value" id="combo-value">0</div>
-          <div class="combo-bonus" id="combo-bonus">Hit the red target!</div>
+          <div class="combo-bonus" id="combo-bonus">Hit red!</div>
         </div>
 
         <!-- Энергия -->
-        <div class="energy-display-container" id="energy-display">
+        <div class="energy-display-container telegram-energy" id="energy-display">
           <div class="energy-bar-container">
             <div class="energy-bar-background">
               <div class="energy-bar energy-normal"></div>
@@ -73,52 +99,114 @@
     </div>
   </div>
 
-  <!-- Остальная разметка остается без изменений -->
-  <div id="panel-container" class="list-panel hidden"></div>
+  <!-- Панель контента -->
+  <div id="panel-container" class="list-panel hidden telegram-panel"></div>
 
-  <div id="controls-bottom">
-    <button id="load-button">📁 Load</button>
-    <button id="save-button">💾 Save</button>
-    <button id="reset-button">🔄 Reset</button>
-    <button disabled>Alpha 6.0.0</button>
+  <!-- Telegram Web App Controls -->
+  <div id="telegram-controls" class="telegram-controls">
+    <button id="cloud-save-btn" class="telegram-btn">☁️ Cloud Save</button>
+    <button id="leaderboard-btn" class="telegram-btn">🏆 Leaders</button>
+    <button id="share-btn" class="telegram-btn">📤 Share</button>
   </div>
 
-  <div id="notifications"></div>
+  <!-- Компактные контролы управления -->
+  <div id="controls-bottom" class="telegram-bottom-controls">
+    <button id="load-button" class="control-btn">📁</button>
+    <button id="save-button" class="control-btn">💾</button>
+    <button id="reset-button" class="control-btn">🔄</button>
+    <button id="telegram-menu-btn" class="control-btn">⚙️</button>
+  </div>
+
+  <!-- Уведомления - адаптированные для Telegram -->
+  <div id="notifications" class="telegram-notifications"></div>
+  
+  <!-- Модальные окна -->
   <div id="mystery-modal" class="modal hidden"></div>
   <div id="info-modal" class="modal hidden"></div>
-  <div id="effect-indicators" class="effect-indicators"></div>
+  
+  <!-- Индикаторы эффектов -->
+  <div id="effect-indicators" class="effect-indicators telegram-effects"></div>
 
+  <!-- Telegram Menu Modal -->
+  <div id="telegram-menu" class="telegram-menu hidden">
+    <div class="menu-content">
+      <h3>⚙️ Game Menu</h3>
+      <button id="telegram-stats-btn" class="menu-btn">📊 Statistics</button>
+      <button id="telegram-achievements-btn" class="menu-btn">🏆 Achievements</button>
+      <button id="telegram-help-btn" class="menu-btn">❓ Help</button>
+      <button id="telegram-about-btn" class="menu-btn">ℹ️ About</button>
+      <button id="close-menu-btn" class="menu-btn close-btn">✖️ Close</button>
+    </div>
+  </div>
+
+  <!-- Cloud Save Modal -->
+  <div id="cloud-save-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>☁️ Cloud Save</h3>
+      <div id="cloud-save-content">
+        <p>Synchronizing with Telegram Cloud...</p>
+        <div class="loading-spinner small"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="close-cloud-modal" class="modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>🏆 Leaderboard</h3>
+      <div id="leaderboard-content">
+        <p>Loading leaderboard...</p>
+        <div class="loading-spinner small"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="close-leaderboard-modal" class="modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="telegram-integration.js"></script>
   <script type="module" src="game.js"></script>
 
+  <!-- Telegram Web App Error Handler -->
   <script>
+    // Обработка ошибок для Telegram Web App
     window.addEventListener('error', (e) => {
-      console.error('Game loading error:', e);
+      console.error('Telegram Web App Error:', e);
       
-      const errorDiv = document.createElement('div');
-      errorDiv.style.cssText = `
-        position: fixed; top: 20px; right: 20px;
-        background: #ff4444; color: white;
-        padding: 15px; border-radius: 8px;
-        max-width: 300px; z-index: 10000;
-        font-family: Arial, sans-serif;
-        font-size: 14px;
-      `;
-      errorDiv.innerHTML = `
-        <strong>⚠️ Grid Game Error</strong><br>
-        <small>${e.message || 'Unknown error occurred'}</small><br>
-        <button onclick="location.reload()" style="
-          background: white; color: #ff4444; border: none;
-          padding: 5px 10px; border-radius: 4px; margin-top: 5px;
-          cursor: pointer; font-weight: bold; font-size: 12px;
-        ">Reload Page</button>
-      `;
-      document.body.appendChild(errorDiv);
+      const loadingScreen = document.getElementById('telegram-loading');
+      const errorScreen = document.getElementById('telegram-error');
+      const errorMessage = document.getElementById('error-message');
       
-      setTimeout(() => {
-        if (errorDiv.parentNode) {
-          errorDiv.remove();
-        }
-      }, 10000);
+      if (loadingScreen) loadingScreen.classList.add('hidden');
+      if (errorScreen) errorScreen.classList.remove('hidden');
+      if (errorMessage) errorMessage.textContent = e.message || 'Unknown error occurred';
+      
+      // Отправляем ошибку в Telegram
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          type: 'error_report',
+          error: {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            timestamp: Date.now()
+          }
+        }));
+      }
+    });
+
+    // Retry кнопка
+    document.addEventListener('DOMContentLoaded', () => {
+      const retryBtn = document.getElementById('retry-button');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+          location.reload();
+        });
+      }
     });
   </script>
 </body>

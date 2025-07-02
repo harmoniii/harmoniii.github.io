@@ -1,0 +1,876 @@
+/* mobile-webapp-styles.css - Адаптация для Telegram Web App */
+
+/* Базовые стили для Telegram Web App */
+body {
+  margin: 0; 
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--tg-theme-bg-color, #667eea);
+  color: var(--tg-theme-text-color, #333);
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh; /* Динамическая высота viewport */
+  /* Поддержка safe area для iOS */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  /* Отключаем выделение текста на мобильных */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Отключаем zoom на мобильных */
+  touch-action: manipulation;
+}
+
+/* Telegram Web App CSS переменные */
+:root {
+  --tg-webapp-padding: 16px;
+  --tg-webapp-border-radius: 12px;
+  --tg-button-height: 44px;
+  --tg-touch-target: 44px;
+  --safe-area-top: env(safe-area-inset-top, 0);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0);
+  --viewport-height: 100vh;
+}
+
+/* Поддержка темы Telegram */
+@media (prefers-color-scheme: dark) {
+  body {
+    background: var(--tg-theme-bg-color, #1a1a1a);
+    color: var(--tg-theme-text-color, #ffffff);
+  }
+}
+
+/* Компактная навигация для мобильных */
+#ui-top {
+  display: flex;
+  gap: 4px;
+  margin: 8px;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  padding: 0 4px;
+  /* Защита от safe area */
+  margin-top: max(8px, var(--safe-area-top));
+}
+
+#ui-top button {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 4px;
+  background: var(--tg-theme-button-color, #fff);
+  border: 1px solid var(--tg-theme-button-color, #4CAF50);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--tg-theme-button-text-color, #333);
+  /* Минимальная высота для удобного тапа */
+  min-height: 36px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#ui-top button:active {
+  transform: scale(0.95);
+  background: var(--tg-theme-secondary-bg-color, #4CAF50);
+}
+
+/* Игровая область для мобильных */
+#game-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--tg-theme-secondary-bg-color, rgba(255, 255, 255, 0.95));
+  padding: 12px 8px;
+  border-radius: var(--tg-webapp-border-radius) var(--tg-webapp-border-radius) 0 0;
+  margin: 0 4px;
+  /* Адаптивная высота */
+  min-height: calc(var(--viewport-height) - 120px);
+  max-height: calc(var(--viewport-height) - 120px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Контейнер для мобильной сетки */
+.grid-game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+}
+
+/* Левая панель ресурсов для мобильных */
+.left-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  order: 2; /* После игрового поля */
+}
+
+.resources-section {
+  background: var(--tg-theme-bg-color, rgba(255, 255, 255, 0.9));
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.resources-section h4 {
+  margin: 0 0 6px 0;
+  font-size: 10px;
+  color: var(--tg-theme-hint-color, #666);
+  text-align: center;
+  border-bottom: 1px solid var(--tg-theme-separator-color, #ddd);
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resources-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.resources-group .resource-display {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 6px 4px;
+  border-radius: 4px;
+  background: var(--tg-theme-bg-color, rgba(255, 255, 255, 0.6));
+  font-size: 11px;
+  line-height: 1.1;
+  text-align: center;
+  white-space: nowrap;
+  min-height: var(--tg-touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.resources-group .resource-display:active {
+  transform: scale(0.95);
+  background: var(--tg-theme-secondary-bg-color, rgba(76, 175, 80, 0.1));
+}
+
+/* Центральная игровая область */
+.game-grid-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  order: 1;
+  width: 100%;
+  padding: 8px 0;
+}
+
+#gameCanvas {
+  background: var(--tg-theme-bg-color, #fff);
+  border: 2px solid var(--tg-theme-separator-color, #333);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: block;
+  /* Адаптивный размер для мобильных */
+  width: min(320px, calc(100vw - 32px)) !important;
+  height: min(320px, calc(100vw - 32px)) !important;
+  max-width: 400px;
+  max-height: 400px;
+  /* Предотвращаем случайное выделение */
+  -webkit-user-select: none;
+  user-select: none;
+  /* Оптимизация для touch */
+  touch-action: none;
+}
+
+/* Правая панель для мобильных */
+.right-panel {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+  order: 3;
+  justify-content: space-around;
+}
+
+/* Компактный индикатор комбо для мобильных */
+.combo-indicator {
+  position: relative;
+  background: linear-gradient(135deg, var(--tg-theme-button-color, #FFD700) 0%, #FFA500 100%);
+  border: 2px solid #FF8C00;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(255, 165, 0, 0.3);
+  text-align: center;
+  flex: 1;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.combo-indicator .combo-title {
+  font-size: 10px;
+  font-weight: bold;
+  color: #8B4513;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.combo-indicator .combo-value {
+  font-size: 20px;
+  font-weight: 900;
+  color: #B8860B;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  line-height: 1;
+}
+
+.combo-indicator .combo-bonus {
+  font-size: 9px;
+  color: #8B4513;
+  opacity: 0.9;
+  margin-top: 2px;
+  font-style: italic;
+  line-height: 1.1;
+}
+
+/* Энергетический дисплей для мобильных */
+.energy-display-container {
+  background: linear-gradient(135deg, var(--tg-theme-secondary-bg-color, #2C3E50) 0%, #34495E 100%);
+  border: 2px solid #3498DB;
+  border-radius: 8px;
+  padding: 8px 12px;
+  box-shadow: 0 2px 6px rgba(52, 152, 219, 0.3);
+  text-align: center;
+  flex: 1;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.energy-bar-container {
+  margin-bottom: 4px;
+}
+
+.energy-bar-background {
+  background: var(--tg-theme-bg-color, #1A252F);
+  border: 1px solid #34495E;
+  border-radius: 6px;
+  height: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.energy-bar {
+  height: 100%;
+  transition: all 0.3s ease;
+  background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
+}
+
+.energy-text {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--tg-theme-button-text-color, #ECF0F1);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  margin-bottom: 2px;
+}
+
+.energy-status {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.energy-status.ready {
+  color: #2ECC71;
+}
+
+.energy-status.recharging {
+  color: #F39C12;
+}
+
+/* Индикаторы эффектов для мобильных */
+.effect-indicators {
+  position: fixed;
+  top: max(60px, calc(var(--safe-area-top) + 60px));
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 900;
+  max-width: 140px;
+  pointer-events: none;
+}
+
+.effect-indicator {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+  cursor: help;
+  backdrop-filter: blur(10px);
+}
+
+.effect-indicator:active {
+  transform: scale(0.95);
+}
+
+.effect-icon {
+  font-size: 14px;
+  min-width: 16px;
+}
+
+.effect-name {
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 80px;
+}
+
+/* Панели для мобильных */
+.list-panel {
+  width: 100%;
+  background: var(--tg-theme-bg-color, rgba(255, 255, 255, 0.95));
+  border: none;
+  border-radius: var(--tg-webapp-border-radius) var(--tg-webapp-border-radius) 0 0;
+  padding: 12px;
+  margin: 0;
+  /* Адаптивная высота для мобильных */
+  height: calc(var(--viewport-height) - 60px);
+  max-height: calc(var(--viewport-height) - 60px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+}
+
+.list-panel h2 {
+  margin: 0 0 12px 0;
+  color: var(--tg-theme-text-color, #333);
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--tg-theme-separator-color, #ddd);
+}
+
+/* Компактные карточки для мобильных */
+.item-card {
+  background: var(--tg-theme-secondary-bg-color, linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%));
+  border: 1px solid var(--tg-theme-separator-color, #dee2e6);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.item-card:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.item-icon {
+  font-size: 20px;
+  min-width: 24px;
+}
+
+.item-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--tg-theme-text-color, #333);
+  flex-grow: 1;
+}
+
+.item-level {
+  background: var(--tg-theme-button-color, #4CAF50);
+  color: var(--tg-theme-button-text-color, white);
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.item-description {
+  color: var(--tg-theme-hint-color, #666);
+  font-style: italic;
+  margin-bottom: 8px;
+  line-height: 1.4;
+  font-size: 13px;
+  /* Ограничиваем высоту для мобильных */
+  max-height: 3.5em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.item-details {
+  background: var(--tg-theme-bg-color, rgba(255, 255, 255, 0.7));
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.item-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.price {
+  font-weight: 600;
+  color: var(--tg-theme-link-color, #FF9800);
+  background: rgba(255, 152, 0, 0.1);
+  padding: 6px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  text-align: center;
+}
+
+.buy-button {
+  background: var(--tg-theme-button-color, linear-gradient(135deg, #4CAF50 0%, #45a049 100%));
+  color: var(--tg-theme-button-text-color, white);
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-size: 14px;
+  min-height: var(--tg-button-height);
+  /* Улучшенная типографика для мобильных */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.buy-button:active:not(.disabled) {
+  transform: scale(0.95);
+}
+
+.buy-button.disabled {
+  background: var(--tg-theme-hint-color, #ccc);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Уведомления для мобильных */
+#notifications {
+  position: fixed;
+  top: max(8px, var(--safe-area-top));
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 1000;
+  pointer-events: none;
+  max-width: 280px;
+}
+
+.notification {
+  pointer-events: auto;
+  background: var(--tg-theme-secondary-bg-color, linear-gradient(135deg, #333 0%, #555 100%));
+  color: var(--tg-theme-button-text-color, #fff);
+  padding: 8px 12px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  animation: slideInMobile 0.3s ease;
+  max-width: 100%;
+  word-wrap: break-word;
+  font-size: 13px;
+  backdrop-filter: blur(10px);
+}
+
+/* Модальные окна для мобильных */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--tg-theme-bg-color, #fff);
+  border-radius: var(--tg-webapp-border-radius);
+  padding: 20px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.modal h3 {
+  color: var(--tg-theme-text-color, #333);
+  margin-top: 0;
+  font-size: 18px;
+  text-align: center;
+}
+
+.modal button {
+  background: var(--tg-theme-button-color, #4CAF50);
+  color: var(--tg-theme-button-text-color, white);
+  border: none;
+  padding: 12px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  min-height: var(--tg-button-height);
+  width: 100%;
+  margin: 4px 0;
+}
+
+.modal button:active {
+  transform: scale(0.95);
+}
+
+/* Кнопки управления для мобильных */
+#controls-bottom {
+  display: none; /* Скрываем в Web App, используем Telegram кнопки */
+}
+
+/* Telegram Quick Actions */
+#telegram-quick-actions {
+  position: fixed;
+  bottom: max(16px, var(--safe-area-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: var(--tg-theme-secondary-bg-color, rgba(0,0,0,0.1));
+  padding: 8px;
+  border-radius: 20px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.quick-actions-panel {
+  display: flex;
+  gap: 8px;
+}
+
+.quick-action-btn {
+  background: var(--tg-theme-button-color, rgba(255,255,255,0.9));
+  color: var(--tg-theme-button-text-color, #333);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  min-height: 36px;
+  min-width: 48px;
+  backdrop-filter: blur(10px);
+}
+
+.quick-action-btn:active {
+  transform: scale(0.9);
+  background: var(--tg-theme-secondary-bg-color, rgba(255,255,255,0.7));
+}
+
+/* Анимации для мобильных */
+@keyframes slideInMobile {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes comboGlowMobile {
+  0%, 100% {
+    box-shadow: 0 2px 6px rgba(255, 165, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 3px 9px rgba(255, 165, 0, 0.5);
+  }
+}
+
+.combo-indicator {
+  animation: comboGlowMobile 2s ease-in-out infinite alternate;
+}
+
+/* Адаптивные медиа-запросы для разных размеров экрана */
+@media (max-width: 480px) {
+  #ui-top button {
+    font-size: 10px;
+    padding: 6px 2px;
+    min-height: 32px;
+  }
+  
+  #gameCanvas {
+    width: min(280px, calc(100vw - 24px)) !important;
+    height: min(280px, calc(100vw - 24px)) !important;
+  }
+  
+  .combo-indicator .combo-value {
+    font-size: 18px;
+  }
+  
+  .effect-indicators {
+    max-width: 120px;
+  }
+  
+  .item-card {
+    padding: 10px;
+  }
+  
+  .item-name {
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 360px) {
+  #ui-top {
+    gap: 2px;
+    margin: 6px;
+  }
+  
+  #ui-top button {
+    font-size: 9px;
+    padding: 4px 1px;
+    min-height: 30px;
+  }
+  
+  #gameCanvas {
+    width: min(240px, calc(100vw - 20px)) !important;
+    height: min(240px, calc(100vw - 20px)) !important;
+  }
+  
+  .resources-section h4 {
+    font-size: 9px;
+  }
+  
+  .resources-group .resource-display {
+    font-size: 10px;
+    padding: 4px 2px;
+  }
+  
+  .combo-indicator {
+    padding: 6px 8px;
+    min-height: 50px;
+  }
+  
+  .combo-indicator .combo-value {
+    font-size: 16px;
+  }
+  
+  .combo-indicator .combo-bonus {
+    font-size: 8px;
+  }
+  
+  .energy-text {
+    font-size: 11px;
+  }
+  
+  .effect-indicator {
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+  
+  .quick-action-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    min-height: 32px;
+    min-width: 40px;
+  }
+}
+
+/* Landscape ориентация */
+@media (orientation: landscape) and (max-height: 500px) {
+  .grid-game-container {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-around;
+  }
+  
+  .left-panel {
+    order: 1;
+    width: 25%;
+    grid-template-columns: 1fr;
+  }
+  
+  .game-grid-center {
+    order: 2;
+    width: 50%;
+  }
+  
+  .right-panel {
+    order: 3;
+    width: 25%;
+    flex-direction: column;
+  }
+  
+  #gameCanvas {
+    width: min(280px, 60vw) !important;
+    height: min(280px, 60vw) !important;
+  }
+  
+  #game-area {
+    min-height: calc(100vh - 80px);
+  }
+  
+  .effect-indicators {
+    top: 40px;
+    max-width: 100px;
+  }
+}
+
+/* Высокие экраны (iPhone X и выше) */
+@media (min-height: 800px) {
+  #gameCanvas {
+    width: min(360px, calc(100vw - 32px)) !important;
+    height: min(360px, calc(100vw - 32px)) !important;
+  }
+  
+  .combo-indicator,
+  .energy-display-container {
+    min-height: 70px;
+    padding: 10px 14px;
+  }
+  
+  .combo-indicator .combo-value {
+    font-size: 24px;
+  }
+}
+
+/* Планшеты */
+@media (min-width: 768px) {
+  body {
+    overflow: auto;
+    position: static;
+    height: auto;
+  }
+  
+  #game-area {
+    max-width: 600px;
+    margin: 0 auto;
+    min-height: auto;
+    max-height: none;
+  }
+  
+  .grid-game-container {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  
+  .left-panel {
+    width: 180px;
+    order: 1;
+    grid-template-columns: 1fr;
+  }
+  
+  .game-grid-center {
+    order: 2;
+  }
+  
+  .right-panel {
+    width: 180px;
+    order: 3;
+    flex-direction: column;
+  }
+  
+  #gameCanvas {
+    width: 400px !important;
+    height: 400px !important;
+  }
+  
+  .list-panel {
+    position: relative;
+    height: auto;
+    max-height: 70vh;
+  }
+  
+  #controls-bottom {
+    display: flex; /* Показываем на планшетах */
+  }
+}
+
+/* Темная тема */
+@media (prefers-color-scheme: dark) {
+  .item-card {
+    background: var(--tg-theme-secondary-bg-color, #2a2a2a);
+    border-color: var(--tg-theme-separator-color, #444);
+  }
+  
+  .resources-section {
+    background: var(--tg-theme-bg-color, #1a1a1a);
+  }
+  
+  .notification {
+    background: var(--tg-theme-secondary-bg-color, #333);
+  }
+}
+
+/* Скрытые элементы для Web App */
+.hidden {
+  display: none !important;
+}
+
+/* Прокрутка */
+.list-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.list-panel::-webkit-scrollbar-track {
+  background: var(--tg-theme-bg-color, #f1f1f1);
+  border-radius: 2px;
+}
+
+.list-panel::-webkit-scrollbar-thumb {
+  background: var(--tg-theme-hint-color, #4CAF50);
+  border-radius: 2px;
+}
+
+/* Отключение hover эффектов на мобильных */
+@media (hover: none) {
+  .buy-button:hover,
+  .item-card:hover,
+  #ui-top button:hover {
+    transform: none;
+    background: initial;
+  }
+}
