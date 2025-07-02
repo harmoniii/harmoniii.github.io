@@ -438,4 +438,151 @@ export class TelegramWebAppAdapter {
       }
     };
   }
+
+  async autoSaveToCloud(gameState) {
+  if (!gameState || gameState.isDestroyed) {
+    console.warn('⚠️ Cannot auto-save: game state not available');
+    return false;
+  }
+
+  try {
+    console.log('☁️ Auto-saving to Telegram cloud...');
+    
+    const saveData = gameState.getSaveData ? gameState.getSaveData() : null;
+    if (!saveData) {
+      console.warn('⚠️ Cannot get save data for auto-save');
+      return false;
+    }
+
+    // Добавляем метаданные автосохранения
+    saveData.autoSave = true;
+    saveData.autoSaveTimestamp = Date.now();
+    saveData.telegramUserId = this.getUserInfo()?.id;
+    
+    const success = await this.cloudStorageSave('gamestate', saveData);
+    
+    if (success) {
+      console.log('✅ Auto-save to cloud completed');
+    } else {
+      console.warn('⚠️ Cloud auto-save failed, using local backup');
+      // Fallback к localStorage
+      this.localStorageSave('gamestate_backup', saveData);
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('❌ Auto-save to cloud failed:', error);
+    return false;
+  }
+}
+
+async saveToCloud(gameState) {
+  if (!gameState) {
+    console.error('❌ Cannot save: game state not provided');
+    return false;
+  }
+
+  try {
+    console.log('☁️ Manual save to Telegram cloud...');
+    
+    const saveData = gameState.getSaveData ? gameState.getSaveData() : gameState;
+    if (!saveData) {
+      console.error('❌ Cannot get save data');
+      return false;
+    }
+
+    // Добавляем метаданные ручного сохранения
+    saveData.manualSave = true;
+    saveData.manualSaveTimestamp = Date.now();
+    saveData.telegramUserId = this.getUserInfo()?.id;
+    
+    const success = await this.cloudStorageSave('gamestate', saveData);
+    
+    if (success) {
+      console.log('✅ Manual save to cloud completed');
+      
+      // Сохраняем статистику
+      await this.saveUserStats({
+        lastManualSave: Date.now(),
+        totalManualSaves: (await this.loadUserStats())?.totalManualSaves + 1 || 1
+      });
+    }
+    
+    return success;
+    
+  } catch (error) {
+    console.error('❌ Manual save to cloud failed:', error);
+    return false;
+  }
+}
+
+async exportForBot(gameState) {
+  try {
+    if (!gameState) {
+      throw new Error('Game state not provided');
+    }
+
+    const saveData = gameState.getSaveData ? gameState.getSaveData() : gameState;
+    if (!saveData) {
+      throw new Error('No save data available');
+    }
+
+    const exportData = {
+      type: 'game_export',
+      data: saveData,
+      user: this.getUserInfo(),
+      timestamp: Date.now(),
+      stats: this.generateGameStats(saveData)
+    };
+
+    // Отправляем боту
+    const success = this.sendData(exportData);
+    
+    if (success) {
+      console.log('📤 Game data exported to Telegram bot');
+      return true;
+    } else {
+      throw new Error('Failed to send data to bot');
+    }
+    
+  } catch (error) {
+    console.error('❌ Export to Telegram bot failed:', error);
+    return false;
+  }
+}
+
+// Генерация статистики игры для Telegram
+generateGameStats(saveData) {
+  const resources = saveData.resources || {};
+  const buildings = saveData.buildings || {};
+  const skills = saveData.skills || {};
+  const achievements = saveData.achievements || { statistics: {} };
+  const raids = saveData.raids || { statistics: {} };
+
+  return {
+    totalResources: Object.values(resources).reduce((sum, val) => sum + (val || 0), 0),
+    maxCombo: achievements.statistics?.maxCombo || 0,
+    totalClicks: achievements.statistics?.totalClicks || 0,
+    skillPoints: saveData.skillPoints || 0,
+    buildingLevels: Object.values(buildings).reduce((sum, building) => sum + (building.level || 0), 0),
+    skillLevels: Object.values(skills).reduce((sum, skill) => sum + (skill.level || 0), 0),
+    totalRaids: raids.statistics?.totalRaids || 0,
+    successfulRaids: raids.statistics?.successfulRaids || 0,
+    playtimeEstimate: this.estimatePlaytime(saveData),
+    lastSave: Date.now()
+  };
+}
+
+// Оценка времени игры
+estimatePlaytime(saveData) {
+  const totalProgress = 
+    (saveData.skillPoints || 0) + 
+    Object.values(saveData.buildings || {}).reduce((sum, b) => sum + (b.level || 0), 0) * 10 +
+    Object.values(saveData.skills || {}).reduce((sum, s) => sum + (s.level || 0), 0) * 5 +
+    (saveData.raids?.statistics?.totalRaids || 0) * 20;
+  
+  // Примерная оценка: 1 час на 100 единиц прогресса
+  return Math.floor(totalProgress / 100);
+}
 }
