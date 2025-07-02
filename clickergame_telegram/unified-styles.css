@@ -1,0 +1,889 @@
+/* unified-styles.css - Единый стиль для Web и Telegram */
+
+/* ===== БАЗОВЫЕ ПЕРЕМЕННЫЕ ===== */
+:root {
+  /* Telegram цвета (автоматически обновляются) */
+  --tg-bg-color: #ffffff;
+  --tg-text-color: #000000;
+  --tg-hint-color: #999999;
+  --tg-link-color: #2481cc;
+  --tg-button-color: #2481cc;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #f7f7f7;
+  
+  /* Игровые цвета */
+  --success-color: #4CAF50;
+  --warning-color: #FF9800;
+  --error-color: #f44336;
+  --info-color: #2196F3;
+  
+  /* Размеры */
+  --border-radius: 8px;
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  
+  /* Тени */
+  --shadow-light: 0 2px 4px rgba(0,0,0,0.1);
+  --shadow-medium: 0 4px 8px rgba(0,0,0,0.15);
+  --shadow-strong: 0 8px 16px rgba(0,0,0,0.25);
+}
+
+/* Темная тема Telegram */
+.tg-dark-theme {
+  --tg-bg-color: #1c1c1d;
+  --tg-text-color: #ffffff;
+  --tg-hint-color: #8e8e93;
+  --tg-link-color: #6ab7ff;
+  --tg-button-color: #5ac8fa;
+  --tg-secondary-bg-color: #2c2c2e;
+}
+
+/* ===== БАЗОВЫЙ СБРОС ===== */
+* {
+  box-sizing: border-box;
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font-size: 16px;
+  line-height: 1.4;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== ОСНОВНЫЕ КОМПОНЕНТЫ ===== */
+
+/* Кнопки */
+button {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+  min-height: 44px;
+  box-shadow: var(--shadow-light);
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+button.disabled {
+  background: var(--tg-hint-color);
+  opacity: 0.6;
+}
+
+/* ===== СТРУКТУРА ИГРЫ ===== */
+
+/* Главный контейнер */
+.telegram-webapp {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--tg-bg-color);
+}
+
+/* Навигация (скрыта в Telegram) */
+#ui-top {
+  display: flex;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: var(--tg-secondary-bg-color);
+  border-radius: var(--border-radius);
+  margin: var(--spacing-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#ui-top button {
+  flex: 1;
+  min-width: 80px;
+  font-size: 0.8rem;
+}
+
+/* Игровая область */
+#game-area, .telegram-game-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--spacing-sm);
+}
+
+.grid-game-container {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-md);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--spacing-md);
+}
+
+/* Боковые панели */
+.left-panel, .right-panel, .telegram-panel {
+  background: var(--tg-secondary-bg-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm);
+  min-width: 140px;
+  border: 1px solid rgba(0,0,0,0.1);
+}
+
+.tg-dark-theme .telegram-panel {
+  border-color: rgba(255,255,255,0.1);
+}
+
+/* Игровое поле */
+.game-grid-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#gameCanvas {
+  background: var(--tg-bg-color);
+  border: 3px solid var(--tg-button-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-strong);
+  display: block;
+}
+
+/* ===== РЕСУРСЫ ===== */
+
+.resources-section {
+  margin-bottom: var(--spacing-md);
+}
+
+.resources-section h4 {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--tg-hint-color);
+  text-align: center;
+  margin: 0 0 var(--spacing-xs) 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resources-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.resource-display {
+  background: rgba(255,255,255,0.7);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  font-size: 0.75rem;
+  text-align: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.resource-display:hover {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  transform: scale(1.02);
+}
+
+.tg-dark-theme .resource-display {
+  background: rgba(0,0,0,0.3);
+}
+
+/* ===== ИНДИКАТОРЫ СТАТУСА ===== */
+
+/* Комбо */
+.combo-indicator {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  border: 2px solid #FF8C00;
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm);
+  text-align: center;
+  margin-bottom: var(--spacing-sm);
+  color: #8B4513;
+  box-shadow: var(--shadow-medium);
+}
+
+.combo-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.combo-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: var(--spacing-xs);
+}
+
+.combo-bonus {
+  font-size: 0.65rem;
+  opacity: 0.8;
+}
+
+/* Энергия */
+.energy-display-container {
+  background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
+  border: 2px solid var(--info-color);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm);
+  text-align: center;
+  color: white;
+  box-shadow: var(--shadow-medium);
+}
+
+.energy-bar-container {
+  margin: var(--spacing-xs) 0;
+}
+
+.energy-bar-background {
+  width: 100%;
+  height: 8px;
+  background: rgba(255,255,255,0.2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.energy-bar {
+  height: 100%;
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.energy-normal { background: var(--success-color); }
+.energy-warning { background: var(--warning-color); }
+.energy-critical { background: var(--error-color); }
+
+.energy-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.energy-status {
+  font-size: 0.7rem;
+  opacity: 0.9;
+}
+
+.energy-warning {
+  color: var(--error-color);
+  font-weight: bold;
+  animation: pulse 1s infinite;
+}
+
+/* ===== ПАНЕЛИ КОНТЕНТА ===== */
+
+.list-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--tg-bg-color);
+  z-index: 1000;
+  overflow-y: auto;
+  padding: var(--spacing-md);
+}
+
+.list-panel.hidden {
+  display: none;
+}
+
+.list-panel h2 {
+  color: var(--tg-text-color);
+  margin: 0 0 var(--spacing-lg) 0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 2px solid var(--tg-button-color);
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.list-panel h3 {
+  color: var(--tg-button-color);
+  margin: var(--spacing-lg) 0 var(--spacing-md) 0;
+  font-size: 1rem;
+  border-bottom: 1px solid var(--tg-button-color);
+  padding-bottom: var(--spacing-xs);
+}
+
+/* ===== КАРТОЧКИ ПРЕДМЕТОВ ===== */
+
+.item-card {
+  background: var(--tg-bg-color);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-light);
+}
+
+.item-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-medium);
+}
+
+.tg-dark-theme .item-card {
+  border-color: rgba(255,255,255,0.1);
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.item-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.item-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--tg-text-color);
+  flex-grow: 1;
+}
+
+.item-badge {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.item-description {
+  color: var(--tg-hint-color);
+  font-size: 0.85rem;
+  margin-bottom: var(--spacing-sm);
+  line-height: 1.4;
+}
+
+.item-details {
+  background: rgba(0,0,0,0.05);
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  margin-bottom: var(--spacing-sm);
+  font-size: 0.8rem;
+}
+
+.item-details div {
+  margin-bottom: var(--spacing-xs);
+}
+
+.item-details div:last-child {
+  margin-bottom: 0;
+}
+
+.item-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.item-price {
+  font-weight: 600;
+  color: var(--warning-color);
+  background: rgba(255, 152, 0, 0.1);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  font-size: 0.75rem;
+}
+
+.buy-button {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* Специальные карточки */
+.building-card {
+  border-left: 4px solid var(--success-color);
+}
+
+.skill-card {
+  border-left: 4px solid var(--info-color);
+}
+
+.market-card {
+  border-left: 4px solid var(--warning-color);
+  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
+}
+
+.raid-card {
+  border-left: 4px solid var(--error-color);
+}
+
+/* ===== БЫСТРЫЕ ДЕЙСТВИЯ TELEGRAM ===== */
+
+.telegram-quick-actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) 0;
+  background: var(--tg-bg-color);
+  border-top: 1px solid var(--tg-hint-color);
+  margin-top: auto;
+}
+
+.tg-action-btn {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  border: none;
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-medium);
+}
+
+.tg-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-strong);
+}
+
+/* ===== УВЕДОМЛЕНИЯ ===== */
+
+#notifications {
+  position: fixed;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  z-index: 2000;
+  pointer-events: none;
+  max-width: 280px;
+}
+
+.notification {
+  pointer-events: auto;
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: var(--border-radius);
+  padding: var(--spacing-sm) var(--spacing-md);
+  box-shadow: var(--shadow-medium);
+  font-size: 0.85rem;
+  animation: slideInRight 0.3s ease;
+}
+
+.notification-success {
+  border-color: var(--success-color);
+  background: #e8f5e8;
+}
+
+.notification-warning {
+  border-color: var(--warning-color);
+  background: #fff3e0;
+}
+
+.notification-error {
+  border-color: var(--error-color);
+  background: #ffebee;
+}
+
+.skill-notification {
+  border-color: var(--info-color);
+  background: #e3f2fd;
+}
+
+.skill-notification-title {
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.skill-notification-desc {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+/* ===== ЭФФЕКТЫ ===== */
+
+#effect-indicators {
+  position: fixed;
+  top: 80px;
+  left: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  z-index: 1500;
+  max-width: 180px;
+  pointer-events: none;
+}
+
+.effect-indicator {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: var(--shadow-light);
+  transition: all 0.2s ease;
+  cursor: help;
+}
+
+.effect-indicator:hover {
+  transform: translateX(3px);
+}
+
+.buff-indicator {
+  background: var(--success-color);
+  color: white;
+  border-left: 4px solid #2E7D32;
+}
+
+.debuff-indicator {
+  background: var(--error-color);
+  color: white;
+  border-left: 4px solid #b71c1c;
+}
+
+.effect-icon {
+  font-size: 1rem;
+  min-width: 16px;
+}
+
+.effect-name {
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== МОДАЛЬНЫЕ ОКНА ===== */
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: var(--spacing-md);
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background: var(--tg-bg-color);
+  border-radius: var(--border-radius);
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-strong);
+}
+
+.modal h3 {
+  margin: 0 0 var(--spacing-md) 0;
+  color: var(--tg-text-color);
+}
+
+.mystery-box-content {
+  padding: var(--spacing-lg);
+  text-align: center;
+}
+
+.mystery-options {
+  display: flex;
+  gap: var(--spacing-md);
+  margin: var(--spacing-lg) 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.mystery-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  min-width: 100px;
+}
+
+.modal-footer {
+  margin-top: var(--spacing-lg);
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+}
+
+/* ===== КОНТРОЛЫ СНИЗУ ===== */
+
+#controls-bottom {
+  display: flex;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--tg-secondary-bg-color);
+  border-radius: var(--border-radius);
+  margin: var(--spacing-sm);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+#controls-bottom button {
+  flex: 1;
+  min-width: 80px;
+  font-size: 0.8rem;
+}
+
+/* ===== АНИМАЦИИ ===== */
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes comboIncrease {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); color: var(--success-color); }
+  100% { transform: scale(1); }
+}
+
+@keyframes comboDecrease {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.8); color: var(--error-color); }
+  100% { transform: scale(1); }
+}
+
+.combo-increase { animation: comboIncrease 0.6s ease-out; }
+.combo-decrease { animation: comboDecrease 0.6s ease-out; }
+
+/* ===== СКРЫТЫЕ ЭЛЕМЕНТЫ ===== */
+
+.hidden {
+  display: none !important;
+}
+
+.telegram-hidden-controls {
+  display: none !important;
+}
+
+/* ===== АДАПТИВНОСТЬ ===== */
+
+@media (max-width: 768px) {
+  .grid-game-container {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .left-panel, .right-panel {
+    width: 100%;
+    max-width: 300px;
+    display: flex;
+    justify-content: space-between;
+  }
+  
+  .resources-section {
+    flex: 1;
+    margin: 0 var(--spacing-xs);
+  }
+  
+  .telegram-quick-actions {
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) 0;
+  }
+  
+  .tg-action-btn {
+    min-width: 50px;
+    height: 45px;
+    font-size: 1.1rem;
+  }
+  
+  .list-panel {
+    padding: var(--spacing-sm);
+  }
+  
+  .item-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .buy-button {
+    width: 100%;
+  }
+  
+  #effect-indicators {
+    left: var(--spacing-xs);
+    top: 60px;
+    max-width: 150px;
+  }
+  
+  #notifications {
+    top: var(--spacing-xs);
+    right: var(--spacing-xs);
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+@media (max-width: 480px) {
+  #gameCanvas {
+    width: 280px !important;
+    height: 280px !important;
+  }
+  
+  #ui-top {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+  }
+  
+  .resources-section h4 {
+    font-size: 0.6rem;
+  }
+  
+  .resource-display {
+    font-size: 0.65rem;
+    padding: 2px 4px;
+  }
+  
+  .tg-action-btn {
+    min-width: 45px;
+    height: 40px;
+    font-size: 1rem;
+    padding: var(--spacing-xs);
+  }
+}
+
+@media (max-height: 600px) {
+  .list-panel {
+    max-height: 50vh !important;
+  }
+  
+  #gameCanvas {
+    width: 250px !important;
+    height: 250px !important;
+  }
+}
+
+/* ===== ЗАГРУЗОЧНЫЙ ЭКРАН ===== */
+
+.telegram-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--tg-bg-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--tg-hint-color);
+  border-top: 4px solid var(--tg-button-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: var(--spacing-md);
+}
+
+.loading-text {
+  color: var(--tg-text-color);
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ===== СИСТЕМНЫЕ УТИЛИТЫ ===== */
+
+.text-center { text-align: center; }
+.text-left { text-align: left; }
+.text-right { text-align: right; }
+
+.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.no-scroll {
+  overflow: hidden;
+}
+
+/* ===== СКРОЛЛБАРЫ ===== */
+
+.list-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.list-panel::-webkit-scrollbar-track {
+  background: var(--tg-secondary-bg-color);
+}
+
+.list-panel::-webkit-scrollbar-thumb {
+  background: var(--tg-button-color);
+  border-radius: 3px;
+}
+
+.list-panel::-webkit-scrollbar-thumb:hover {
+  background: var(--tg-link-color);
+}

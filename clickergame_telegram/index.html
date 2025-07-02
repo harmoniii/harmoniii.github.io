@@ -8,28 +8,20 @@
   <!-- Telegram Web App Script -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
-  <!-- Telegram Web App Meta Tags -->
-  <meta name="telegram-app" content="true">
-  
-  <!-- CSS стили для Telegram -->
-  <link rel="stylesheet" href="unified-telegram-styles.css">
-  <link rel="stylesheet" href="telegram-styles.css">
-  <link rel="stylesheet" href="styles.css">
+  <!-- Единый CSS стиль -->
+  <link rel="stylesheet" href="unified-styles.css">
 </head>
 <body class="telegram-webapp">
-  <!-- Индикатор загрузки для Telegram -->
+
+  <!-- Индикатор загрузки -->
   <div id="telegram-loading" class="telegram-loading">
     <div class="loading-spinner"></div>
     <div class="loading-text">🎮 Loading Grid Clicker...</div>
   </div>
 
-  <!-- Верхняя панель навигации -->
+  <!-- Навигация (скрыта в Telegram) -->
   <div id="ui-top" class="telegram-hidden-controls">
-    <button id="toggle-buildings">🏗️ Buildings</button>
-    <button id="toggle-skills">🎯 Skills</button>
-    <button id="toggle-raids" style="display: none;">⚔️ Raids</button>
-    <button id="toggle-market">🛒 Market</button>
-    <button id="info-button">📚 Info</button>
+    <!-- Кнопки создаются динамически в UIManager -->
   </div>
 
   <!-- Основная игровая область -->
@@ -86,29 +78,26 @@
 
     <!-- Быстрые действия для Telegram -->
     <div class="telegram-quick-actions">
-      <button id="tg-buildings-btn" class="tg-action-btn">🏗️</button>
-      <button id="tg-skills-btn" class="tg-action-btn">🎯</button>
-      <button id="tg-raids-btn" class="tg-action-btn" style="display: none;">⚔️</button>
-      <button id="tg-market-btn" class="tg-action-btn">🛒</button>
+      <!-- Кнопки создаются динамически в UIManager -->
     </div>
   </div>
 
   <!-- Панель контента -->
-  <div id="panel-container" class="list-panel hidden telegram-panel"></div>
+  <div id="panel-container" class="list-panel hidden"></div>
 
-  <!-- Нижние кнопки управления (скрыты в Telegram) -->
+  <!-- Контролы снизу (скрыты в Telegram) -->
   <div id="controls-bottom" class="telegram-hidden-controls">
     <button id="load-button">📁 Load</button>
     <button id="save-button">💾 Save</button>
     <button id="reset-button">🔄 Reset</button>
-    <button disabled>Beta v1.2</button>
+    <button disabled>Beta v1.3</button>
   </div>
 
   <!-- Системные элементы -->
   <div id="notifications"></div>
   <div id="mystery-modal" class="modal hidden"></div>
   <div id="info-modal" class="modal hidden"></div>
-  <div id="effect-indicators" class="effect-indicators"></div>
+  <div id="effect-indicators"></div>
 
   <!-- Telegram Web App Scripts -->
   <script type="module">
