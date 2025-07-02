@@ -41,42 +41,158 @@ createMarketCard(itemInfo) {
   const card = document.createElement('div');
   card.className = 'item-card market-card';
   
-  // Проверяем валидность данных
+  // Валидация входных данных
   if (!itemInfo || typeof itemInfo !== 'object') {
-    console.error('Invalid itemInfo passed to createMarketCard:', itemInfo);
+    console.error('Invalid itemInfo:', itemInfo);
     card.innerHTML = '<div class="error">Invalid item data</div>';
+    this.registerDOMElement(card);
     return card;
   }
 
-  // Создаем заголовок карточки
-  const header = this.createItemHeader(
-    itemInfo.icon || '🛒', 
-    itemInfo.name || 'Unknown Item'
-  );
+  // Создаем структуру карточки
+  card.innerHTML = this.createMarketCardHTML(itemInfo);
   
-  // Создаем описание
-  const description = this.createItemDescription(itemInfo.description || 'No description available');
+  // Привязываем обработчики событий
+  this.bindMarketCardEvents(card, itemInfo);
   
-  // Создаем детали товара
-  const details = this.createMarketDetails(itemInfo);
-  
-  // ИСПРАВЛЕНИЕ: Пересчитываем доступность перед созданием footer
-  const canAfford = this.checkMarketItemAffordability(itemInfo);
-  const correctedItemInfo = { ...itemInfo, canAfford };
-  
-  // Создаем подвал с кнопкой покупки
-  const footer = this.createMarketFooter(correctedItemInfo);
-  
-  // Собираем карточку
-  card.appendChild(header);
-  card.appendChild(description);
-  card.appendChild(details);
-  card.appendChild(footer);
-  
-  // ИСПРАВЛЕНИЕ: Правильная регистрация карточки для очистки
+  // Регистрируем для очистки
   this.registerDOMElement(card);
   
   return card;
+}
+
+bindMarketCardEvents(card, itemInfo) {
+  const buyButton = card.querySelector('.buy-button');
+  if (!buyButton) return;
+  
+  this.addEventListener(buyButton, 'click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Проверяем доступность при клике
+    if (!this.checkMarketItemAffordability(itemInfo)) {
+      this.showNotification('❌ Not enough resources!', 'error');
+      return;
+    }
+    
+    // Выполняем покупку
+    this.handleMarketPurchase(itemInfo.id, itemInfo.name);
+  });
+}
+
+showNotification(message, type = 'info') {
+  // Используем eventBus если доступен
+  if (typeof eventBus !== 'undefined' && eventBus.emit) {
+    eventBus.emit('ui:notification', { message, type });
+  } else {
+    // Fallback - простое уведомление
+    console.log(`[${type.toUpperCase()}] ${message}`);
+  }
+}
+
+formatPrice(price) {
+  if (!price || typeof price !== 'object') return 'Free';
+  
+  const resourceEmojis = {
+    gold: '🪙', wood: '🌲', stone: '🪨', food: '🍎', water: '💧',
+    iron: '⛓️', people: '👥', science: '🔬', faith: '🙏', chaos: '🌪️'
+  };
+  
+  const validEntries = Object.entries(price).filter(([resource, amount]) => {
+    const numAmount = parseFloat(amount);
+    return !isNaN(numAmount) && numAmount > 0;
+  });
+  
+  if (validEntries.length === 0) return 'Free';
+  
+  return validEntries
+    .map(([resource, amount]) => {
+      const emoji = resourceEmojis[resource] || '📦';
+      return `${Math.floor(parseFloat(amount))} ${emoji}`;
+    })
+    .join(' + ');
+}
+
+createMarketCardHTML(itemInfo) {
+  const icon = itemInfo.icon || '🛒';
+  const name = itemInfo.name || 'Unknown Item';
+  const description = itemInfo.description || 'No description available';
+  
+  // Вычисляем цену и доступность
+  const effectivePrice = itemInfo.effectivePrice || itemInfo.price || {};
+  const priceText = this.formatPrice(effectivePrice);
+  const canAfford = this.checkMarketItemAffordability(itemInfo);
+  const rewardText = itemInfo.rewardText || 'Unknown reward';
+  
+  // Создаем HTML
+  return `
+    <div class="item-header">
+      <span class="item-icon">${icon}</span>
+      <span class="item-name">${name}</span>
+    </div>
+    
+    <div class="item-description">${description}</div>
+    
+    <div class="item-details">
+      <div><strong>💰 Price:</strong> ${priceText}</div>
+      ${this.createDiscountHTML(itemInfo)}
+      <div><strong>🎁 Reward:</strong> ${rewardText}</div>
+      ${this.createAffordabilityHTML(itemInfo, canAfford)}
+    </div>
+    
+    <div class="item-footer">
+      <button class="buy-button ${canAfford ? '' : 'disabled'}" 
+              data-item-id="${itemInfo.id || ''}"
+              ${canAfford ? '' : 'disabled'}>
+        ${canAfford ? '🛒 Buy' : '❌ Cannot Buy'}
+      </button>
+    </div>
+  `;
+}
+
+// Создать HTML для скидки (если есть)
+createDiscountHTML(itemInfo) {
+  if (!itemInfo.effectivePrice || !itemInfo.price) {
+    return '';
+  }
+  
+  try {
+    const originalTotal = this.calculateTotalPrice(itemInfo.price);
+    const effectiveTotal = this.calculateTotalPrice(itemInfo.effectivePrice);
+    
+    if (originalTotal > effectiveTotal) {
+      const discountPercent = Math.round((1 - effectiveTotal / originalTotal) * 100);
+      return `
+        <div style="text-decoration: line-through; color: #999; font-size: 0.8em;">
+          Original: ${this.formatPrice(itemInfo.price)} (-${discountPercent}%)
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.warn('Error calculating discount:', error);
+  }
+  
+  return '';
+}
+
+// Создать HTML для индикатора доступности
+createAffordabilityHTML(itemInfo, canAfford) {
+  if (canAfford) {
+    return `
+      <div style="color: #4CAF50; background: rgba(76, 175, 80, 0.1); 
+                  padding: 0.25rem; border-radius: 4px; font-size: 0.85em; margin-top: 5px;">
+        ✅ You can afford this item
+      </div>
+    `;
+  } else {
+    const missing = this.getMissingResources(itemInfo.effectivePrice || itemInfo.price || {});
+    return `
+      <div style="color: #f44336; background: rgba(244, 67, 54, 0.1); 
+                  padding: 0.25rem; border-radius: 4px; font-size: 0.85em; margin-top: 5px;">
+        ❌ Missing: ${missing.join(', ') || 'Unknown requirements'}
+      </div>
+    `;
+  }
 }
 
 createMarketFooter(itemInfo) {
@@ -178,69 +294,51 @@ createAffordabilityIndicator(itemInfo) {
 }
 
 getMissingResources(price) {
-  if (!price || typeof price !== 'object') {
-    return ['Invalid price data'];
-  }
+  if (!price || typeof price !== 'object') return ['Invalid price'];
   
   const missing = [];
+  const resourceEmojis = {
+    gold: '🪙', wood: '🌲', stone: '🪨', food: '🍎', water: '💧',
+    iron: '⛓️', people: '👥', science: '🔬', faith: '🙏', chaos: '🌪️'
+  };
   
-  try {
-    Object.entries(price).forEach(([resource, required]) => {
-      const numRequired = parseFloat(required);
-      
-      // Пропускаем невалидные значения
-      if (isNaN(numRequired) || numRequired <= 0) {
-        return;
-      }
-      
-      const available = this.gameState.resources[resource] || 0;
-      
-      if (available < numRequired) {
-        const shortfall = numRequired - available;
-        const emoji = this.getResourceEmoji ? this.getResourceEmoji(resource) : '📦';
-        missing.push(`${shortfall.toFixed(1)} ${emoji} ${resource}`);
-      }
-    });
-  } catch (error) {
-    console.error('Error calculating missing resources:', error);
-    missing.push('Error calculating requirements');
-  }
+  Object.entries(price).forEach(([resource, required]) => {
+    const numRequired = parseFloat(required);
+    if (isNaN(numRequired) || numRequired <= 0) return;
+    
+    const available = this.gameState.resources[resource] || 0;
+    if (available < numRequired) {
+      const shortfall = (numRequired - available).toFixed(1);
+      const emoji = resourceEmojis[resource] || '📦';
+      missing.push(`${shortfall} ${emoji}`);
+    }
+  });
   
   return missing;
 }
 
 checkMarketItemAffordability(itemInfo) {
-  try {
-    const price = itemInfo.effectivePrice || itemInfo.price;
-    
-    if (!price || typeof price !== 'object') {
-      console.warn('Item has no valid price:', itemInfo);
-      return false;
-    }
-
-    // Проверяем каждый ресурс в цене
-    for (const [resource, requiredAmount] of Object.entries(price)) {
-      const numRequired = parseFloat(requiredAmount);
-      
-      // Пропускаем невалидные значения
-      if (isNaN(numRequired) || numRequired <= 0) {
-        continue;
-      }
-      
-      const availableAmount = this.gameState.resources[resource] || 0;
-      
-      if (availableAmount < numRequired) {
-        console.log(`Cannot afford ${itemInfo.name}: need ${numRequired} ${resource}, have ${availableAmount}`);
-        return false;
-      }
-    }
-
-    return true;
-    
-  } catch (error) {
-    console.error('Error checking market item affordability:', error);
+  if (!itemInfo || !this.gameState || !this.gameState.resources) {
     return false;
   }
+  
+  const price = itemInfo.effectivePrice || itemInfo.price;
+  if (!price || typeof price !== 'object') {
+    return false;
+  }
+  
+  // Проверяем каждый ресурс
+  for (const [resource, requiredAmount] of Object.entries(price)) {
+    const numRequired = parseFloat(requiredAmount);
+    if (isNaN(numRequired) || numRequired <= 0) continue;
+    
+    const available = this.gameState.resources[resource] || 0;
+    if (available < numRequired) {
+      return false;
+    }
+  }
+  
+  return true;
 }
 
 // НОВЫЙ метод для расчета общей стоимости
