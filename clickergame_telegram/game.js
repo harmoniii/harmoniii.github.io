@@ -21,7 +21,7 @@ export async function initializeTelegramGame() {
     setupTelegramErrorHandlers();
     
     // Создаем Telegram Storage Manager
-    telegramStorageManager = new TelegramStorageManager();
+    telegramStorageManager = new StorageManager();
     
     // Создаем игровое ядро
     gameCore = new GridGameCore();
@@ -453,3 +453,16 @@ window.checkTelegramReadiness = checkTelegramReadiness;
 
 // Основная точка входа
 export { initializeTelegramGame as main };
+
+if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
+  console.log('🤖 Running in Telegram Web App environment');
+  // Автоматически запускаем инициализацию если мы в Telegram
+  window.addEventListener('DOMContentLoaded', () => {
+    if (!window.gameCore) {
+      console.log('🚀 Auto-starting Telegram game...');
+      initializeTelegramGame().catch(console.error);
+    }
+  });
+} else {
+  console.log('🌐 Running in browser environment');
+}

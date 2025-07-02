@@ -387,3 +387,94 @@
   background: #ff9800 !important;
   color: white !important;
 }
+
+/* Стили для индикаторов статуса */
+.telegram-webapp .combo-indicator {
+  background: linear-gradient(135deg, var(--tg-button-color), var(--tg-link-color));
+  border: 2px solid var(--tg-button-color);
+  color: var(--tg-button-text-color);
+}
+
+.telegram-webapp .energy-display-container {
+  background: var(--tg-secondary-bg-color);
+  border: 2px solid var(--tg-button-color);
+  color: var(--tg-text-color);
+}
+
+/* Стили для эффектов */
+.telegram-webapp .effect-indicators {
+  left: var(--tg-spacing-sm);
+  top: 80px;
+  max-width: calc(50vw - var(--tg-spacing-sm));
+}
+
+/* Стили для быстрых действий */
+.telegram-quick-actions {
+  background: var(--tg-bg-color);
+  border-top: 1px solid var(--tg-hint-color);
+  padding: var(--tg-spacing-sm) 0;
+}
+
+.tg-action-btn {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  border: none;
+  border-radius: var(--tg-border-radius);
+  padding: var(--tg-spacing-sm) var(--tg-spacing-md);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 60px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tg-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.tg-action-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Адаптация для очень маленьких экранов */
+@media (max-width: 320px) {
+  .telegram-quick-actions {
+    gap: var(--tg-spacing-xs);
+    padding: var(--tg-spacing-xs) 0;
+  }
+  
+  .tg-action-btn {
+    min-width: 45px;
+    height: 40px;
+    font-size: 1rem;
+    padding: var(--tg-spacing-xs);
+  }
+}
+
+/* Исправления для сетки на мобильных */
+@media (max-width: 768px) {
+  .telegram-webapp .grid-game-container {
+    flex-direction: column;
+    align-items: center;
+    gap: var(--tg-spacing-sm);
+  }
+  
+  .telegram-webapp .left-panel,
+  .telegram-webapp .right-panel {
+    width: 100%;
+    max-width: 300px;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  .telegram-webapp .resources-section {
+    flex: 1;
+    margin: 0 var(--tg-spacing-xs);
+  }
+}
