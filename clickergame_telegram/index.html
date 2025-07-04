@@ -3,379 +3,211 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-  <title>Restoration: Chronicles of Survival - Grid Clicker</title>
+  <title>Restoration: Chronicles of Survival</title>
   
-  <!-- Telegram Web App Script -->
+  <!-- Telegram Web App SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
-  <!-- Единый CSS стиль -->
-  <link rel="stylesheet" href="unified-styles.css">
+  <!-- Game Styles - адаптированные для мобильных -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Preload критических ресурсов -->
+  <link rel="preload" href="game.js" as="script">
+  <link rel="preload" href="telegram-integration.js" as="script">
 </head>
 <body class="telegram-webapp">
-
-  <!-- Индикатор загрузки -->
+  <!-- Telegram Web App Loading Screen -->
   <div id="telegram-loading" class="telegram-loading">
-    <div class="loading-spinner"></div>
-    <div class="loading-text">🎮 Loading Grid Clicker...</div>
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <h2>🎮 Grid Clicker</h2>
+      <p>Loading Telegram Web App...</p>
+      <div class="loading-progress">
+        <div class="progress-bar" id="loading-progress"></div>
+      </div>
+    </div>
   </div>
 
-  <!-- Навигация (скрыта в Telegram) -->
-  <div id="ui-top" class="telegram-hidden-controls">
-    <!-- Кнопки создаются динамически в UIManager -->
+  <!-- Error Screen -->
+  <div id="telegram-error" class="telegram-error hidden">
+    <div class="error-content">
+      <h2>❌ Error</h2>
+      <p id="error-message">Failed to load Telegram Web App</p>
+      <button id="retry-button" class="retry-btn">🔄 Retry</button>
+    </div>
   </div>
 
-  <!-- Основная игровая область -->
+  <!-- Компактная навигация для Telegram -->
+  <div id="ui-top" class="telegram-nav">
+    <button id="toggle-buildings" class="nav-btn">🏗️</button>
+    <button id="toggle-skills" class="nav-btn">🎯</button>
+    <button id="toggle-raids" class="nav-btn" style="display: none;">⚔️</button>
+    <button id="toggle-market" class="nav-btn">🛒</button>
+    <button id="info-button" class="nav-btn">📚</button>
+  </div>
+
+  <!-- Игровая зона адаптированная для Telegram -->
   <div id="game-area" class="telegram-game-area">
-    <div class="grid-game-container">
+    <div class="grid-game-container telegram-layout">
       
-      <!-- Левая панель с ресурсами -->
-      <div class="left-panel telegram-panel">
-        <div class="resources-section">
-          <h4>📦 Basic</h4>
+      <!-- Левая панель ресурсов - компактная для мобильных -->
+      <div class="left-panel telegram-resources">
+        <div class="resources-section compact">
+          <h4>📦 Resources</h4>
           <div id="basic-resources" class="resources-group"></div>
         </div>
         
-        <div class="resources-section">
+        <div class="resources-section compact">
           <h4>⚗️ Advanced</h4>
           <div id="advanced-resources" class="resources-group"></div>
         </div>
         
-        <div class="resources-section">
+        <div class="resources-section compact">
           <h4>✨ Special</h4>
           <div id="special-resources" class="resources-group"></div>
         </div>
       </div>
 
-      <!-- Игровая сетка по центру -->
-      <div class="game-grid-center">
-        <canvas id="gameCanvas" width="350" height="350"></canvas>
+      <!-- Игровая сетка - оптимизирована для касаний -->
+      <div class="game-grid-center telegram-grid">
+        <canvas id="gameCanvas" width="300" height="300" class="telegram-canvas"></canvas>
       </div>
 
-      <!-- Правая панель с информацией -->
-      <div class="right-panel telegram-panel">
+      <!-- Правая панель информации - компактная -->
+      <div class="right-panel telegram-info">
         
         <!-- Комбо индикатор -->
-        <div class="combo-indicator" id="combo-indicator">
+        <div class="combo-indicator telegram-combo" id="combo-indicator">
           <div class="combo-title">COMBO</div>
           <div class="combo-value" id="combo-value">0</div>
-          <div class="combo-bonus" id="combo-bonus">Hit the target!</div>
+          <div class="combo-bonus" id="combo-bonus">Hit red!</div>
         </div>
 
         <!-- Энергия -->
-        <div class="energy-display-container" id="energy-display">
+        <div class="energy-display-container telegram-energy" id="energy-display">
           <div class="energy-bar-container">
             <div class="energy-bar-background">
-              <div class="energy-bar energy-normal" id="energy-bar"></div>
+              <div class="energy-bar energy-normal"></div>
             </div>
           </div>
-          <div class="energy-text" id="energy-text">⚡ 100/100</div>
-          <div class="energy-status ready" id="energy-status">Ready!</div>
-          <div class="energy-warning hidden" id="energy-warning">⚡ Low!</div>
+          <div class="energy-text">⚡ 100/100</div>
+          <div class="energy-status ready">Ready!</div>
+          <div class="energy-warning hidden">⚡ Low!</div>
         </div>
         
       </div>
-    </div>
-
-    <!-- Быстрые действия для Telegram -->
-    <div class="telegram-quick-actions">
-      <!-- Кнопки создаются динамически в UIManager -->
     </div>
   </div>
 
   <!-- Панель контента -->
-  <div id="panel-container" class="list-panel hidden"></div>
+  <div id="panel-container" class="list-panel hidden telegram-panel"></div>
 
-  <!-- Контролы снизу (скрыты в Telegram) -->
-  <div id="controls-bottom" class="telegram-hidden-controls">
-    <button id="load-button">📁 Load</button>
-    <button id="save-button">💾 Save</button>
-    <button id="reset-button">🔄 Reset</button>
-    <button disabled>Beta v1.3</button>
+  <!-- Telegram Web App Controls -->
+  <div id="telegram-controls" class="telegram-controls">
+    <button id="cloud-save-btn" class="telegram-btn">☁️ Cloud Save</button>
+    <button id="leaderboard-btn" class="telegram-btn">🏆 Leaders</button>
+    <button id="share-btn" class="telegram-btn">📤 Share</button>
   </div>
 
-  <!-- Системные элементы -->
-  <div id="notifications"></div>
+  <!-- Компактные контролы управления -->
+  <div id="controls-bottom" class="telegram-bottom-controls">
+    <button id="load-button" class="control-btn">📁</button>
+    <button id="save-button" class="control-btn">💾</button>
+    <button id="reset-button" class="control-btn">🔄</button>
+    <button id="telegram-menu-btn" class="control-btn">⚙️</button>
+  </div>
+
+  <!-- Уведомления - адаптированные для Telegram -->
+  <div id="notifications" class="telegram-notifications"></div>
+  
+  <!-- Модальные окна -->
   <div id="mystery-modal" class="modal hidden"></div>
   <div id="info-modal" class="modal hidden"></div>
-  <div id="effect-indicators"></div>
+  
+  <!-- Индикаторы эффектов -->
+  <div id="effect-indicators" class="effect-indicators telegram-effects"></div>
 
-  <!-- Telegram Web App Scripts -->
-  <script type="module">
-    // Импорты для Telegram Web App
-    import { TelegramWebAppAdapter } from './telegram-webapp-adapter.js';
-    import { initializeTelegramGame } from './telegram-game-integration.js';
+  <!-- Telegram Menu Modal -->
+  <div id="telegram-menu" class="telegram-menu hidden">
+    <div class="menu-content">
+      <h3>⚙️ Game Menu</h3>
+      <button id="telegram-stats-btn" class="menu-btn">📊 Statistics</button>
+      <button id="telegram-achievements-btn" class="menu-btn">🏆 Achievements</button>
+      <button id="telegram-help-btn" class="menu-btn">❓ Help</button>
+      <button id="telegram-about-btn" class="menu-btn">ℹ️ About</button>
+      <button id="close-menu-btn" class="menu-btn close-btn">✖️ Close</button>
+    </div>
+  </div>
 
-    console.log('🤖 Starting Telegram Web App initialization...');
+  <!-- Cloud Save Modal -->
+  <div id="cloud-save-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>☁️ Cloud Save</h3>
+      <div id="cloud-save-content">
+        <p>Synchronizing with Telegram Cloud...</p>
+        <div class="loading-spinner small"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="close-cloud-modal" class="modal-close">Close</button>
+      </div>
+    </div>
+  </div>
 
-    // Глобальная обработка ошибок
-    window.addEventListener('error', (event) => {
-      console.error('💀 Global error:', event.error);
+  <!-- Leaderboard Modal -->
+  <div id="leaderboard-modal" class="modal hidden">
+    <div class="modal-content">
+      <h3>🏆 Leaderboard</h3>
+      <div id="leaderboard-content">
+        <p>Loading leaderboard...</p>
+        <div class="loading-spinner small"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="close-leaderboard-modal" class="modal-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="telegram-integration.js"></script>
+  <script type="module" src="game.js"></script>
+
+  <!-- Telegram Web App Error Handler -->
+  <script>
+    // Обработка ошибок для Telegram Web App
+    window.addEventListener('error', (e) => {
+      console.error('Telegram Web App Error:', e);
       
-      // Показываем пользователю ошибку
-      const errorDiv = document.createElement('div');
-      errorDiv.style.cssText = `
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: var(--tg-secondary-bg-color, #f7f7f7);
-        color: var(--tg-text-color, #000);
-        padding: 2rem; border-radius: 12px; z-index: 10000;
-        text-align: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3); max-width: 90%; word-wrap: break-word;
-      `;
+      const loadingScreen = document.getElementById('telegram-loading');
+      const errorScreen = document.getElementById('telegram-error');
+      const errorMessage = document.getElementById('error-message');
       
-      errorDiv.innerHTML = `
-        <h3>💀 Error</h3>
-        <p>${event.error?.message || 'Unknown error occurred'}</p>
-        <button onclick="location.reload()" style="
-          background: var(--tg-button-color, #007aff); color: var(--tg-button-text-color, white);
-          border: none; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer;
-          font-weight: bold; margin: 0.25rem;
-        ">🔄 Reload</button>
-      `;
+      if (loadingScreen) loadingScreen.classList.add('hidden');
+      if (errorScreen) errorScreen.classList.remove('hidden');
+      if (errorMessage) errorMessage.textContent = e.message || 'Unknown error occurred';
       
-      document.body.appendChild(errorDiv);
+      // Отправляем ошибку в Telegram
+      if (window.Telegram?.WebApp) {
+        window.Telegram.WebApp.sendData(JSON.stringify({
+          type: 'error_report',
+          error: {
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            timestamp: Date.now()
+          }
+        }));
+      }
     });
 
-    // Инициализация Telegram Web App
-    async function initializeTelegram() {
-      try {
-        console.log('🤖 Initializing Telegram Web App adapter...');
-        
-        // Создаем адаптер Telegram
-        const telegramAdapter = new TelegramWebAppAdapter();
-        
-        // Добавляем адаптер в глобальную область
-        window.telegramAdapter = telegramAdapter;
-        
-        console.log('✅ Telegram adapter created');
-        
-        // Ждем готовности DOM
-        if (document.readyState === 'loading') {
-          await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
-        }
-        
-        console.log('📄 DOM ready, hiding loading screen...');
-        
-        // Скрываем загрузочный экран
-        const loadingElement = document.getElementById('telegram-loading');
-        if (loadingElement) {
-          loadingElement.style.opacity = '0';
-          setTimeout(() => {
-            loadingElement.style.display = 'none';
-          }, 300);
-        }
-
-        // Настраиваем интерфейс для Telegram
-        setupTelegramUI();
-        
-        console.log('🎮 Starting game initialization...');
-        
-        // Запускаем основную игру
-        const gameCore = await initializeTelegramGame();
-        
-        if (gameCore) {
-          console.log('🎮 Game core initialized, setting up integration...');
-          
-          // Интегрируем с Telegram после загрузки игры
-          telegramAdapter.setupGameIntegration(gameCore);
-          telegramAdapter.bindGameEvents();
-          
-          // Добавляем в глобальную область для отладки
-          window.gameCore = gameCore;
-          
-          console.log('✅ Telegram Web App fully initialized');
-          
-          // Уведомляем пользователя
-          if (telegramAdapter.hapticFeedback) {
-            telegramAdapter.hapticFeedback('success');
-          }
-          
-          // Показываем уведомление об успешной загрузке
-          setTimeout(() => {
-            if (gameCore.managers?.ui?.notificationManager) {
-              gameCore.managers.ui.notificationManager.showSuccess('🎮 Game loaded successfully!');
-            }
-          }, 1000);
-        } else {
-          throw new Error('Game core initialization failed');
-        }
-        
-      } catch (error) {
-        console.error('❌ Failed to initialize Telegram Web App:', error);
-        handleInitializationError(error);
+    // Retry кнопка
+    document.addEventListener('DOMContentLoaded', () => {
+      const retryBtn = document.getElementById('retry-button');
+      if (retryBtn) {
+        retryBtn.addEventListener('click', () => {
+          location.reload();
+        });
       }
-    }
-
-    // Настройка UI для Telegram
-    function setupTelegramUI() {
-      console.log('🎨 Setting up Telegram UI...');
-      
-      // Настраиваем быстрые кнопки для Telegram
-      const quickActions = {
-        'tg-buildings-btn': 'buildings',
-        'tg-skills-btn': 'skills', 
-        'tg-raids-btn': 'raids',
-        'tg-market-btn': 'market'
-      };
-
-      Object.entries(quickActions).forEach(([buttonId, panelType]) => {
-        const button = document.getElementById(buttonId);
-        if (button) {
-          button.addEventListener('click', () => {
-            console.log(`📱 Quick action clicked: ${panelType}`);
-            
-            // Добавляем haptic feedback
-            if (window.telegramAdapter?.hapticFeedback) {
-              window.telegramAdapter.hapticFeedback('selection');
-            }
-            
-            // Показываем соответствующую панель
-            if (window.gameCore?.managers?.ui) {
-              window.gameCore.managers.ui.showPanel(panelType);
-            }
-          });
-        }
-      });
-
-      // Скрываем ненужные элементы в Telegram
-      const hiddenElements = document.querySelectorAll('.telegram-hidden-controls');
-      hiddenElements.forEach(el => {
-        el.style.display = 'none';
-      });
-
-      // Адаптируем размеры для Telegram
-      const canvas = document.getElementById('gameCanvas');
-      if (canvas) {
-        const viewportHeight = window.telegramAdapter?.tg?.viewportHeight || window.innerHeight;
-        
-        if (viewportHeight < 600) {
-          canvas.width = 280;
-          canvas.height = 280;
-          canvas.style.width = '280px';
-          canvas.style.height = '280px';
-        } else {
-          canvas.width = 350;
-          canvas.height = 350;
-          canvas.style.width = '350px';
-          canvas.style.height = '350px';
-        }
-      }
-
-      // Применяем тему Telegram
-      applyTelegramTheme();
-
-      console.log('✅ Telegram UI setup completed');
-    }
-
-    // Применение темы Telegram
-    function applyTelegramTheme() {
-      const telegramAdapter = window.telegramAdapter;
-      if (!telegramAdapter?.tg?.themeParams) return;
-
-      const theme = telegramAdapter.tg.themeParams;
-      const root = document.documentElement;
-
-      // Применяем цвета темы
-      if (theme.bg_color) root.style.setProperty('--tg-bg-color', theme.bg_color);
-      if (theme.text_color) root.style.setProperty('--tg-text-color', theme.text_color);
-      if (theme.hint_color) root.style.setProperty('--tg-hint-color', theme.hint_color);
-      if (theme.link_color) root.style.setProperty('--tg-link-color', theme.link_color);
-      if (theme.button_color) root.style.setProperty('--tg-button-color', theme.button_color);
-      if (theme.button_text_color) root.style.setProperty('--tg-button-text-color', theme.button_text_color);
-
-      // Устанавливаем класс темы
-      if (telegramAdapter.tg.colorScheme === 'dark') {
-        document.body.classList.add('tg-dark-theme');
-        document.body.classList.remove('tg-light-theme');
-      } else {
-        document.body.classList.add('tg-light-theme');
-        document.body.classList.remove('tg-dark-theme');
-      }
-
-      console.log('🎨 Telegram theme applied:', telegramAdapter.tg.colorScheme);
-    }
-
-    // Обработка ошибок инициализации
-    function handleInitializationError(error) {
-      console.error('💀 Initialization error:', error);
-      
-      const loadingElement = document.getElementById('telegram-loading');
-      if (loadingElement) {
-        loadingElement.innerHTML = `
-          <div style="text-align: center; padding: 2rem; color: red;">
-            <h3>❌ Loading Error</h3>
-            <p>Failed to load the game: ${error.message}</p>
-            <button onclick="location.reload()" style="
-              background: #ff3b30; color: white; border: none;
-              padding: 1rem 2rem; border-radius: 8px; cursor: pointer;
-              font-weight: bold; margin-top: 1rem;
-            ">🔄 Reload Game</button>
-            <div style="margin-top: 1rem; font-size: 0.8rem; opacity: 0.7;">
-              This error will be reported to the developer.
-            </div>
-          </div>
-        `;
-      }
-
-      // Отправляем отчет об ошибке если возможно
-      if (window.telegramAdapter?.sendData) {
-        try {
-          window.telegramAdapter.sendData(JSON.stringify({
-            type: 'initialization_error',
-            error: {
-              message: error.message,
-              stack: error.stack,
-              timestamp: Date.now()
-            },
-            user: window.telegramAdapter.getUserInfo(),
-            userAgent: navigator.userAgent,
-            url: window.location.href
-          }));
-        } catch (reportError) {
-          console.error('Failed to report error:', reportError);
-        }
-      }
-    }
-
-    // Функции для глобального доступа
-    window.getTelegramDebugInfo = () => {
-      return {
-        adapter: window.telegramAdapter?.getDebugInfo(),
-        gameCore: window.gameCore?.getGameStats(),
-        telegramAPI: !!window.Telegram?.WebApp,
-        viewport: {
-          height: window.telegramAdapter?.tg?.viewportHeight,
-          stableHeight: window.telegramAdapter?.tg?.viewportStableHeight,
-          isExpanded: window.telegramAdapter?.tg?.isExpanded
-        }
-      };
-    };
-
-    window.exportGameForBot = async () => {
-      if (!window.gameCore?.gameState) {
-        console.error('Game not initialized');
-        return false;
-      }
-
-      try {
-        const success = await window.telegramStorageManager?.exportForTelegramBot?.(window.gameCore.gameState);
-        if (success) {
-          console.log('📤 Game data exported to bot');
-          if (window.telegramAdapter?.hapticFeedback) {
-            window.telegramAdapter.hapticFeedback('success');
-          }
-        }
-        return success;
-      } catch (error) {
-        console.error('❌ Export failed:', error);
-        return false;
-      }
-    };
-
-    // Запускаем инициализацию
-    initializeTelegram();
+    });
   </script>
-
-  <!-- Основные скрипты игры -->
-  <script type="module" src="game.js"></script>
 </body>
 </html>

@@ -1,8 +1,7 @@
-// ui/CardFactory.js - ОБНОВЛЕНО: единый дизайн для Telegram
+// ui/CardFactory.js - ИСПРАВЛЕННАЯ версия с корректной проверкой доступности
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { getResourceEmoji } from '../config/ResourceConfig.js';
-import { UI_TEMPLATES, TEMPLATE_UTILS } from './unified-ui-templates.js';
 
 export class CardFactory extends CleanupMixin {
   constructor(gameState) {
@@ -10,1024 +9,599 @@ export class CardFactory extends CleanupMixin {
     this.gameState = gameState;
   }
 
-  // Создать карточку здания с новым дизайном
+  // Создать карточку здания
   createBuildingCard(buildingInfo) {
-    const card = UI_HELPERS.createElement(this.createBuildingCardHTML(buildingInfo));
+    const card = document.createElement('div');
+    card.className = 'item-card';
     
-    // Привязываем обработчики событий
-    this.bindBuildingCardEvents(card, buildingInfo);
-    
-    // Регистрируем для очистки
-    this.registerDOMElement(card);
-    
-    return card;
-  }
-
-  // Создать карточку навыка с новым дизайном
-  createSkillCard(skillInfo) {
-    const card = UI_HELPERS.createElement(this.createSkillCardHTML(skillInfo));
-    
-    // Привязываем обработчики событий
-    this.bindSkillCardEvents(card, skillInfo);
-    
-    // Регистрируем для очистки
-    this.registerDOMElement(card);
-    
-    return card;
-  }
-
-  // Создать карточку товара маркета с новым дизайном
-createMarketCard(itemInfo) {
-  const card = document.createElement('div');
-  card.className = 'item-card market-card';
-  
-  // Валидация входных данных
-  if (!itemInfo || typeof itemInfo !== 'object') {
-    console.error('Invalid itemInfo:', itemInfo);
-    card.innerHTML = '<div class="error">Invalid item data</div>';
-    this.registerDOMElement(card);
-    return card;
-  }
-
-  // Создаем структуру карточки
-  card.innerHTML = this.createMarketCardHTML(itemInfo);
-  
-  // Привязываем обработчики событий
-  this.bindMarketCardEvents(card, itemInfo);
-  
-  // Регистрируем для очистки
-  this.registerDOMElement(card);
-  
-  return card;
-}
-
-bindMarketCardEvents(card, itemInfo) {
-  const buyButton = card.querySelector('.buy-button');
-  if (!buyButton) return;
-  
-  this.addEventListener(buyButton, 'click', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Проверяем доступность при клике
-    if (!this.checkMarketItemAffordability(itemInfo)) {
-      this.showNotification('❌ Not enough resources!', 'error');
-      return;
-    }
-    
-    // Выполняем покупку
-    this.handleMarketPurchase(itemInfo.id, itemInfo.name);
-  });
-}
-
-showNotification(message, type = 'info') {
-  // Используем eventBus если доступен
-  if (typeof eventBus !== 'undefined' && eventBus.emit) {
-    eventBus.emit('ui:notification', { message, type });
-  } else {
-    // Fallback - простое уведомление
-    console.log(`[${type.toUpperCase()}] ${message}`);
-  }
-}
-
-formatPrice(price) {
-  if (!price || typeof price !== 'object') return 'Free';
-  
-  const resourceEmojis = {
-    gold: '🪙', wood: '🌲', stone: '🪨', food: '🍎', water: '💧',
-    iron: '⛓️', people: '👥', science: '🔬', faith: '🙏', chaos: '🌪️'
-  };
-  
-  const validEntries = Object.entries(price).filter(([resource, amount]) => {
-    const numAmount = parseFloat(amount);
-    return !isNaN(numAmount) && numAmount > 0;
-  });
-  
-  if (validEntries.length === 0) return 'Free';
-  
-  return validEntries
-    .map(([resource, amount]) => {
-      const emoji = resourceEmojis[resource] || '📦';
-      return `${Math.floor(parseFloat(amount))} ${emoji}`;
-    })
-    .join(' + ');
-}
-
-createMarketCardHTML(itemInfo) {
-  const icon = itemInfo.icon || '🛒';
-  const name = itemInfo.name || 'Unknown Item';
-  const description = itemInfo.description || 'No description available';
-  
-  // Вычисляем цену и доступность
-  const effectivePrice = itemInfo.effectivePrice || itemInfo.price || {};
-  const priceText = this.formatPrice(effectivePrice);
-  const canAfford = this.checkMarketItemAffordability(itemInfo);
-  const rewardText = itemInfo.rewardText || 'Unknown reward';
-  
-  // Создаем HTML
-  return `
-    <div class="item-header">
-      <span class="item-icon">${icon}</span>
-      <span class="item-name">${name}</span>
-    </div>
-    
-    <div class="item-description">${description}</div>
-    
-    <div class="item-details">
-      <div><strong>💰 Price:</strong> ${priceText}</div>
-      ${this.createDiscountHTML(itemInfo)}
-      <div><strong>🎁 Reward:</strong> ${rewardText}</div>
-      ${this.createAffordabilityHTML(itemInfo, canAfford)}
-    </div>
-    
-    <div class="item-footer">
-      <button class="buy-button ${canAfford ? '' : 'disabled'}" 
-              data-item-id="${itemInfo.id || ''}"
-              ${canAfford ? '' : 'disabled'}>
-        ${canAfford ? '🛒 Buy' : '❌ Cannot Buy'}
-      </button>
-    </div>
-  `;
-}
-
-// Создать HTML для скидки (если есть)
-createDiscountHTML(itemInfo) {
-  if (!itemInfo.effectivePrice || !itemInfo.price) {
-    return '';
-  }
-  
-  try {
-    const originalTotal = this.calculateTotalPrice(itemInfo.price);
-    const effectiveTotal = this.calculateTotalPrice(itemInfo.effectivePrice);
-    
-    if (originalTotal > effectiveTotal) {
-      const discountPercent = Math.round((1 - effectiveTotal / originalTotal) * 100);
-      return `
-        <div style="text-decoration: line-through; color: #999; font-size: 0.8em;">
-          Original: ${this.formatPrice(itemInfo.price)} (-${discountPercent}%)
-        </div>
-      `;
-    }
-  } catch (error) {
-    console.warn('Error calculating discount:', error);
-  }
-  
-  return '';
-}
-
-// Создать HTML для индикатора доступности
-createAffordabilityHTML(itemInfo, canAfford) {
-  if (canAfford) {
-    return `
-      <div style="color: #4CAF50; background: rgba(76, 175, 80, 0.1); 
-                  padding: 0.25rem; border-radius: 4px; font-size: 0.85em; margin-top: 5px;">
-        ✅ You can afford this item
-      </div>
-    `;
-  } else {
-    const missing = this.getMissingResources(itemInfo.effectivePrice || itemInfo.price || {});
-    return `
-      <div style="color: #f44336; background: rgba(244, 67, 54, 0.1); 
-                  padding: 0.25rem; border-radius: 4px; font-size: 0.85em; margin-top: 5px;">
-        ❌ Missing: ${missing.join(', ') || 'Unknown requirements'}
-      </div>
-    `;
-  }
-}
-
-createMarketFooter(itemInfo) {
-  const footer = document.createElement('div');
-  footer.className = 'item-footer';
-  
-  try {
-    // ИСПРАВЛЕНИЕ: Дополнительная проверка доступности перед созданием кнопки
-    const finalCanAfford = itemInfo.canAfford && this.checkMarketItemAffordability(itemInfo);
-    
-    const buyButton = this.createBuyButton(
-      finalCanAfford,
-      finalCanAfford ? 'Buy' : 'Cannot Buy',
-      () => this.handleMarketPurchase(itemInfo.id, itemInfo.name),
-      `${finalCanAfford ? 'Buy' : 'Cannot afford'} ${itemInfo.name}`
+    const header = this.createItemHeader(
+      buildingInfo.img, 
+      buildingInfo.name, 
+      `Level: ${buildingInfo.currentLevel}/${buildingInfo.maxLevel}`
     );
     
-    footer.appendChild(buyButton);
+    const description = this.createItemDescription(buildingInfo.description);
+    const details = this.createBuildingDetails(buildingInfo);
+    const footer = this.createBuildingFooter(buildingInfo);
     
-  } catch (error) {
-    console.error('Error creating market footer:', error);
-    footer.innerHTML = '<div style="color: #f44336;">Error loading purchase options</div>';
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    card.appendChild(footer);
+    
+    // ИСПРАВЛЕНИЕ: Правильная регистрация карточки для очистки
+    this.registerDOMElement(card);
+    
+    return card;
   }
-  
-  return footer;
-}
 
-createMarketDetails(itemInfo) {
-  const details = document.createElement('div');
-  details.className = 'item-details';
-  
-  try {
+  // Создать карточку навыка
+  createSkillCard(skillInfo) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    
+    const header = this.createItemHeader(
+      skillInfo.icon, 
+      skillInfo.name, 
+      `Level: ${skillInfo.currentLevel}/${skillInfo.maxLevel}`
+    );
+    
+    const description = this.createItemDescription(skillInfo.description);
+    const details = this.createSkillDetails(skillInfo);
+    const footer = this.createSkillFooter(skillInfo);
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    card.appendChild(footer);
+    
+    // ИСПРАВЛЕНИЕ: Правильная регистрация карточки для очистки
+    this.registerDOMElement(card);
+    
+    return card;
+  }
+
+  // ИСПРАВЛЕНИЕ: Создать карточку товара маркета с корректной проверкой доступности
+  createMarketCard(itemInfo) {
+    const card = document.createElement('div');
+    card.className = 'item-card market-card';
+    
+    const header = this.createItemHeader(itemInfo.icon, itemInfo.name);
+    const description = this.createItemDescription(itemInfo.description);
+    const details = this.createMarketDetails(itemInfo);
+    
+    // ИСПРАВЛЕНИЕ: Пересчитываем доступность перед созданием footer
+    const canAfford = this.checkMarketItemAffordability(itemInfo);
+    const correctedItemInfo = { ...itemInfo, canAfford };
+    
+    const footer = this.createMarketFooter(correctedItemInfo);
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    card.appendChild(footer);
+    
+    // Регистрируем карточку для очистки
+    this.registerDOMElement(card);
+    
+    return card;
+  }
+
+  // ИСПРАВЛЕНИЕ: Новый метод для правильной проверки доступности товаров маркета
+  checkMarketItemAffordability(itemInfo) {
+    if (!itemInfo.effectivePrice) {
+      console.warn('Item has no effectivePrice:', itemInfo);
+      return false;
+    }
+
+    // Проверяем каждый ресурс в цене
+    for (const [resource, requiredAmount] of Object.entries(itemInfo.effectivePrice)) {
+      const availableAmount = this.gameState.resources[resource] || 0;
+      if (availableAmount < requiredAmount) {
+        console.log(`Cannot afford ${itemInfo.name}: need ${requiredAmount} ${resource}, have ${availableAmount}`);
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Создать карточку эффекта
+  createEffectCard(effectInfo, type) {
+    const card = document.createElement('div');
+    card.className = `item-card ${type}-card`;
+    
+    const icon = effectInfo.name.split(' ')[0];
+    const rarityOrSeverity = effectInfo.rarity || effectInfo.severity || 'unknown';
+    
+    const header = this.createItemHeader(icon, effectInfo.name, rarityOrSeverity);
+    const description = this.createItemDescription(effectInfo.description);
+    const details = this.createEffectDetails(effectInfo);
+    
+    card.appendChild(header);
+    card.appendChild(description);
+    card.appendChild(details);
+    
+    // Регистрируем карточку для очистки
+    this.registerDOMElement(card);
+    
+    return card;
+  }
+
+  // Создать заголовок карточки
+  createItemHeader(icon, name, badge = '') {
+    const header = document.createElement('div');
+    header.className = 'item-header';
+    
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'item-icon';
+    iconSpan.textContent = icon;
+    
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'item-name';
+    nameSpan.textContent = name;
+    
+    header.appendChild(iconSpan);
+    header.appendChild(nameSpan);
+    
+    if (badge) {
+      const badgeSpan = document.createElement('span');
+      badgeSpan.className = 'item-level';
+      badgeSpan.textContent = badge;
+      header.appendChild(badgeSpan);
+    }
+    
+    return header;
+  }
+
+  // Создать описание карточки
+  createItemDescription(description) {
+    const desc = document.createElement('div');
+    desc.className = 'item-description';
+    
+    // ИСПРАВЛЕНИЕ: Безопасная установка текста
+    if (typeof description === 'string') {
+      desc.textContent = description;
+    } else {
+      desc.textContent = 'No description available';
+    }
+    
+    return desc;
+  }
+
+  // Создать детали здания
+  createBuildingDetails(buildingInfo) {
+    const details = document.createElement('div');
+    details.className = 'item-details';
+    
+    if (buildingInfo.productionRate) {
+      const production = document.createElement('div');
+      production.textContent = `📈 Production: ${buildingInfo.productionRate}`;
+      details.appendChild(production);
+    }
+    
+    if (buildingInfo.specialEffect) {
+      const special = document.createElement('div');
+      special.textContent = `✨ Special: ${buildingInfo.specialEffect}`;
+      details.appendChild(special);
+    }
+    
+    // ИСПРАВЛЕНИЕ: Показываем текущий статус здания
+    if (buildingInfo.currentLevel > 0) {
+      const status = document.createElement('div');
+      status.textContent = `🔧 Status: ${buildingInfo.isActive ? 'Active' : 'Inactive'}`;
+      status.style.color = buildingInfo.isActive ? '#4CAF50' : '#999';
+      details.appendChild(status);
+    }
+    
+    return details;
+  }
+
+  // Создать детали навыка
+  createSkillDetails(skillInfo) {
+    const details = document.createElement('div');
+    details.className = 'item-details';
+    
+    if (skillInfo.currentLevel > 0) {
+      const currentEffect = document.createElement('div');
+      const effectValue = skillInfo.effectDescription || `${(skillInfo.currentEffect * 100).toFixed(1)}%`;
+      currentEffect.textContent = `💪 Current effect: ${effectValue}`;
+      details.appendChild(currentEffect);
+    }
+    
+    const effectType = document.createElement('div');
+    effectType.textContent = `🎯 Type: ${this.getEffectTypeDescription(skillInfo.effect?.type)}`;
+    details.appendChild(effectType);
+    
+    // ИСПРАВЛЕНИЕ: Показываем следующий уровень эффекта
+    if (!skillInfo.isMaxLevel) {
+      const nextEffect = document.createElement('div');
+      const nextValue = skillInfo.effect?.value ? 
+        ((skillInfo.currentLevel + 1) * skillInfo.effect.value * 100).toFixed(1) + '%' :
+        'Unknown';
+      nextEffect.textContent = `⬆️ Next level: ${nextValue}`;
+      nextEffect.style.color = '#4CAF50';
+      details.appendChild(nextEffect);
+    }
+    
+    return details;
+  }
+
+  // ИСПРАВЛЕНИЕ: Создать детали товара маркета с правильным отображением цен
+  createMarketDetails(itemInfo) {
+    const details = document.createElement('div');
+    details.className = 'item-details';
+    
     // Показываем эффективную цену (с учетом скидок)
     const price = document.createElement('div');
-    const effectivePrice = itemInfo.effectivePrice || itemInfo.price || {};
+    const effectivePrice = itemInfo.effectivePrice || itemInfo.price;
     price.textContent = `💰 Price: ${this.formatPrice(effectivePrice)}`;
     details.appendChild(price);
     
-    // ИСПРАВЛЕНИЕ: Показываем оригинальную цену если есть скидка
-    if (itemInfo.effectivePrice && itemInfo.price && 
-        typeof itemInfo.effectivePrice === 'object' && 
-        typeof itemInfo.price === 'object') {
-      
-      const originalTotal = this.calculateTotalPrice(itemInfo.price);
-      const effectiveTotal = this.calculateTotalPrice(itemInfo.effectivePrice);
+    // Показываем оригинальную цену если есть скидка
+    if (itemInfo.effectivePrice && itemInfo.price) {
+      const originalTotal = Object.values(itemInfo.price).reduce((sum, val) => sum + val, 0);
+      const effectiveTotal = Object.values(itemInfo.effectivePrice).reduce((sum, val) => sum + val, 0);
       
       if (originalTotal > effectiveTotal) {
         const discountPercent = Math.round((1 - effectiveTotal / originalTotal) * 100);
         const originalPrice = document.createElement('div');
-        originalPrice.style.cssText = 'text-decoration: line-through; color: #999; font-size: 0.8em;';
+        originalPrice.style.textDecoration = 'line-through';
+        originalPrice.style.color = '#999';
         originalPrice.textContent = `Original: ${this.formatPrice(itemInfo.price)} (-${discountPercent}%)`;
         details.appendChild(originalPrice);
       }
     }
     
-    // Показываем награду
     const reward = document.createElement('div');
-    reward.textContent = `🎁 Reward: ${itemInfo.rewardText || 'Unknown reward'}`;
+    reward.textContent = `🎁 Reward: ${itemInfo.rewardText}`;
     details.appendChild(reward);
     
     // ИСПРАВЛЕНИЕ: Показываем доступность ресурсов
-    const affordability = this.createAffordabilityIndicator(itemInfo);
-    if (affordability) {
+    if (itemInfo.effectivePrice) {
+      const affordability = document.createElement('div');
+      affordability.style.fontSize = '0.85em';
+      affordability.style.marginTop = '5px';
+      
+      const canAffordAll = this.checkMarketItemAffordability(itemInfo);
+      if (canAffordAll) {
+        affordability.textContent = '✅ You can afford this item';
+        affordability.style.color = '#4CAF50';
+      } else {
+        const missingResources = this.getMissingResources(itemInfo.effectivePrice);
+        affordability.textContent = `❌ Missing: ${missingResources.join(', ')}`;
+        affordability.style.color = '#f44336';
+      }
       details.appendChild(affordability);
     }
     
-  } catch (error) {
-    console.error('Error creating market details:', error);
-    details.innerHTML = '<div style="color: #f44336;">Error loading item details</div>';
+    return details;
   }
-  
-  return details;
-}
 
-createAffordabilityIndicator(itemInfo) {
-  const affordability = document.createElement('div');
-  affordability.style.cssText = 'font-size: 0.85em; margin-top: 5px; padding: 0.25rem; border-radius: 4px;';
-  
-  try {
-    const canAfford = this.checkMarketItemAffordability(itemInfo);
+  // ИСПРАВЛЕНИЕ: Новый метод для получения недостающих ресурсов
+  getMissingResources(price) {
+    const missing = [];
+    Object.entries(price).forEach(([resource, required]) => {
+      const available = this.gameState.resources[resource] || 0;
+      if (available < required) {
+        const shortfall = required - available;
+        missing.push(`${shortfall} ${getResourceEmoji(resource)}`);
+      }
+    });
+    return missing;
+  }
+
+  // Создать детали эффекта
+  createEffectDetails(effectInfo) {
+    const details = document.createElement('div');
+    details.className = 'item-details';
     
-    if (canAfford) {
-      affordability.textContent = '✅ You can afford this item';
-      affordability.style.cssText += 'color: #4CAF50; background: rgba(76, 175, 80, 0.1);';
+    const duration = document.createElement('div');
+    if (effectInfo.duration) {
+      duration.textContent = `⏱️ Duration: ${effectInfo.duration} seconds`;
     } else {
-      const missingResources = this.getMissingResources(itemInfo.effectivePrice || itemInfo.price || {});
-      affordability.textContent = `❌ Missing: ${missingResources.join(', ') || 'Unknown requirements'}`;
-      affordability.style.cssText += 'color: #f44336; background: rgba(244, 67, 54, 0.1);';
+      duration.textContent = '⚡ Instant effect';
+    }
+    details.appendChild(duration);
+    
+    // ИСПРАВЛЕНИЕ: Добавляем категорию эффекта
+    if (effectInfo.category) {
+      const category = document.createElement('div');
+      category.textContent = `📂 Category: ${effectInfo.category}`;
+      category.style.fontStyle = 'italic';
+      details.appendChild(category);
     }
     
-    return affordability;
-    
-  } catch (error) {
-    console.error('Error creating affordability indicator:', error);
-    affordability.textContent = '⚠️ Unable to check affordability';
-    affordability.style.cssText += 'color: #FF9800; background: rgba(255, 152, 0, 0.1);';
-    return affordability;
+    return details;
   }
-}
 
-getMissingResources(price) {
-  if (!price || typeof price !== 'object') return ['Invalid price'];
-  
-  const missing = [];
-  const resourceEmojis = {
-    gold: '🪙', wood: '🌲', stone: '🪨', food: '🍎', water: '💧',
-    iron: '⛓️', people: '👥', science: '🔬', faith: '🙏', chaos: '🌪️'
-  };
-  
-  Object.entries(price).forEach(([resource, required]) => {
-    const numRequired = parseFloat(required);
-    if (isNaN(numRequired) || numRequired <= 0) return;
+  // Создать подвал карточки здания
+  createBuildingFooter(buildingInfo) {
+    const footer = document.createElement('div');
+    footer.className = 'item-footer';
     
-    const available = this.gameState.resources[resource] || 0;
-    if (available < numRequired) {
-      const shortfall = (numRequired - available).toFixed(1);
-      const emoji = resourceEmojis[resource] || '📦';
-      missing.push(`${shortfall} ${emoji}`);
+    if (buildingInfo.isMaxLevel) {
+      const maxLevel = document.createElement('span');
+      maxLevel.className = 'max-level';
+      maxLevel.textContent = '🏆 MAX LEVEL';
+      footer.appendChild(maxLevel);
+    } else {
+      const priceSpan = document.createElement('span');
+      priceSpan.className = 'price';
+      priceSpan.textContent = `Price: ${this.formatPrice(buildingInfo.nextPrice)}`;
+      
+      const buyButton = this.createBuyButton(
+        buildingInfo.canAfford,
+        'Upgrade',
+        () => this.handleBuildingPurchase(buildingInfo.id, buildingInfo.name),
+        `Upgrade ${buildingInfo.name} to level ${buildingInfo.currentLevel + 1}`
+      );
+      
+      footer.appendChild(priceSpan);
+      footer.appendChild(buyButton);
     }
-  });
-  
-  return missing;
-}
-
-checkMarketItemAffordability(itemInfo) {
-  if (!itemInfo || !this.gameState || !this.gameState.resources) {
-    return false;
-  }
-  
-  const price = itemInfo.effectivePrice || itemInfo.price;
-  if (!price || typeof price !== 'object') {
-    return false;
-  }
-  
-  // Проверяем каждый ресурс
-  for (const [resource, requiredAmount] of Object.entries(price)) {
-    const numRequired = parseFloat(requiredAmount);
-    if (isNaN(numRequired) || numRequired <= 0) continue;
     
-    const available = this.gameState.resources[resource] || 0;
-    if (available < numRequired) {
-      return false;
+    return footer;
+  }
+
+  // Создать подвал карточки навыка
+  createSkillFooter(skillInfo) {
+    const footer = document.createElement('div');
+    footer.className = 'item-footer';
+    
+    if (skillInfo.isMaxLevel) {
+      const maxLevel = document.createElement('span');
+      maxLevel.className = 'max-level';
+      maxLevel.textContent = '🏆 MAX LEVEL';
+      footer.appendChild(maxLevel);
+    } else {
+      const priceSpan = document.createElement('span');
+      priceSpan.className = 'price';
+      priceSpan.textContent = `Price: ${skillInfo.nextCost} ✨ SP`;
+      
+      const buyButton = this.createBuyButton(
+        skillInfo.canAfford,
+        'Learn',
+        () => this.handleSkillPurchase(skillInfo.id, skillInfo.name),
+        `Learn ${skillInfo.name} level ${skillInfo.currentLevel + 1}`
+      );
+      
+      footer.appendChild(priceSpan);
+      footer.appendChild(buyButton);
     }
-  }
-  
-  return true;
-}
-
-// НОВЫЙ метод для расчета общей стоимости
-calculateTotalPrice(price) {
-  if (!price || typeof price !== 'object') return 0;
-  
-  return Object.values(price).reduce((total, amount) => {
-    const numAmount = parseFloat(amount);
-    return total + (isNaN(numAmount) ? 0 : Math.max(0, numAmount));
-  }, 0);
-}
-
-  // Создать карточку рейда с новым дизайном
-  createRaidCard(raidInfo) {
-    const card = UI_HELPERS.createElement(this.createRaidCardHTML(raidInfo));
     
-    // Привязываем обработчики событий
-    this.bindRaidCardEvents(card, raidInfo);
+    return footer;
+  }
+
+  // ИСПРАВЛЕНИЕ: Создать подвал карточки маркета с правильной проверкой доступности
+  createMarketFooter(itemInfo) {
+    const footer = document.createElement('div');
+    footer.className = 'item-footer';
     
-    // Регистрируем для очистки
-    this.registerDOMElement(card);
+    // ИСПРАВЛЕНИЕ: Дополнительная проверка доступности перед созданием кнопки
+    const finalCanAfford = itemInfo.canAfford && this.checkMarketItemAffordability(itemInfo);
     
-    return card;
-  }
-
-  // Создать карточку эффекта с новым дизайном
-  createEffectCard(effectInfo, type) {
-    const card = UI_HELPERS.createElement(this.createEffectCardHTML(effectInfo, type));
+    const buyButton = this.createBuyButton(
+      finalCanAfford,
+      'Buy',
+      () => this.handleMarketPurchase(itemInfo.id, itemInfo.name),
+      `Buy ${itemInfo.name}`
+    );
     
-    // Регистрируем для очистки
-    this.registerDOMElement(card);
+    footer.appendChild(buyButton);
+    return footer;
+  }
+
+  // ИСПРАВЛЕНИЕ: Создать кнопку покупки с правильной логикой доступности
+  createBuyButton(canAfford, text, clickHandler, tooltipText = '') {
+    const button = document.createElement('button');
+    button.className = `buy-button ${canAfford ? '' : 'disabled'}`;
+    button.textContent = text;
+    button.disabled = !canAfford;
     
-    return card;
+    // ИСПРАВЛЕНИЕ: Добавляем tooltip
+    if (tooltipText) {
+      button.title = tooltipText;
+    }
+    
+    // ИСПРАВЛЕНИЕ: Обработчик добавляется всегда, но проверяет доступность внутри
+    this.addEventListener(button, 'click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // Дополнительная проверка доступности при клике
+      if (!canAfford) {
+        console.log('Button clicked but item not affordable');
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ Not enough resources!');
+        return;
+      }
+      
+      // Выполняем действие только если можем позволить
+      try {
+        if (clickHandler) {
+          clickHandler();
+        }
+      } catch (error) {
+        console.error('Error in button click handler:', error);
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ Purchase failed!');
+      }
+    });
+    
+    // ИСПРАВЛЕНИЕ: Добавляем визуальную обратную связь
+    this.addEventListener(button, 'mouseenter', () => {
+      if (!canAfford) {
+        button.style.cursor = 'not-allowed';
+      }
+    });
+    
+    return button;
   }
 
-  // ===== HTML ГЕНЕРАТОРЫ =====
-
-  createBuildingCardHTML(building) {
-    return `
-      <div class="tg-item-card tg-item-card--building">
-        <div class="tg-item-header">
-          <span class="tg-item-icon">${building.img}</span>
-          <span class="tg-item-name">${building.name}</span>
-          <span class="tg-item-badge">Lv. ${building.currentLevel}/${building.maxLevel}</span>
-        </div>
-        
-        <div class="tg-item-description">${building.description}</div>
-        
-        <div class="tg-item-details">
-          ${building.productionRate ? `<div>📈 Production: ${building.productionRate}</div>` : ''}
-          ${building.specialEffect ? `<div>✨ Special: ${building.specialEffect}</div>` : ''}
-          ${building.currentLevel > 0 ? `
-            <div>🔧 Status: 
-              <span style="color: ${building.isActive ? 'var(--tg-success-color)' : 'var(--tg-hint-color)'}">
-                ${building.isActive ? 'Active' : 'Inactive'}
-              </span>
-            </div>
-          ` : ''}
-        </div>
-        
-        <div class="tg-item-footer">
-          ${building.isMaxLevel ? 
-            `<span class="tg-item-badge" style="background: var(--tg-warning-color); width: 100%; text-align: center; padding: var(--tg-spacing-sm);">
-              🏆 MAX LEVEL
-            </span>` :
-            `<span class="tg-item-price">💰 ${UI_HELPERS.formatPrice(building.nextPrice)}</span>
-             <button class="tg-button ${building.canAfford ? '' : 'tg-button--secondary'}" 
-                     ${building.canAfford ? '' : 'disabled'} 
-                     data-building-id="${building.id}"
-                     title="Upgrade ${building.name} to level ${building.currentLevel + 1}">
-               ${building.canAfford ? '⬆️ Upgrade' : '❌ Can\'t Afford'}
-             </button>`
-          }
-        </div>
-      </div>
-    `;
-  }
-
-  createSkillCardHTML(skill) {
-    return `
-      <div class="tg-item-card tg-item-card--skill">
-        <div class="tg-item-header">
-          <span class="tg-item-icon">${skill.icon}</span>
-          <span class="tg-item-name">${skill.name}</span>
-          <span class="tg-item-badge">Lv. ${skill.currentLevel}/${skill.maxLevel}</span>
-        </div>
-        
-        <div class="tg-item-description">${skill.description}</div>
-        
-        <div class="tg-item-details">
-          ${skill.currentLevel > 0 ? `
-            <div>💪 Current: ${skill.effectDescription || `${(skill.currentEffect * 100).toFixed(1)}%`}</div>
-          ` : ''}
-          <div>🎯 Type: ${this.getEffectTypeDescription(skill.effect?.type)}</div>
-          ${!skill.isMaxLevel ? `
-            <div style="color: var(--tg-success-color)">
-              ⬆️ Next level: ${this.getNextLevelEffect(skill)}
-            </div>
-          ` : ''}
-        </div>
-        
-        <div class="tg-item-footer">
-          ${skill.isMaxLevel ? 
-            `<span class="tg-item-badge" style="background: var(--tg-warning-color); width: 100%; text-align: center; padding: var(--tg-spacing-sm);">
-              🏆 MAX LEVEL
-            </span>` :
-            `<span class="tg-item-price">✨ ${skill.nextCost} SP</span>
-             <button class="tg-button ${skill.canAfford ? '' : 'tg-button--secondary'}" 
-                     ${skill.canAfford ? '' : 'disabled'} 
-                     data-skill-id="${skill.id}"
-                     title="Learn ${skill.name} level ${skill.currentLevel + 1}">
-               ${skill.canAfford ? '📚 Learn' : '❌ Not Enough SP'}
-             </button>`
-          }
-        </div>
-      </div>
-    `;
-  }
-
-  getResourceEmoji(resource) {
-  // Импортируем функцию если доступна
-  if (typeof getResourceEmoji === 'function') {
-    return getResourceEmoji(resource);
-  }
-  
-  // Fallback эмодзи
-  const fallbackEmojis = {
-    gold: '🪙',
-    wood: '🌲',
-    stone: '🪨',
-    food: '🍎',
-    water: '💧',
-    iron: '⛓️',
-    people: '👥',
-    science: '🔬',
-    faith: '🙏',
-    chaos: '🌪️'
-  };
-  
-  return fallbackEmojis[resource] || '📦';
-}
-
-handleMarketPurchase(itemId, itemName) {
-  if (!this.gameState.marketManager) {
-    this.showError('Market not available');
-    return;
-  }
-
-  try {
-    // ИСПРАВЛЕНИЕ: Дополнительная проверка доступности перед покупкой
-    if (!this.gameState.marketManager.canAfford(itemId)) {
-      this.showError('Not enough resources!');
+  // ИСПРАВЛЕНИЕ: Обработчик покупки здания с дополнительными проверками
+  handleBuildingPurchase(buildingId, buildingName) {
+    const buildingManager = this.gameState.buildingManager;
+    
+    if (!buildingManager) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Building manager not available');
       return;
     }
 
-    if (this.gameState.marketManager.buyItem(itemId)) {
-      this.showSuccess(`Bought: ${itemName}`);
-      this.emitPurchaseEvent(itemId, itemName);
+    // ИСПРАВЛЕНИЕ: Дополнительная проверка доступности перед покупкой
+    if (!buildingManager.canAfford(buildingId)) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Not enough resources!');
+      return;
+    }
+
+    if (buildingManager.buyBuilding(buildingId)) {
+      eventBus.emit(GameEvents.NOTIFICATION, `✅ ${buildingName} upgraded!`);
+      eventBus.emit(GameEvents.BUILDING_BOUGHT, { buildingId, name: buildingName });
     } else {
-      this.showError('Purchase failed!');
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Upgrade failed!');
+    }
+  }
+
+  // ИСПРАВЛЕНИЕ: Обработчик покупки навыка с дополнительными проверками
+  handleSkillPurchase(skillId, skillName) {
+    const skillManager = this.gameState.skillManager;
+    
+    if (!skillManager) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Skill manager not available');
+      return;
+    }
+
+    // ИСПРАВЛЕНИЕ: Дополнительная проверка доступности перед покупкой
+    if (!skillManager.canAfford(skillId)) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Not enough Skill Points!');
+      return;
+    }
+
+    if (skillManager.buySkill(skillId)) {
+      eventBus.emit(GameEvents.NOTIFICATION, `✅ ${skillName} learned!`);
+      eventBus.emit(GameEvents.SKILL_BOUGHT, { skillId, name: skillName });
+    } else {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Learning failed!');
+    }
+  }
+
+  // ИСПРАВЛЕНИЕ: Обработчик покупки в маркете с дополнительной проверкой
+  handleMarketPurchase(itemId, itemName) {
+    const marketManager = this.gameState.marketManager;
+    
+    if (!marketManager) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Market not available');
+      return;
+    }
+
+    // ИСПРАВЛЕНИЕ: Дополнительная проверка доступности перед покупкой
+    if (!marketManager.canAfford(itemId)) {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Not enough resources!');
+      return;
+    }
+
+    if (marketManager.buyItem(itemId)) {
+      eventBus.emit(GameEvents.NOTIFICATION, `✅ Bought: ${itemName}`);
+      eventBus.emit(GameEvents.ITEM_PURCHASED, { itemId, name: itemName });
+    } else {
+      eventBus.emit(GameEvents.NOTIFICATION, '❌ Purchase failed!');
+    }
+  }
+
+  // ИСПРАВЛЕНИЕ: Форматировать цену с проверкой валидности
+  formatPrice(price) {
+    if (!price || typeof price !== 'object') {
+      return 'Invalid price';
     }
     
-  } catch (error) {
-    console.error('Error in market purchase:', error);
-    this.showError('Purchase error occurred');
-  }
-}
-
-// ВСПОМОГАТЕЛЬНЫЕ методы для уведомлений
-showSuccess(message) {
-  if (typeof eventBus !== 'undefined' && eventBus.emit) {
-    eventBus.emit('ui:notification', { message, type: 'success' });
-  }
-}
-
-showError(message) {
-  if (typeof eventBus !== 'undefined' && eventBus.emit) {
-    eventBus.emit('ui:notification', { message, type: 'error' });
-  }
-}
-
-emitPurchaseEvent(itemId, itemName) {
-  if (typeof eventBus !== 'undefined' && eventBus.emit) {
-    eventBus.emit('market:item_purchased', { itemId, name: itemName });
-  }
-}
-
-// Создать карточку рейда (НОВОЕ)
-createRaidCard(raidInfo) {
-  const card = document.createElement('div');
-  card.className = 'tg-item-card tg-item-card--raid';
-  
-  // Определяем CSS класс и цвет по сложности
-  const difficultyColors = {
-    beginner: '#28a745',
-    intermediate: '#ffc107', 
-    advanced: '#dc3545',
-    expert: '#6f42c1'
-  };
-  
-  const difficultyColor = difficultyColors[raidInfo.difficulty] || '#6c757d';
-  
-  const header = this.createItemHeader(
-    '⚔️', 
-    raidInfo.name, 
-    this.capitalize(raidInfo.difficulty)
-  );
-  
-  const description = this.createItemDescription(raidInfo.description);
-  const details = this.createRaidDetails(raidInfo);
-  const rewards = this.createRaidRewards(raidInfo);
-  const footer = this.createRaidFooter(raidInfo);
-  
-  card.appendChild(header);
-  card.appendChild(description);
-  card.appendChild(details);
-  card.appendChild(rewards);
-  card.appendChild(footer);
-  
-  // Стилизация по сложности
-  card.style.borderLeft = `4px solid ${difficultyColor}`;
-  
-  // Регистрируем карточку для очистки
-  this.registerDOMElement(card);
-  
-  return card;
-}
-
-// Создать детали рейда (НОВОЕ)
-createRaidDetails(raidInfo) {
-  const details = document.createElement('div');
-  details.className = 'tg-item-details';
-  
-  // Длительность
-  const duration = document.createElement('div');
-  duration.innerHTML = `<strong>⏱️ Duration:</strong> ${raidInfo.durationText}`;
-  details.appendChild(duration);
-  
-  // Риск
-  const risk = document.createElement('div');
-  risk.innerHTML = `<strong>⚠️ Risk:</strong> ${raidInfo.riskPercentage}% casualties`;
-  details.appendChild(risk);
-  
-  // Требования
-  const requirements = document.createElement('div');
-  requirements.innerHTML = `<strong>📋 Requirements:</strong>`;
-  
-  const reqList = document.createElement('div');
-  reqList.style.marginTop = '0.5rem';
-  reqList.style.display = 'flex';
-  reqList.style.flexWrap = 'wrap';
-  reqList.style.gap = '0.25rem';
-  
-  Object.entries(raidInfo.requirements).forEach(([resource, amount]) => {
-    const emoji = getResourceEmoji(resource);
-    const available = this.gameState.resources[resource] || 0;
-    const hasEnough = available >= amount;
+    const validEntries = Object.entries(price).filter(([resource, amount]) => {
+      return typeof amount === 'number' && !isNaN(amount) && amount >= 0;
+    });
     
-    const reqSpan = document.createElement('span');
-    reqSpan.className = hasEnough ? 'tg-requirement tg-requirement--met' : 'tg-requirement tg-requirement--not-met';
-    reqSpan.textContent = `${emoji} ${amount} ${resource}`;
-    reqList.appendChild(reqSpan);
-  });
-  
-  requirements.appendChild(reqList);
-  details.appendChild(requirements);
-  
-  return details;
-}
-
-// Создать раздел наград рейда (НОВОЕ)
-createRaidRewards(raidInfo) {
-  const rewards = document.createElement('div');
-  rewards.className = 'tg-reward-section';
-  rewards.style.margin = '1rem 0';
-  
-  // Гарантированные награды
-  if (raidInfo.rewards.guaranteed && raidInfo.rewards.guaranteed.length > 0) {
-    const guaranteedTitle = document.createElement('div');
-    guaranteedTitle.className = 'tg-reward-title';
-    guaranteedTitle.innerHTML = '<strong>🎁 Guaranteed Rewards:</strong>';
-    rewards.appendChild(guaranteedTitle);
+    if (validEntries.length === 0) {
+      return 'Free';
+    }
     
-    const guaranteedList = document.createElement('div');
-    guaranteedList.className = 'tg-reward-list';
-    guaranteedList.innerHTML = raidInfo.rewards.guaranteed.map(reward => {
-      const emoji = getResourceEmoji(reward.resource);
-      return `${emoji} ${reward.min}-${reward.max} ${reward.resource}`;
-    }).join(', ');
-    rewards.appendChild(guaranteedList);
+    return validEntries
+      .map(([resource, amount]) => `${Math.floor(amount)} ${getResourceEmoji(resource)}`)
+      .join(' + ');
   }
-  
-  // Случайные награды
-  if (raidInfo.rewards.chance && raidInfo.rewards.chance.length > 0) {
-    const chanceTitle = document.createElement('div');
-    chanceTitle.className = 'tg-reward-title';
-    chanceTitle.innerHTML = '<strong>🎲 Chance Rewards:</strong>';
-    chanceTitle.style.marginTop = '0.5rem';
-    rewards.appendChild(chanceTitle);
+
+  // Получить описание типа эффекта
+  getEffectTypeDescription(type) {
+    const types = {
+      'multiplier': 'Multiplier Bonus',
+      'chance': 'Chance Effect',
+      'generation': 'Resource Generation',
+      'reduction': 'Reduction Effect',
+      'duration': 'Duration Extension',
+      'automation': 'Automation',
+      'protection': 'Protection',
+      'charges': 'Charge System',
+      'preview': 'Preview Feature'
+    };
+    return types[type] || (type ? `${type} Effect` : 'Unknown Effect');
+  }
+
+  // ИСПРАВЛЕНИЕ: Создать индикатор загрузки для длительных операций
+  createLoadingIndicator() {
+    const indicator = document.createElement('div');
+    indicator.className = 'loading-indicator';
+    indicator.style.cssText = `
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #3498db;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    `;
     
-    const chanceList = document.createElement('div');
-    chanceList.className = 'tg-reward-list';
-    chanceList.innerHTML = raidInfo.rewards.chance.map(chance => {
-      const percent = Math.round(chance.probability * 100);
-      if (chance.reward.type === 'special') {
-        return `${percent}% ${chance.description}`;
-      } else {
-        const emoji = getResourceEmoji(chance.reward.resource);
-        return `${percent}% ${emoji} +${chance.reward.amount} ${chance.reward.resource}`;
+    // Добавляем CSS анимацию если её нет
+    if (!document.getElementById('loading-animation-styles')) {
+      const style = document.createElement('style');
+      style.id = 'loading-animation-styles';
+      style.textContent = `
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    return indicator;
+  }
+
+  // ИСПРАВЛЕНИЕ: Метод для обновления существующей карточки
+  updateCard(card, newInfo) {
+    if (!card || !newInfo) return false;
+    
+    try {
+      // Обновляем только необходимые части карточки
+      const priceElement = card.querySelector('.price');
+      if (priceElement && newInfo.nextPrice) {
+        priceElement.textContent = `Price: ${this.formatPrice(newInfo.nextPrice)}`;
       }
-    }).join('<br>');
-    rewards.appendChild(chanceList);
+      
+      const buyButton = card.querySelector('.buy-button');
+      if (buyButton && typeof newInfo.canAfford === 'boolean') {
+        buyButton.disabled = !newInfo.canAfford;
+        buyButton.className = `buy-button ${newInfo.canAfford ? '' : 'disabled'}`;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating card:', error);
+      return false;
+    }
   }
-  
-  return rewards;
-}
 
-// Создать подвал карточки рейда (НОВОЕ)
-createRaidFooter(raidInfo) {
-  const footer = document.createElement('div');
-  footer.className = 'tg-item-footer';
-  
-  // Статистика выполнений
-  if (raidInfo.completedCount > 0) {
-    const stats = document.createElement('div');
-    stats.className = 'tg-text tg-text--small tg-text--secondary';
-    stats.style.textAlign = 'center';
-    stats.style.marginBottom = '0.5rem';
-    stats.textContent = `📊 Completed ${raidInfo.completedCount} times`;
-    footer.appendChild(stats);
+  // ИСПРАВЛЕНИЕ: Очистка ресурсов при уничтожении
+  destroy() {
+    console.log('🧹 CardFactory cleanup started');
+    
+    // Вызываем родительский деструктор
+    super.destroy();
+    
+    console.log('✅ CardFactory destroyed');
   }
-  
-  // Кнопка запуска
-  const startButton = this.createBuyButton(
-    raidInfo.canStart,
-    raidInfo.canStart ? '⚔️ Start Raid' : '❌ Cannot Start',
-    () => this.handleStartRaid(raidInfo.id),
-    raidInfo.canStart ? `Start ${raidInfo.name}` : raidInfo.canStartReason || 'Cannot start raid'
-  );
-  
-  startButton.style.width = '100%';
-  footer.appendChild(startButton);
-  
-  // Сообщение об ошибке
-  if (!raidInfo.canStart && raidInfo.canStartReason) {
-    const errorMsg = document.createElement('div');
-    errorMsg.className = 'tg-text tg-text--small';
-    errorMsg.style.color = 'var(--tg-error-color, #f44336)';
-    errorMsg.style.textAlign = 'center';
-    errorMsg.style.marginTop = '0.5rem';
-    errorMsg.textContent = raidInfo.canStartReason;
-    footer.appendChild(errorMsg);
-  }
-  
-  return footer;
-}
-
-// Обработчик запуска рейда (НОВОЕ)
-handleStartRaid(raidId) {
-  if (!this.gameState.raidManager) {
-    console.error('RaidManager not available');
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Raid system not available');
-    return;
-  }
-  
-  try {
-    const success = this.gameState.raidManager.startRaid(raidId);
-    if (success) {
-      console.log(`✅ Raid ${raidId} started successfully`);
-      eventBus.emit(GameEvents.NOTIFICATION, '⚔️ Raid expedition started!');
-    } else {
-      console.warn(`⚠️ Failed to start raid ${raidId}`);
-      eventBus.emit(GameEvents.NOTIFICATION, '❌ Failed to start raid');
-    }
-  } catch (error) {
-    console.error('Error starting raid:', error);
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Error starting raid');
-  }
-}
-
-// Создать карточку специальной награды (НОВОЕ)
-createSpecialRewardCard(rewardInfo) {
-  const card = document.createElement('div');
-  card.className = 'tg-item-card';
-  card.style.background = 'linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)';
-  card.style.borderLeft = '4px solid #9c27b0';
-  
-  const header = this.createItemHeader(
-    rewardInfo.icon || '✨',
-    rewardInfo.name,
-    `×${rewardInfo.count}`
-  );
-  
-  const description = this.createItemDescription(
-    rewardInfo.definition ? rewardInfo.definition.description : 'Special reward item'
-  );
-  
-  const footer = document.createElement('div');
-  footer.className = 'tg-item-footer';
-  
-  const useButton = this.createBuyButton(
-    true,
-    '🎯 Use',
-    () => this.handleUseSpecialReward(rewardInfo.id),
-    `Use ${rewardInfo.name}`
-  );
-  
-  footer.appendChild(useButton);
-  
-  card.appendChild(header);
-  card.appendChild(description);
-  card.appendChild(footer);
-  
-  this.registerDOMElement(card);
-  
-  return card;
-}
-
-// Обработчик использования специальной награды (НОВОЕ)
-handleUseSpecialReward(rewardId) {
-  if (!this.gameState.raidManager) {
-    console.error('RaidManager not available');
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Raid system not available');
-    return;
-  }
-  
-  try {
-    const success = this.gameState.raidManager.useSpecialReward(rewardId);
-    if (success) {
-      console.log(`✅ Special reward ${rewardId} used successfully`);
-      eventBus.emit(GameEvents.NOTIFICATION, '✨ Special reward used!');
-    } else {
-      console.warn(`⚠️ Failed to use special reward ${rewardId}`);
-      eventBus.emit(GameEvents.NOTIFICATION, '❌ Failed to use reward');
-    }
-  } catch (error) {
-    console.error('Error using special reward:', error);
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Error using reward');
-  }
-}
-
-// Создать прогресс-бар (НОВОЕ)
-createProgressBar(progress, label = '', animated = false) {
-  const container = document.createElement('div');
-  container.className = 'tg-progress-container';
-  
-  const bar = document.createElement('div');
-  bar.className = 'tg-progress-bar';
-  
-  const fill = document.createElement('div');
-  fill.className = `tg-progress-fill ${animated ? 'tg-progress-fill--animated' : ''}`;
-  fill.style.width = `${Math.max(0, Math.min(100, progress))}%`;
-  
-  bar.appendChild(fill);
-  container.appendChild(bar);
-  
-  if (label) {
-    const labelDiv = document.createElement('div');
-    labelDiv.className = 'tg-text tg-text-center';
-    labelDiv.style.marginTop = '0.25rem';
-    labelDiv.style.fontWeight = '600';
-    labelDiv.textContent = label;
-    container.appendChild(labelDiv);
-  }
-  
-  return container;
-}
-
-// Создать статистическую сетку (НОВОЕ)
-createStatsGrid(stats) {
-  const grid = document.createElement('div');
-  grid.className = 'tg-stats-grid';
-  
-  Object.entries(stats).forEach(([key, value]) => {
-    const statItem = document.createElement('div');
-    statItem.className = 'tg-stat-item';
-    
-    const statValue = document.createElement('div');
-    statValue.className = 'tg-stat-value';
-    statValue.textContent = typeof value === 'number' ? value.toLocaleString() : value;
-    
-    const statLabel = document.createElement('div');
-    statLabel.className = 'tg-stat-label';
-    statLabel.textContent = this.formatStatLabel(key);
-    
-    statItem.appendChild(statValue);
-    statItem.appendChild(statLabel);
-    grid.appendChild(statItem);
-  });
-  
-  return grid;
-}
-
-// Форматировать ярлык статистики (НОВОЕ)
-formatStatLabel(key) {
-  const labels = {
-    totalRaids: 'Total Raids',
-    successfulRaids: 'Successful',
-    successRate: 'Success Rate',
-    peopleLost: 'People Lost',
-    resourcesGained: 'Resources Gained',
-    totalClicks: 'Total Clicks',
-    maxCombo: 'Max Combo',
-    totalResourcesCollected: 'Resources Collected',
-    skillPoints: 'Skill Points',
-    buildingLevels: 'Building Levels',
-    skillLevels: 'Skill Levels'
-  };
-  
-  return labels[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
-}
-
-// Создать заблокированную секцию (НОВОЕ)
-createLockedSection(title, requirements, description) {
-  const section = document.createElement('div');
-  section.className = 'tg-special-card tg-special-card--locked';
-  
-  const icon = document.createElement('div');
-  icon.className = 'tg-special-icon';
-  icon.textContent = '🔒';
-  
-  const titleDiv = document.createElement('div');
-  titleDiv.className = 'tg-special-title';
-  titleDiv.textContent = title;
-  
-  const desc = document.createElement('div');
-  desc.className = 'tg-special-description';
-  desc.textContent = description;
-  
-  const reqSection = document.createElement('div');
-  reqSection.className = 'tg-section';
-  
-  const reqTitle = document.createElement('h4');
-  reqTitle.className = 'tg-heading tg-heading--h3';
-  reqTitle.textContent = 'Requirements:';
-  
-  const reqList = document.createElement('div');
-  reqList.className = 'tg-list';
-  
-  requirements.forEach(req => {
-    const reqItem = document.createElement('div');
-    reqItem.className = 'tg-list-item';
-    
-    const reqIcon = document.createElement('span');
-    reqIcon.className = 'tg-list-item-icon';
-    reqIcon.textContent = req.icon;
-    
-    const reqContent = document.createElement('span');
-    reqContent.className = 'tg-list-item-content';
-    reqContent.textContent = `${req.amount} ${req.name}`;
-    
-    reqItem.appendChild(reqIcon);
-    reqItem.appendChild(reqContent);
-    reqList.appendChild(reqItem);
-  });
-  
-  reqSection.appendChild(reqTitle);
-  reqSection.appendChild(reqList);
-  
-  section.appendChild(icon);
-  section.appendChild(titleDiv);
-  section.appendChild(desc);
-  section.appendChild(reqSection);
-  
-  this.registerDOMElement(section);
-  
-  return section;
-}
-
-// Добавить CSS классы для новых компонентов (НОВОЕ)
-addTelegramStyles() {
-  if (document.getElementById('telegram-card-styles')) return;
-  
-  const style = document.createElement('style');
-  style.id = 'telegram-card-styles';
-  style.textContent = `
-    .tg-item-card--raid {
-      border-left: 4px solid #dc3545;
-    }
-    
-    .tg-requirement {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin: 0.125rem;
-      border: 1px solid;
-    }
-    
-    .tg-requirement--met {
-      color: #28a745;
-      background: rgba(40, 167, 69, 0.1);
-      border-color: #28a745;
-    }
-    
-    .tg-requirement--not-met {
-      color: #dc3545;
-      background: rgba(220, 53, 69, 0.1);
-      border-color: #dc3545;
-    }
-    
-    .tg-reward-section {
-      margin: 1rem 0;
-    }
-    
-    .tg-reward-title {
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-    }
-    
-    .tg-reward-list {
-      background: rgba(0,0,0,0.05);
-      padding: 0.5rem;
-      border-radius: 4px;
-      font-size: 0.875rem;
-      line-height: 1.5;
-    }
-    
-    .tg-progress-container {
-      margin: 0.5rem 0;
-    }
-    
-    .tg-progress-bar {
-      width: 100%;
-      height: 8px;
-      background: rgba(0,0,0,0.1);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    
-    .tg-progress-fill {
-      height: 100%;
-      background: #28a745;
-      transition: width 0.3s ease;
-      border-radius: 4px;
-    }
-    
-    .tg-progress-fill--animated {
-      background: linear-gradient(90deg, 
-        #28a745 0%, 
-        rgba(40, 167, 69, 0.7) 50%, 
-        #28a745 100%);
-      background-size: 200% 100%;
-      animation: progressShine 2s linear infinite;
-    }
-    
-    @keyframes progressShine {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-    
-    .tg-stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 1rem;
-      margin: 1rem 0;
-    }
-    
-    .tg-stat-item {
-      text-align: center;
-      padding: 1rem;
-      background: rgba(0,0,0,0.05);
-      border-radius: 8px;
-      transition: all 0.2s ease;
-    }
-    
-    .tg-stat-item:hover {
-      background: rgba(0,0,0,0.1);
-    }
-    
-    .tg-stat-value {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #2481cc;
-      margin-bottom: 0.25rem;
-    }
-    
-    .tg-stat-label {
-      font-size: 0.875rem;
-      color: #666;
-    }
-  `;
-  
-  document.head.appendChild(style);
-}
 }
