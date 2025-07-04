@@ -1,468 +1,351 @@
-// telegram-game-integration.js - Интеграция игры с Telegram Web App
+// game.js - ИСПРАВЛЕННАЯ версия для системы сетки 3x3
 import { GridGameCore } from './core/GridGameCore.js';
 import { eventBus, GameEvents } from './core/GameEvents.js';
-import { StorageManager } from './core/StorageManager.js';
 
-// Глобальные переменные
+// Глобальные переменные для отладки
 let gameCore = null;
-let telegramStorageManager = null;
 
-// Основная функция инициализации для Telegram
-export async function initializeTelegramGame() {
+// Основная функция инициализации
+async function main() {
   try {
-    console.log('🤖 Starting Grid Clicker for Telegram Web App...');
+    console.log('🚀 Starting Grid Clicker Game...');
     
-    // Проверяем наличие Telegram Web App API
-    if (!window.telegramAdapter) {
-      throw new Error('Telegram Web App adapter not initialized');
-    }
-
     // Устанавливаем обработчики ошибок
-    setupTelegramErrorHandlers();
+    setupErrorHandlers();
     
-    // Создаем Telegram Storage Manager
-    telegramStorageManager = new StorageManager();
+    // Устанавливаем современные обработчики закрытия страницы
+    setupModernPageHandlers();
     
-    // Создаем игровое ядро
+    // Создаем и запускаем игровое ядро с сеткой
     gameCore = new GridGameCore();
-    
-    // Заменяем стандартный StorageManager на Telegram версию
-    if (gameCore.storageManager) {
-      gameCore.storageManager = telegramStorageManager;
-    }
-    
-    // Загружаем сохранённую игру из облака
-    await loadGameFromCloud();
-    
-    // Настраиваем автосохранение в облако
-    setupCloudAutoSave();
-    
-    // Настраиваем события Telegram
-    setupTelegramEvents();
     
     // Экспортируем для отладки
     window.gameCore = gameCore;
-    window.telegramStorageManager = telegramStorageManager;
     window.eventBus = eventBus;
     window.GameEvents = GameEvents;
     
-    // Включаем режим отладки
+    // Автоматически включаем режим отладки в консоли
     if (gameCore && typeof gameCore.enableDebugMode === 'function') {
       gameCore.enableDebugMode();
     }
     
-    console.log('✅ Telegram Grid Clicker initialized successfully');
-    
-    // Уведомляем Telegram о готовности
-    window.telegramAdapter.hapticFeedback('success');
-    
-    return gameCore;
+    console.log('✅ Grid Clicker Game started successfully');
+    console.log('🐛 Debug mode enabled! Use window.gameDebug for debugging');
+    console.log('🎯 Game now uses 3x3 grid instead of rotating wheel');
     
   } catch (error) {
-    console.error('💀 Critical error initializing Telegram game:', error);
-    handleTelegramError(error);
-    throw error;
+    console.error('💀 Critical error in main:', error);
+    handleCriticalError(error);
   }
 }
 
-// Загрузка игры из облачного хранилища
-async function loadGameFromCloud() {
-  try {
-    console.log('☁️ Loading game from Telegram cloud...');
-    
-    // Синхронизируем хранилища
-    const saveData = await telegramStorageManager.syncStorages();
-    
-    if (saveData && gameCore.gameState) {
-      // Проверяем, не очищено ли сохранение
-      if (saveData.cleared) {
-        console.log('🗑️ Cloud storage was cleared, starting fresh game');
-        return;
-      }
-      
-      gameCore.gameState.loadSaveData(saveData);
-      console.log('✅ Game loaded from cloud storage');
-      
-      // Показываем уведомление пользователю
-      eventBus.emit(GameEvents.NOTIFICATION, '☁️ Game loaded from cloud!');
-      window.telegramAdapter.hapticFeedback('success');
-      
-      // Сохраняем статистику загрузки
-      const userStats = await telegramStorageManager.loadUserStats() || {};
-      userStats.lastCloudLoad = Date.now();
-      userStats.totalCloudLoads = (userStats.totalCloudLoads || 0) + 1;
-      await telegramStorageManager.saveUserStats(userStats);
-    }
-    
-  } catch (error) {
-    console.error('❌ Failed to load game from cloud:', error);
-    eventBus.emit(GameEvents.NOTIFICATION, '⚠️ Cloud load failed, using local save');
-  }
-}
-
-// Настройка автосохранения в облако
-function setupCloudAutoSave() {
-  // Автосохранение каждые 2 минуты
-  setInterval(async () => {
-    if (gameCore && gameCore.gameState && !gameCore.gameState.isDestroyed) {
-      try {
-        await telegramStorageManager.autoSaveToCloud(gameCore.gameState);
-      } catch (error) {
-        console.error('❌ Cloud auto-save failed:', error);
-      }
-    }
-  }, 120000); // 2 минуты
-
-  // Сохранение при важных событиях игры
-  const importantEvents = [
-    GameEvents.BUILDING_BOUGHT,
-    GameEvents.SKILL_BOUGHT,
-    'raid:completed',
-    GameEvents.ACHIEVEMENT_UNLOCKED
-  ];
-
-  importantEvents.forEach(event => {
-    eventBus.subscribe(event, async () => {
-      try {
-        await telegramStorageManager.autoSaveToCloud(gameCore.gameState);
-        console.log(`☁️ Auto-saved after ${event}`);
-      } catch (error) {
-        console.error('❌ Event-triggered save failed:', error);
-      }
-    });
-  });
-}
-
-// Настройка событий Telegram
-function setupTelegramEvents() {
-  const telegramAdapter = window.telegramAdapter;
-  
-  // Сохранение по главной кнопке Telegram
-  telegramAdapter.showMainButton('💾 Save to Cloud', async () => {
-    telegramAdapter.setMainButtonLoading(true);
-    telegramAdapter.hapticFeedback('light');
-    
-    try {
-      const success = await telegramStorageManager.saveToCloud(gameCore.gameState);
-      
-      if (success) {
-        telegramAdapter.hapticFeedback('success');
-        telegramAdapter.tg.MainButton.setText('✅ Saved!');
-        
-        // Показываем статистику игры
-        await showGameStatistics();
-        
-        setTimeout(() => {
-          telegramAdapter.tg.MainButton.setText('💾 Save to Cloud');
-        }, 2000);
-      } else {
-        telegramAdapter.hapticFeedback('error');
-        telegramAdapter.tg.MainButton.setText('❌ Save Failed');
-        setTimeout(() => {
-          telegramAdapter.tg.MainButton.setText('💾 Save to Cloud');
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('❌ Manual save failed:', error);
-      telegramAdapter.hapticFeedback('error');
-    } finally {
-      telegramAdapter.setMainButtonLoading(false);
-    }
-  });
-
-  // Haptic feedback для игровых событий
-  eventBus.subscribe(GameEvents.CLICK, () => {
-    telegramAdapter.hapticFeedback('selection');
-  });
-
-  eventBus.subscribe(GameEvents.COMBO_CHANGED, (data) => {
-    if (data.count > 0 && data.count % 10 === 0) {
-      telegramAdapter.hapticFeedback('light');
-    }
-    if (data.count >= 50) {
-      telegramAdapter.hapticFeedback('heavy');
-    }
-  });
-
-  eventBus.subscribe(GameEvents.BUFF_APPLIED, () => {
-    telegramAdapter.hapticFeedback('success');
-  });
-
-  eventBus.subscribe(GameEvents.DEBUFF_APPLIED, () => {
-    telegramAdapter.hapticFeedback('warning');
-  });
-
-  eventBus.subscribe(GameEvents.CRITICAL_HIT, () => {
-    telegramAdapter.hapticFeedback('medium');
-  });
-
-  eventBus.subscribe(GameEvents.ENERGY_CRITICAL, () => {
-    telegramAdapter.hapticFeedback('error');
-  });
-
-  // События покупок
-  eventBus.subscribe(GameEvents.BUILDING_BOUGHT, () => {
-    telegramAdapter.hapticFeedback('success');
-  });
-
-  eventBus.subscribe(GameEvents.SKILL_BOUGHT, () => {
-    telegramAdapter.hapticFeedback('success');
-  });
-
-  // События рейдов
-  eventBus.subscribe('raid:started', () => {
-    telegramAdapter.hapticFeedback('heavy');
-  });
-
-  eventBus.subscribe('raid:completed', () => {
-    telegramAdapter.hapticFeedback('success');
-  });
-
-  // Обработка закрытия приложения
-  telegramAdapter.tg.BackButton.onClick(async () => {
-    await saveBeforeExit();
-    telegramAdapter.closeApp();
-  });
-}
-
-// Показ статистики игры
-async function showGameStatistics() {
-  try {
-    const stats = telegramStorageManager.generateGameStats(gameCore.gameState.getSaveData());
-    const userInfo = window.telegramAdapter.getUserInfo();
-    
-    const statsMessage = {
-      type: 'game_statistics',
-      user: userInfo,
-      stats: stats,
-      timestamp: Date.now()
-    };
-
-    // Отправляем статистику боту
-    window.telegramAdapter.sendData(statsMessage);
-    
-    // Сохраняем статистику в облако
-    await telegramStorageManager.saveUserStats(stats);
-    
-    console.log('📊 Game statistics sent to bot');
-    
-  } catch (error) {
-    console.error('❌ Failed to show statistics:', error);
-  }
-}
-
-// Сохранение перед выходом
-async function saveBeforeExit() {
-  try {
-    window.telegramAdapter.setMainButtonLoading(true);
-    
-    await telegramStorageManager.saveToCloud(gameCore.gameState);
-    await telegramStorageManager.exportForBot(gameCore.gameState);
-    
-    console.log('✅ Game saved before exit');
-    
-  } catch (error) {
-    console.error('❌ Failed to save before exit:', error);
-  } finally {
-    window.telegramAdapter.setMainButtonLoading(false);
-  }
-}
-
-// Обработчики ошибок для Telegram
-function setupTelegramErrorHandlers() {
+// Обработчики ошибок
+function setupErrorHandlers() {
+  // Глобальный обработчик ошибок
   window.addEventListener('error', (event) => {
-    console.error('💀 Telegram WebApp error:', event.error);
+    console.error('💀 Global error:', event.error);
     
-    if (window.telegramAdapter) {
-      window.telegramAdapter.hapticFeedback('error');
-      
-      // Отправляем отчёт об ошибке боту
-      const errorReport = {
-        type: 'error_report',
-        error: {
-          message: event.error?.message || 'Unknown error',
-          stack: event.error?.stack,
-          filename: event.filename,
-          lineno: event.lineno,
-          colno: event.colno
-        },
-        user: window.telegramAdapter.getUserInfo(),
-        timestamp: Date.now(),
-        gameState: gameCore ? 'initialized' : 'not_initialized'
-      };
-      
+    // Пытаемся сохранить состояние при критической ошибке
+    if (gameCore && typeof gameCore.autoSave === 'function') {
       try {
-        window.telegramAdapter.sendData(errorReport);
-      } catch (e) {
-        console.error('Failed to send error report:', e);
+        gameCore.autoSave();
+        console.log('✅ Emergency save completed');
+      } catch (saveError) {
+        console.error('❌ Emergency save failed:', saveError);
       }
     }
   });
-
+  
+  // Обработчик необработанных промисов
   window.addEventListener('unhandledrejection', (event) => {
     console.error('💀 Unhandled promise rejection:', event.reason);
-    
-    if (window.telegramAdapter) {
-      window.telegramAdapter.hapticFeedback('error');
-    }
-    
     event.preventDefault();
   });
 }
 
-// Обработка критических ошибок Telegram
-function handleTelegramError(error) {
-  console.error('💀 Critical Telegram error:', error);
+function setupModernPageHandlers() {
+  const handlePageUnload = () => {
+    console.log('👋 Page unloading, performing emergency save...');
+    
+    // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Принудительное сохранение состояния рейда
+    if (gameCore && 
+        typeof gameCore.autoSave === 'function' && 
+        gameCore.isDestroyed !== true) {
+      try {
+        // Дополнительная защита для активных рейдов
+        if (gameCore.managers?.raid?.isRaidInProgress) {
+          console.log('🚨 Active raid detected, forcing state save...');
+          
+          // Принудительно обновляем состояние рейда в gameState
+          const raidManager = gameCore.managers.raid;
+          gameCore.gameState.raids.activeRaid = raidManager.activeRaid;
+          gameCore.gameState.raids.isRaidInProgress = raidManager.isRaidInProgress;
+          gameCore.gameState.raids.raidStartTime = raidManager.raidStartTime;
+          gameCore.gameState.raids.raidProgress = raidManager.raidProgress;
+          gameCore.gameState.raids.autoClickerWasActive = raidManager.autoClickerWasActive;
+        }
+        
+        const saveResult = gameCore.autoSave();
+        if (saveResult) {
+          console.log('✅ Emergency save completed successfully');
+        } else {
+          console.log('⚠️ Emergency save completed with warnings');
+        }
+      } catch (error) {
+        console.warn('⚠️ Error during emergency save:', error);
+        
+        // Fallback: используем StorageManager напрямую
+        try {
+          if (gameCore.storageManager && gameCore.gameState) {
+            gameCore.storageManager.autoSaveToLocalStorage(gameCore.gameState);
+            console.log('✅ Fallback emergency save completed');
+          }
+        } catch (fallbackError) {
+          console.error('❌ Fallback emergency save failed:', fallbackError);
+        }
+      }
+    } else {
+      console.log('⚠️ GameCore not available or destroyed, skipping emergency save');
+    }
+  };
+
+  // МНОЖЕСТВЕННЫЕ ТОЧКИ СОХРАНЕНИЯ для максимальной защиты
   
-  const errorMessage = `Telegram Game Error: ${error.message}`;
+  // 1. Стандартный beforeunload
+  window.addEventListener('beforeunload', (e) => {
+    handlePageUnload();
+    // НЕ показываем диалог подтверждения, так как он мешает автосохранению
+  });
   
-  // Создаем простое сообщение об ошибке
+  // 2. Обработчик unload как резерв
+  window.addEventListener('unload', () => {
+    if (gameCore && typeof gameCore.destroy === 'function') {
+      try {
+        handlePageUnload(); // Ещё одна попытка сохранения
+        gameCore.destroy();
+        console.log('🧹 GameCore destroyed on page unload');
+      } catch (error) {
+        console.error('💀 Error destroying GameCore:', error);
+      }
+    }
+  });
+
+  // 3. Обработчик потери фокуса страницы
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      console.log('📱 Page hidden, performing background save...');
+      handlePageUnload();
+    }
+  });
+  
+  // 4. НОВОЕ: Паника-сохранение перед перезагрузкой
+  window.addEventListener('beforeunload', (e) => {
+    if (gameCore?.managers?.raid?.isRaidInProgress) {
+      // Последняя попытка сохранить рейд
+      try {
+        localStorage.setItem('emergency_raid_backup', JSON.stringify({
+          raidId: gameCore.managers.raid.activeRaid?.id,
+          startTime: gameCore.managers.raid.raidStartTime,
+          progress: gameCore.managers.raid.raidProgress,
+          autoClickerWasActive: gameCore.managers.raid.autoClickerWasActive,
+          timestamp: Date.now(),
+          emergencyFlag: true
+        }));
+        console.log('🚨 Emergency raid backup created in localStorage');
+      } catch (error) {
+        console.error('❌ Failed to create emergency backup:', error);
+      }
+    }
+  });
+}
+
+// Обработка критических ошибок
+function handleCriticalError(error) {
+  console.error('💀 Critical error details:', {
+    message: error.message,
+    stack: error.stack,
+    timestamp: new Date().toISOString()
+  });
+
+  const errorMessage = `Grid Game initialization failed: ${error.message}`;
+  
+  // Показываем ошибку пользователю
   const errorDiv = document.createElement('div');
   errorDiv.style.cssText = `
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--tg-secondary-bg-color, #f7f7f7);
-    color: var(--tg-text-color, #000);
-    padding: 2rem;
-    border-radius: 12px;
+    background: linear-gradient(135deg, #ff4444, #cc0000);
+    color: white;
+    padding: 30px;
+    border-radius: 15px;
     z-index: 10000;
     text-align: center;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    max-width: 90%;
-    word-wrap: break-word;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    max-width: 500px;
+    width: 90%;
   `;
   
   errorDiv.innerHTML = `
-    <h3>💀 Game Error</h3>
-    <p>${errorMessage}</p>
-    <div style="margin-top: 1rem;">
+    <h2>💀 Grid Game Error</h2>
+    <p style="margin: 15px 0; line-height: 1.4;">${errorMessage}</p>
+    <div style="margin-top: 20px;">
       <button onclick="location.reload()" style="
-        background: var(--tg-button-color, #007aff);
-        color: var(--tg-button-text-color, white);
+        background: white;
+        color: #ff4444;
         border: none;
-        padding: 0.75rem 1.5rem;
+        padding: 12px 24px;
         border-radius: 8px;
         cursor: pointer;
         font-weight: bold;
-        margin: 0.25rem;
+        margin: 5px;
+        font-size: 16px;
       ">🔄 Reload Game</button>
-      <button onclick="window.telegramAdapter?.closeApp()" style="
-        background: #ff3b30;
+      <button onclick="this.parentElement.parentElement.remove()" style="
+        background: transparent;
         color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
+        border: 2px solid white;
+        padding: 10px 20px;
         border-radius: 8px;
         cursor: pointer;
         font-weight: bold;
-        margin: 0.25rem;
-      ">❌ Close App</button>
+        margin: 5px;
+        font-size: 16px;
+      ">✖️ Close</button>
     </div>
-    <p style="font-size: 0.8rem; opacity: 0.7; margin-top: 1rem;">
-      Error will be automatically reported to the developer.
+    <p style="font-size: 12px; opacity: 0.8; margin-top: 15px;">
+      The game now uses a 3x3 grid system instead of a rotating wheel.<br>
+      If this error persists, try clearing your browser cache.
     </p>
   `;
   
   document.body.appendChild(errorDiv);
-
-  // Попытка аварийного сохранения
-  if (gameCore && gameCore.gameState && !gameCore.gameState.isDestroyed) {
-    try {
-      console.log('💾 Attempting emergency save...');
-      telegramStorageManager?.autoSaveToCloud(gameCore.gameState);
-    } catch (saveError) {
-      console.error('❌ Emergency save failed:', saveError);
+  
+  // Автоматически удаляем через 30 секунд
+  setTimeout(() => {
+    if (document.body.contains(errorDiv)) {
+      document.body.removeChild(errorDiv);
     }
-  }
+  }, 30000);
 }
 
-// Экспорт игровых данных для отправки боту
-export async function exportGameForBot() {
+// Функция для отладки состояния игры
+function getGameDebugInfo() {
+  if (!gameCore) {
+    return 'Grid game not initialized';
+  }
+  
   try {
-    if (!gameCore || !gameCore.gameState) {
-      throw new Error('Game not initialized');
-    }
-
-    const success = await telegramStorageManager.exportForBot(gameCore.gameState);
-    
-    if (success) {
-      window.telegramAdapter.hapticFeedback('success');
-      eventBus.emit(GameEvents.NOTIFICATION, '📤 Data sent to bot!');
-    } else {
-      throw new Error('Export failed');
-    }
-    
-    return success;
-    
+    return {
+      gameState: gameCore.getGameState(),
+      gridManager: gameCore.getGridManager(),
+      managers: gameCore.getManagers(),
+      stats: gameCore.getGameStats(),
+      isActive: gameCore.isGameActive(),
+      cleanupStats: gameCore.cleanupManager ? gameCore.cleanupManager.getStats() : null
+    };
   } catch (error) {
-    console.error('❌ Failed to export game for bot:', error);
-    window.telegramAdapter.hapticFeedback('error');
-    eventBus.emit(GameEvents.NOTIFICATION, '❌ Failed to send data');
-    return false;
+    return `Debug info error: ${error.message}`;
   }
 }
 
-// Получение отладочной информации для Telegram
-export function getTelegramDebugInfo() {
-  return {
-    telegramAdapter: window.telegramAdapter?.getDebugInfo(),
-    gameCore: gameCore?.getGameStats(),
-    storageManager: {
-      hasTelegramStorage: !!telegramStorageManager,
-      cloudCapabilities: window.telegramAdapter?.getCapabilities()
-    },
-    user: window.telegramAdapter?.getUserInfo(),
-    viewport: {
-      height: window.telegramAdapter?.tg?.viewportHeight,
-      stableHeight: window.telegramAdapter?.tg?.viewportStableHeight,
-      isExpanded: window.telegramAdapter?.tg?.isExpanded
+// Функция для принудительного сохранения (для отладки)
+function forceSave() {
+  if (gameCore && typeof gameCore.autoSave === 'function') {
+    try {
+      const result = gameCore.autoSave();
+      console.log('🔧 Force save result:', result);
+      return result;
+    } catch (error) {
+      console.error('🔧 Force save error:', error);
+      return false;
     }
-  };
+  }
+  return 'GridGameCore not available';
 }
 
-// Проверка готовности системы
-export function checkTelegramReadiness() {
-  const checks = {
-    telegramAPI: !!window.Telegram?.WebApp,
-    telegramAdapter: !!window.telegramAdapter,
-    gameCore: !!gameCore,
-    storageManager: !!telegramStorageManager,
-    cloudStorage: !!window.telegramAdapter?.tg?.CloudStorage,
-    hapticFeedback: !!window.telegramAdapter?.tg?.HapticFeedback
-  };
-  
-  const allReady = Object.values(checks).every(check => check);
-  
-  console.log('🔍 Telegram readiness check:', checks);
-  
-  return {
-    ready: allReady,
-    checks: checks,
-    issues: Object.entries(checks)
-      .filter(([key, value]) => !value)
-      .map(([key]) => key)
-  };
+// Функция для принудительной очистки (для отладки)
+function forceCleanup() {
+  if (gameCore && typeof gameCore.destroy === 'function') {
+    try {
+      gameCore.destroy();
+      console.log('🔧 Force cleanup completed');
+      return true;
+    } catch (error) {
+      console.error('🔧 Force cleanup error:', error);
+      return false;
+    }
+  }
+  return 'GridGameCore not available';
 }
 
-// Функции для глобального доступа
-window.exportGameForBot = exportGameForBot;
-window.getTelegramDebugInfo = getTelegramDebugInfo;
-window.checkTelegramReadiness = checkTelegramReadiness;
-
-// Основная точка входа
-export { initializeTelegramGame as main };
-
-if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-  console.log('🤖 Running in Telegram Web App environment');
-  // Автоматически запускаем инициализацию если мы в Telegram
-  window.addEventListener('DOMContentLoaded', () => {
-    if (!window.gameCore) {
-      console.log('🚀 Auto-starting Telegram game...');
-      initializeTelegramGame().catch(console.error);
+// Функция для тестирования сетки (для отладки)
+function testGrid() {
+  if (gameCore && gameCore.gridManager) {
+    try {
+      const stats = gameCore.gridManager.getStats();
+      const debugInfo = gameCore.gridManager.getDebugInfo();
+      console.log('🎯 Grid Stats:', stats);
+      console.log('🎯 Grid Debug Info:', debugInfo);
+      
+      // Тестируем перемешивание
+      console.log('🔄 Testing grid shuffle...');
+      gameCore.gridManager.shuffleCells();
+      
+      return { stats, debugInfo, shuffled: true };
+    } catch (error) {
+      console.error('🔧 Grid test error:', error);
+      return false;
     }
-  });
+  }
+  return 'GridManager not available';
+}
+
+// Экспортируем функции для глобального доступа
+window.getGameDebugInfo = getGameDebugInfo;
+window.forceSave = forceSave;
+window.forceCleanup = forceCleanup;
+window.testGrid = testGrid;
+
+// Дополнительные отладочные функции для сетки
+window.gridDebug = {
+  shuffle: () => gameCore?.gridManager?.shuffleCells(),
+  setTarget: (cellIndex) => gameCore?.gridManager?.setTargetCell(cellIndex),
+  getStats: () => gameCore?.gridManager?.getStats(),
+  getDebugInfo: () => gameCore?.gridManager?.getDebugInfo(),
+  isReady: () => gameCore?.gridManager?.isManagerReady(),
+  testClick: (cellIndex) => {
+    if (gameCore?.gridManager) {
+      const cellSize = 400 / 3; // canvas 400px / 3 cells
+      const row = Math.floor(cellIndex / 3);
+      const col = cellIndex % 3;
+      const x = col * cellSize + cellSize / 2;
+      const y = row * cellSize + cellSize / 2;
+      
+      console.log(`🧪 Testing click on cell ${cellIndex} at (${x}, ${y})`);
+      
+      eventBus.emit(GameEvents.CLICK, {
+        x: x,
+        y: y,
+        canvasWidth: 400,
+        canvasHeight: 400
+      });
+      
+      return { cellIndex, x, y };
+    }
+    return 'GridManager not available';
+  }
+};
+
+// Запускаем игру после загрузки DOM
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', main);
 } else {
-  console.log('🌐 Running in browser environment');
+  // DOM уже загружен
+  main();
 }
+
+// Экспортируем основные функции (если используется как модуль)
+export { main, getGameDebugInfo, forceSave, forceCleanup, testGrid };

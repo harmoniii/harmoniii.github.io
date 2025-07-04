@@ -1,290 +1,285 @@
-/* styles.css - ИСПРАВЛЕННАЯ версия для сетки 3x3 */
+/* Telegram Web App Optimized Styles */
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #f1f1f1;
+  --primary-color: #4CAF50;
+  --secondary-color: #FF9800;
+  --danger-color: #f44336;
+  --warning-color: #FF9800;
+  --success-color: #4CAF50;
+  --info-color: #2196F3;
+}
 
-/* Сброс отступов и флекс-контейнер */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body, html {
-  margin: 0; padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  display: flex; flex-direction: column; align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--tg-theme-bg-color, #ffffff);
+  color: var(--tg-theme-text-color, #000000);
   min-height: 100vh;
-  color: #333;
-  overflow-y: scroll;
+  overflow-x: hidden;
   font-size: 14px;
+  line-height: 1.4;
+  /* Убираем градиенты для соответствия Telegram темам */
 }
 
+/* Убираем псевдо-элемент с градиентом */
 body::before {
-  content: '';
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  z-index: -1;
+  display: none;
 }
 
-/* Компактная навигация */
+/* Заголовочная панель */
 #ui-top {
-  display: flex; gap: 0.5rem; margin: 0.5rem;
-  flex-wrap: wrap; justify-content: center;
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+  border-bottom: 1px solid var(--tg-theme-hint-color, #999999);
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
 #ui-top button {
-  padding: 0.5rem 1rem;
-  background: #fff;
-  border: 1px solid #4CAF50;
-  border-radius: 6px;
+  padding: 8px 12px;
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  border: none;
+  border-radius: 8px;
   cursor: pointer;
   font-weight: 500;
-  transition: all 0.2s ease;
-  min-width: 80px;
-  color: #333;
   font-size: 12px;
+  min-width: 70px;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-#ui-top button:hover {
-  background: #4CAF50;
-  color: white;
-  transform: translateY(-1px);
+#ui-top button:hover,
+#ui-top button:active {
+  opacity: 0.8;
+  transform: scale(0.98);
 }
 
 #toggle-market {
-  border-color: #FF9800;
-}
-
-#toggle-market:hover {
-  background: #FF9800;
+  background: var(--secondary-color);
 }
 
 #info-button {
-  border-color: #2196F3;
+  background: var(--info-color);
 }
 
-#info-button:hover {
-  background: #2196F3;
+#toggle-raids {
+  background: var(--danger-color);
 }
 
-/* ИСПРАВЛЕНИЕ: Компактная игровая зона для сетки с правильными размерами */
+/* Игровая область */
 #game-area {
-  display: flex; 
+  display: flex;
   flex-direction: column;
-  align-items: center; 
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.95);
-  padding: 1rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 1;
-  width: fit-content;
-  margin: 0 auto;
-  max-width: 95vw;
+  align-items: center;
+  padding: 12px 8px;
+  background: var(--tg-theme-bg-color);
+  width: 100%;
+  max-width: 100vw;
 }
 
-/* ИСПРАВЛЕНИЕ: Контейнер для сетки 3x3 с правильными размерами */
 .grid-game-container {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 8px;
   width: 100%;
+  max-width: 100vw;
   justify-content: center;
-  position: relative;
   flex-wrap: wrap;
+  padding: 0 4px;
 }
 
-/* ИСПРАВЛЕНИЕ: Левая панель с ресурсами - более компактная */
-.left-panel {
+/* Боковые панели */
+.left-panel,
+.right-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  width: 140px;
+  gap: 8px;
+  width: 130px;
   flex-shrink: 0;
 }
 
 .resources-section {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1);
   border-radius: 8px;
-  padding: 0.5rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 8px;
+  border: 1px solid rgba(0,0,0,0.1);
 }
 
 .resources-section h4 {
-  margin: 0 0 0.25rem 0;
-  font-size: 0.7rem;
-  color: #333;
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  color: var(--tg-theme-hint-color, #999999);
   text-align: center;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 0.25rem;
+  border-bottom: 1px solid rgba(0,0,0,0.1);
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  font-weight: 600;
 }
 
 .resources-group {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 2px;
 }
 
-.resources-group .resource-display {
+.resource-display {
   cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 2px 6px;
+  padding: 4px 6px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.6);
-  font-size: 0.7rem;
-  line-height: 1.1;
+  background: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  line-height: 1.2;
   text-align: left;
   white-space: nowrap;
+  transition: background-color 0.2s ease;
+  touch-action: manipulation;
 }
 
-.resources-group .resource-display:hover {
-  color: #4CAF50;
-  background: rgba(76, 175, 80, 0.1);
+.resource-display:hover,
+.resource-display:active {
+  background: var(--primary-color);
+  color: white;
 }
 
-/* Центральная игровая область */
+/* Игровой canvas */
 .game-grid-center {
   display: flex;
   justify-content: center;
   align-items: center;
   flex-shrink: 0;
+  margin: 0 8px;
 }
 
 #gameCanvas {
-  background: #fff; 
-  border: 3px solid #333; 
-  border-radius: 12px; /* Квадрат с закругленными углами */
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+  background: #fff;
+  border: 2px solid var(--tg-theme-hint-color, #999999);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   display: block;
-  width: 400px !important;
-  height: 400px !important;
+  width: 300px !important;
+  height: 300px !important;
+  touch-action: none;
+  user-select: none;
 }
 
-/* ИСПРАВЛЕНИЕ: Правая панель с информацией - более компактная */
-.right-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  width: 120px;
-  flex-shrink: 0;
-}
-
-/* ИСПРАВЛЕНИЕ: Компактный индикатор комбо */
+/* Комбо индикатор */
 .combo-indicator {
-  position: relative;
   background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
   border: 2px solid #FF8C00;
   border-radius: 8px;
-  padding: 6px 2px;
-  box-shadow: 0 3px 8px rgba(255, 165, 0, 0.3);
+  padding: 8px;
   text-align: center;
   width: 100%;
-  animation: comboGlow 2s ease-in-out infinite alternate;
 }
 
 .combo-indicator .combo-title {
-  font-size: 0.6rem;
+  font-size: 10px;
   font-weight: bold;
   color: #8B4513;
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.8);
   margin-bottom: 2px;
   text-transform: uppercase;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
 }
 
 .combo-indicator .combo-value {
-  font-size: 1.2rem;
+  font-size: 20px;
   font-weight: 900;
   color: #B8860B;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   line-height: 1;
   display: block;
 }
 
 .combo-indicator .combo-bonus {
-  font-size: 0.55rem;
+  font-size: 9px;
   color: #8B4513;
   opacity: 0.8;
-  margin-top: 2px;
+  margin-top: 4px;
   font-style: italic;
   line-height: 1.1;
 }
 
-/* ИСПРАВЛЕНИЕ: Компактный энергетический дисплей */
+/* Энергия */
 .energy-display-container {
-  background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
-  border: 2px solid #3498DB;
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+  border: 2px solid var(--info-color);
   border-radius: 8px;
-  padding: 6px 2px;
-  box-shadow: 0 3px 8px rgba(52, 152, 219, 0.3);
+  padding: 8px;
   text-align: center;
   width: 100%;
-  position: relative;
-  backdrop-filter: blur(5px);
 }
 
-/* Анимация свечения для комбо */
-@keyframes comboGlow {
-  0% {
-    box-shadow: 0 3px 8px rgba(255, 165, 0, 0.3);
-  }
-  100% {
-    box-shadow: 0 4px 12px rgba(255, 165, 0, 0.5);
-  }
-}
-
-/* Компактный энергетический дисплей */
 .energy-bar-container {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .energy-bar-background {
-  background: #1A252F;
-  border: 1px solid #34495E;
+  background: rgba(0,0,0,0.1);
   border-radius: 6px;
-  height: 10px;
+  height: 8px;
   overflow: hidden;
   position: relative;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .energy-bar {
   height: 100%;
   transition: all 0.3s ease;
   position: relative;
-  background: linear-gradient(90deg, #27AE60 0%, #2ECC71 100%);
-  box-shadow: 0 0 6px rgba(46, 204, 113, 0.5);
+  background: var(--success-color);
+  border-radius: 6px;
 }
 
 .energy-bar.energy-warning {
-  background: linear-gradient(90deg, #F39C12 0%, #E67E22 100%);
+  background: var(--warning-color);
 }
 
 .energy-bar.energy-critical {
-  background: linear-gradient(90deg, #E74C3C 0%, #C0392B 100%);
+  background: var(--danger-color);
   animation: energyPulse 1s ease-in-out infinite alternate;
 }
 
 .energy-text {
-  font-size: 0.65rem;
+  font-size: 11px;
   font-weight: bold;
-  color: #ECF0F1;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  color: var(--tg-theme-text-color);
   margin-bottom: 2px;
 }
 
 .energy-status {
-  font-size: 0.55rem;
+  font-size: 10px;
   margin-bottom: 4px;
   font-weight: 500;
 }
 
 .energy-status.ready {
-  color: #2ECC71;
+  color: var(--success-color);
 }
 
 .energy-status.recharging {
-  color: #F39C12;
+  color: var(--warning-color);
 }
 
 .energy-warning {
-  font-size: 0.55rem;
-  color: #E74C3C;
+  font-size: 10px;
+  color: var(--danger-color);
   font-weight: bold;
 }
 
@@ -292,16 +287,16 @@ body::before {
   display: none;
 }
 
-/* Индикаторы эффектов */
+/* Эффекты */
 .effect-indicators {
   position: fixed;
-  top: 80px;
-  left: 15px;
+  top: 60px;
+  left: 8px;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 4px;
   z-index: 900;
-  max-width: 150px;
+  max-width: 140px;
   pointer-events: none;
 }
 
@@ -309,265 +304,236 @@ body::before {
   pointer-events: auto;
   display: flex;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0.3rem 0.5rem;
+  gap: 6px;
+  padding: 4px 8px;
   border-radius: 6px;
-  font-size: 0.7rem;
+  font-size: 11px;
   font-weight: bold;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   transition: all 0.2s ease;
-  cursor: help;
-  position: relative;
-}
-
-.effect-indicator:hover {
-  transform: translateX(3px);
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
 .buff-indicator {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  background: var(--success-color);
   color: white;
   border-left: 3px solid #2E7D32;
 }
 
 .debuff-indicator {
-  background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+  background: var(--danger-color);
   color: white;
   border-left: 3px solid #b71c1c;
 }
 
 .effect-icon {
-  font-size: 0.9rem;
-  min-width: 15px;
+  font-size: 12px;
+  min-width: 12px;
 }
 
 .effect-name {
-  font-size: 0.65rem;
+  font-size: 10px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* ИСПРАВЛЕНИЕ: Компактные панели */
+/* Панели */
 .list-panel {
-  width: 95%; 
-  max-width: 1200px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 0.75rem;
-  margin: 0.5rem auto;
-  max-height: 500px;
+  width: 100%;
+  max-width: 100vw;
+  background: var(--tg-theme-bg-color);
+  border: 1px solid var(--tg-theme-hint-color, #999999);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  max-height: 60vh;
   overflow-y: auto;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  position: relative;
-  z-index: 2;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  -webkit-overflow-scrolling: touch;
 }
 
 .list-panel h2 {
-  margin: 0 0 0.75rem 0;
-  color: #333;
+  margin: 0 0 12px 0;
+  color: var(--tg-theme-text-color);
   text-align: center;
-  font-size: 1.1rem;
+  font-size: 16px;
   font-weight: 600;
 }
 
-.hidden { display: none; }
+.hidden {
+  display: none !important;
+}
 
-/* Компактные секции категорий */
 .category-section {
-  margin-bottom: 1rem;
+  margin-bottom: 16px;
 }
 
 .category-section h3 {
-  color: #4CAF50;
-  border-bottom: 1px solid #4CAF50;
-  padding-bottom: 0.3rem;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
+  color: var(--primary-color);
+  border-bottom: 1px solid var(--primary-color);
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+  font-size: 14px;
   font-weight: 600;
 }
 
-/* ИСПРАВЛЕНИЕ: Компактные карточки */
+/* Карточки */
 .item-card {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 1px solid #dee2e6;
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+  border: 1px solid rgba(0,0,0,0.1);
   border-radius: 8px;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 12px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
-  font-size: 0.8rem;
+  font-size: 13px;
 }
 
-.item-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+.item-card:active {
+  transform: scale(0.98);
 }
 
 .market-card {
-  background: linear-gradient(135deg, #fff8e1 0%, #ffecb3 100%);
-  border-color: #FF9800;
+  border-left: 4px solid var(--secondary-color);
 }
 
 .buff-card {
-  background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c8 100%);
-  border-color: #4CAF50;
+  border-left: 4px solid var(--success-color);
 }
 
 .debuff-card {
-  background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-  border-color: #f44336;
+  border-left: 4px solid var(--danger-color);
 }
 
 .rules-card {
-  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-  border-color: #2196F3;
+  border-left: 4px solid var(--info-color);
 }
 
-/* Компактный заголовок карточки */
 .item-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.3rem;
+  gap: 8px;
+  margin-bottom: 8px;
 }
 
 .item-icon {
-  font-size: 1.2rem;
+  font-size: 18px;
 }
 
 .item-name {
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 600;
-  color: #333;
+  color: var(--tg-theme-text-color);
   flex-grow: 1;
 }
 
 .item-level {
-  background: #4CAF50;
+  background: var(--primary-color);
   color: white;
-  padding: 0.15rem 0.4rem;
+  padding: 2px 8px;
   border-radius: 10px;
-  font-size: 0.7rem;
+  font-size: 11px;
   font-weight: bold;
 }
 
-/* ИСПРАВЛЕНИЕ: Компактное описание с контролем высоты для правил */
 .item-description {
-  color: #666;
+  color: var(--tg-theme-hint-color, #999999);
   font-style: italic;
-  margin-bottom: 0.4rem;
+  margin-bottom: 8px;
   line-height: 1.3;
-  font-size: 0.75rem;
-  max-height: 4rem;
+  font-size: 12px;
+  max-height: 60px;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .rules-card .item-description {
-  max-height: 12rem;
-  overflow-y: auto;
+  max-height: 200px;
   font-style: normal;
 }
 
-.rules-card .item-description ul {
-  margin: 0.3rem 0;
-  padding-left: 1rem;
-}
-
-.rules-card .item-description li {
-  margin-bottom: 0.2rem;
-}
-
-/* Компактные детали */
 .item-details {
-  background: rgba(255, 255, 255, 0.7);
-  padding: 0.3rem;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 8px;
   border-radius: 4px;
-  margin-bottom: 0.4rem;
-  font-size: 0.7rem;
+  margin-bottom: 8px;
+  font-size: 11px;
 }
 
-.item-details div {
-  margin-bottom: 0.15rem;
-}
-
-.item-details div:last-child {
-  margin-bottom: 0;
-}
-
-/* Компактный подвал карточки */
 .item-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .price {
   font-weight: 600;
-  color: #FF9800;
+  color: var(--secondary-color);
   background: rgba(255, 152, 0, 0.1);
-  padding: 0.15rem 0.3rem;
+  padding: 4px 8px;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 11px;
 }
 
 .buy-button {
-  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-  color: white;
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
   border: none;
-  padding: 0.3rem 0.6rem;
+  padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
   min-width: 60px;
-  font-size: 0.7rem;
+  font-size: 12px;
+  touch-action: manipulation;
 }
 
-.buy-button:hover:not(.disabled) {
-  background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
-  transform: translateY(-1px);
+.buy-button:active {
+  transform: scale(0.95);
+  opacity: 0.8;
 }
 
 .buy-button.disabled {
-  background: #ccc;
+  background: var(--tg-theme-hint-color, #999999);
   cursor: not-allowed;
   opacity: 0.6;
 }
 
 .market-card .buy-button {
-  background: linear-gradient(135deg, #FF9800 0%, #f57c00 100%);
+  background: var(--secondary-color);
 }
 
 .max-level {
   background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
   color: #333;
-  padding: 0.3rem 0.6rem;
+  padding: 8px 12px;
   border-radius: 6px;
   font-weight: bold;
   text-align: center;
-  font-size: 0.7rem;
+  font-size: 11px;
   width: 100%;
 }
 
-/* Компактный грид для маркета */
 .market-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
 }
 
-/* Компактные уведомления */
+/* Уведомления */
 #notifications {
-  position: fixed; 
-  top: 0.5rem; 
-  right: 0.5rem;
-  display: flex; 
-  flex-direction: column; 
-  gap: 0.3rem;
+  position: fixed;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   z-index: 1000;
   pointer-events: none;
   max-width: 250px;
@@ -575,107 +541,127 @@ body::before {
 
 .notification {
   pointer-events: auto;
-  background: linear-gradient(135deg, #333 0%, #555 100%);
-  color: #fff;
-  padding: 0.4rem 0.6rem;
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  padding: 8px 12px;
   border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   animation: slideIn 0.3s ease;
   max-width: 250px;
   word-wrap: break-word;
-  position: relative;
-  font-size: 0.75rem;
+  font-size: 12px;
+  line-height: 1.3;
 }
 
-/* Компактные модальные окна */
+.notification-success {
+  background: var(--success-color);
+}
+
+.notification-error {
+  background: var(--danger-color);
+}
+
+.notification-warning {
+  background: var(--warning-color);
+}
+
+/* Модальные окна */
 .modal {
-  position: fixed; 
-  top: 50%; 
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #fff; 
-  border: 1px solid #333; 
-  border-radius: 10px;
-  padding: 1rem; 
-  max-width: 90%; 
-  max-height: 80%;
-  overflow-y: auto; 
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 2000;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-  font-size: 0.8rem;
+  padding: 16px;
+}
+
+.modal-content {
+  background: var(--tg-theme-bg-color);
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modal h3 {
-  color: #4CAF50;
+  color: var(--primary-color);
   margin-top: 0;
-  font-size: 1rem;
+  font-size: 16px;
 }
 
 .modal button {
-  background: #4CAF50;
-  color: white;
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
   border: none;
-  padding: 0.4rem 0.8rem;
-  border-radius: 4px;
+  padding: 10px 16px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.3s ease;
-  font-size: 0.75rem;
+  font-size: 14px;
+  margin: 4px;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
 }
 
-.modal button:hover {
-  background: #45a049;
+.modal button:active {
+  transform: scale(0.95);
 }
 
-/* Компактные кнопки управления */
+/* Нижние кнопки управления */
 #controls-bottom {
-  display: flex; 
-  gap: 0.5rem; 
-  margin-bottom: 0.5rem;
+  display: flex;
+  gap: 8px;
+  padding: 8px;
   flex-wrap: wrap;
   justify-content: center;
-  padding: 0.5rem;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  backdrop-filter: blur(10px);
+  background: var(--tg-theme-secondary-bg-color, #f1f1f1);
+  border-top: 1px solid var(--tg-theme-hint-color, #999999);
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
 }
 
 #controls-bottom button {
-  padding: 0.5rem 1rem;
-  border: 1px solid #333;
+  padding: 10px 16px;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 12px;
+  min-width: 80px;
+  touch-action: manipulation;
   transition: all 0.2s ease;
-  font-size: 0.8rem;
-  min-width: 90px;
-  position: relative;
-  overflow: hidden;
-  background: #ffffff;
-  color: #333333;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
 }
 
-#controls-bottom button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+#controls-bottom button:active {
+  transform: scale(0.95);
+}
+
+#controls-bottom button:disabled {
+  background: var(--tg-theme-hint-color, #999999);
+  opacity: 0.6;
 }
 
 #load-button {
-  border-color: #2196F3 !important;
-  background: #2196F3 !important;
-  color: #ffffff !important;
+  background: var(--info-color) !important;
 }
 
 #save-button {
-  border-color: #4CAF50 !important;
-  background: #4CAF50 !important;
-  color: #ffffff !important;
+  background: var(--success-color) !important;
 }
 
 #reset-button {
-  border-color: #FF9800 !important;
-  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%) !important;
-  color: #ffffff !important;
+  background: var(--warning-color) !important;
 }
 
 /* Анимации */
@@ -692,50 +678,52 @@ body::before {
 
 @keyframes energyPulse {
   0% {
-    box-shadow: 0 0 6px rgba(231, 76, 60, 0.5);
+    opacity: 0.6;
   }
   100% {
-    box-shadow: 0 0 10px rgba(231, 76, 60, 0.8);
+    opacity: 1;
   }
 }
 
-/* Прокрутка */
-.list-panel::-webkit-scrollbar {
-  width: 6px;
+/* Скроллбары для Webkit */
+.list-panel::-webkit-scrollbar,
+.item-description::-webkit-scrollbar {
+  width: 4px;
 }
 
-.list-panel::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
+.list-panel::-webkit-scrollbar-track,
+.item-description::-webkit-scrollbar-track {
+  background: rgba(0,0,0,0.1);
+  border-radius: 2px;
 }
 
-.list-panel::-webkit-scrollbar-thumb {
-  background: #4CAF50;
-  border-radius: 3px;
+.list-panel::-webkit-scrollbar-thumb,
+.item-description::-webkit-scrollbar-thumb {
+  background: var(--primary-color);
+  border-radius: 2px;
 }
 
-/* ИСПРАВЛЕНИЕ: Адаптивность для сетки */
-@media (max-width: 768px) {
+/* Адаптация для мобильных устройств */
+@media (max-width: 480px) {
   #ui-top {
-    gap: 0.3rem;
+    gap: 2px;
+    padding: 4px;
   }
   
   #ui-top button {
-    padding: 0.4rem 0.8rem;
-    min-width: 70px;
+    padding: 6px 8px;
+    min-width: 60px;
     font-size: 11px;
   }
   
   #game-area {
-    width: 95%;
-    max-width: 100vw;
-    padding: 0.5rem;
+    padding: 8px 4px;
   }
   
   .grid-game-container {
     flex-direction: column;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
   }
   
   .left-panel,
@@ -749,15 +737,16 @@ body::before {
   .left-panel .resources-section,
   .right-panel > div {
     flex: 1;
-    margin: 0 0.25rem;
+    margin: 0 2px;
   }
   
   .left-panel {
-    order: 2; /* После квадрата на мобильных */
+    order: 2;
   }
   
   .game-grid-center {
     order: 1;
+    margin: 0;
   }
   
   .right-panel {
@@ -765,13 +754,13 @@ body::before {
   }
   
   #gameCanvas {
-    width: 280px !important;
-    height: 280px !important;
+    width: 250px !important;
+    height: 250px !important;
   }
   
   .item-footer {
     flex-direction: column;
-    gap: 0.3rem;
+    gap: 6px;
   }
   
   .buy-button {
@@ -783,33 +772,114 @@ body::before {
   }
   
   .effect-indicators {
-    left: 8px;
-    top: 60px;
+    left: 4px;
+    top: 50px;
     max-width: 120px;
   }
   
   #controls-bottom {
-    flex-direction: column;
-    gap: 0.4rem;
+    flex-direction: row;
+    gap: 4px;
+    padding: 6px;
   }
   
   #controls-bottom button {
-    width: 100%;
+    flex: 1;
     min-width: auto;
-    padding: 0.6rem;
+    padding: 8px 4px;
+    font-size: 11px;
   }
   
   .list-panel {
-    max-height: 400px;
+    max-height: 50vh;
+    padding: 8px;
+  }
+  
+  .modal-content {
+    padding: 16px;
   }
 }
 
-/* ИСПРАВЛЕНИЕ: Скрываем старые стили для круглой игры */
-.game-wheel-container {
-  display: none !important;
+/* Очень маленькие экраны */
+@media (max-width: 320px) {
+  #gameCanvas {
+    width: 200px !important;
+    height: 200px !important;
+  }
+  
+  .left-panel,
+  .right-panel {
+    max-width: 250px;
+  }
+  
+  .item-card {
+    padding: 8px;
+  }
+  
+  .effect-indicators {
+    max-width: 100px;
+  }
 }
 
+/* Убираем старые неиспользуемые стили */
+.game-wheel-container,
 .resources-left,
 .resources-right {
   display: none !important;
+}
+
+/* Дополнительные стили для Touch устройств */
+@media (hover: none) and (pointer: coarse) {
+  .buy-button:hover,
+  .resource-display:hover,
+  #ui-top button:hover {
+    /* Убираем hover эффекты на touch устройствах */
+    opacity: 1;
+    transform: none;
+    background: inherit;
+  }
+}
+
+/* Auto-clicker indicator (если используется) */
+.autoclicker-indicator {
+  position: fixed;
+  bottom: 60px;
+  right: 8px;
+  background: var(--tg-theme-button-color, #2481cc);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: bold;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  z-index: 950;
+  min-width: 120px;
+  text-align: center;
+}
+
+/* Raid specific styles */
+.raid-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(0,0,0,0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+
+.raid-progress-fill {
+  height: 100%;
+  background: var(--success-color);
+  transition: width 0.3s ease;
+}
+
+.raid-blocking-notice {
+  background: rgba(255, 193, 7, 0.2);
+  border: 1px solid var(--warning-color);
+  border-radius: 6px;
+  padding: 8px;
+  margin: 8px 0;
+  font-size: 11px;
+  text-align: center;
+  color: var(--warning-color);
 }

@@ -1,4 +1,4 @@
-// ui/UIManager.js - ИСПРАВЛЕНО: рабочие кнопки и единый стиль
+// ui/UIManager.js - ОБНОВЛЕНО: добавлена поддержка системы рейдов
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { PanelManager } from './PanelManager.js';
@@ -27,7 +27,7 @@ export default class UIManager extends CleanupMixin {
         this.saveLoadManager = new SaveLoadManager(gameState);
         this.energyDisplay = new EnergyDisplay(gameState);
         this.comboDisplay = new ComboDisplay(gameState);
-        this.raidPanel = new RaidPanel(gameState);
+        this.raidPanel = new RaidPanel(gameState); // НОВОЕ: панель рейдов
         
         // Регистрируем компоненты для очистки
         [this.panelManager, this.notificationManager, this.modalManager, 
@@ -41,22 +41,16 @@ export default class UIManager extends CleanupMixin {
         this.bindEvents();
         this.updateDisplay();
         
-        console.log('🖥️ UIManager initialized with unified style');
+        console.log('🖥️ UIManager initialized with raid support');
     }
 
     initializeElements() {
         // Основные кнопки навигации
         this.btnBuildings = document.getElementById('toggle-buildings');
         this.btnSkills = document.getElementById('toggle-skills');
-        this.btnRaids = document.getElementById('toggle-raids');
+        this.btnRaids = document.getElementById('toggle-raids'); // НОВОЕ: кнопка рейдов
         this.btnMarket = document.getElementById('toggle-market');
         this.btnInfo = document.getElementById('info-button');
-        
-        // Быстрые кнопки Telegram
-        this.tgBuildingsBtn = document.getElementById('tg-buildings-btn');
-        this.tgSkillsBtn = document.getElementById('tg-skills-btn');
-        this.tgRaidsBtn = document.getElementById('tg-raids-btn');
-        this.tgMarketBtn = document.getElementById('tg-market-btn');
         
         // Панель контента
         this.panel = document.getElementById('panel-container');
@@ -66,7 +60,7 @@ export default class UIManager extends CleanupMixin {
         this.btnSave = document.getElementById('save-button');
         this.btnReset = document.getElementById('reset-button');
         
-        // Контейнеры для ресурсов
+        // Контейнеры для сетки
         this.basicResources = document.getElementById('basic-resources');
         this.advancedResources = document.getElementById('advanced-resources');
         this.specialResources = document.getElementById('special-resources');
@@ -75,8 +69,12 @@ export default class UIManager extends CleanupMixin {
     }
 
     validateElements() {
-        // Проверяем обязательные элементы
-        const requiredElements = ['panel'];
+        const requiredElements = [
+            'btnBuildings', 'btnSkills', 'btnMarket', 'btnInfo',
+            'panel', 'btnLoad', 'btnSave', 'btnReset'
+        ];
+        
+        // ОБНОВЛЕНО: btnRaids не обязательна (может быть скрыта до разблокировки)
         const missingElements = requiredElements.filter(elementName => !this[elementName]);
         
         if (missingElements.length > 0) {
@@ -84,192 +82,94 @@ export default class UIManager extends CleanupMixin {
             throw new Error(`Missing required UI elements: ${missingElements.join(', ')}`);
         }
         
-        // Создаем недостающие кнопки если их нет
-        this.ensureNavigationButtons();
-        this.ensureTelegramButtons();
+        // Предупреждаем о недостающих контейнерах ресурсов
+        if (!this.basicResources || !this.advancedResources || !this.specialResources) {
+            console.warn('⚠️ Some resource containers not found - resource display may not work properly');
+        }
         
-        console.log('✅ UI elements validated and created');
+        // НОВОЕ: Проверяем кнопку рейдов
+        if (!this.btnRaids) {
+            console.warn('⚠️ Raids button not found - creating it dynamically');
+            this.createRaidsButton();
+        }
+        
+        console.log('✅ All required UI elements found');
     }
 
-    ensureNavigationButtons() {
-        // Создаем верхнюю навигацию если её нет
-        let topNav = document.getElementById('ui-top');
-        if (!topNav) {
-            topNav = document.createElement('div');
-            topNav.id = 'ui-top';
-            topNav.className = 'telegram-hidden-controls';
-            document.body.insertBefore(topNav, document.body.firstChild);
+    // НОВОЕ: Создать кнопку рейдов динамически
+    createRaidsButton() {
+        const topNav = document.getElementById('ui-top');
+        if (!topNav) return;
+        
+        // Ищем кнопку Skills чтобы вставить рейды после неё
+        const skillsButton = document.getElementById('toggle-skills');
+        
+        const raidsButton = document.createElement('button');
+        raidsButton.id = 'toggle-raids';
+        raidsButton.textContent = '⚔️ Raids';
+        raidsButton.style.display = 'none'; // Скрываем до разблокировки
+        
+        if (skillsButton && skillsButton.nextSibling) {
+            topNav.insertBefore(raidsButton, skillsButton.nextSibling);
+        } else {
+            topNav.appendChild(raidsButton);
         }
-
-        // Создаем кнопки навигации
-        const navButtons = [
-            { id: 'toggle-buildings', text: '🏗️ Buildings', property: 'btnBuildings' },
-            { id: 'toggle-skills', text: '🎯 Skills', property: 'btnSkills' },
-            { id: 'toggle-raids', text: '⚔️ Raids', property: 'btnRaids', hidden: true },
-            { id: 'toggle-market', text: '🛒 Market', property: 'btnMarket' },
-            { id: 'info-button', text: '📚 Info', property: 'btnInfo' }
-        ];
-
-        navButtons.forEach(btn => {
-            if (!this[btn.property]) {
-                const button = document.createElement('button');
-                button.id = btn.id;
-                button.textContent = btn.text;
-                if (btn.hidden) {
-                    button.style.display = 'none';
-                }
-                topNav.appendChild(button);
-                this[btn.property] = button;
-            }
-        });
-    }
-
-    ensureTelegramButtons() {
-        // Создаем быстрые кнопки Telegram если их нет
-        let quickActions = document.querySelector('.telegram-quick-actions');
-        if (!quickActions) {
-            quickActions = document.createElement('div');
-            quickActions.className = 'telegram-quick-actions';
-            document.body.appendChild(quickActions);
-        }
-
-        const tgButtons = [
-            { id: 'tg-buildings-btn', text: '🏗️', property: 'tgBuildingsBtn' },
-            { id: 'tg-skills-btn', text: '🎯', property: 'tgSkillsBtn' },
-            { id: 'tg-raids-btn', text: '⚔️', property: 'tgRaidsBtn', hidden: true },
-            { id: 'tg-market-btn', text: '🛒', property: 'tgMarketBtn' }
-        ];
-
-        tgButtons.forEach(btn => {
-            if (!this[btn.property]) {
-                const button = document.createElement('button');
-                button.id = btn.id;
-                button.className = 'tg-action-btn';
-                button.textContent = btn.text;
-                if (btn.hidden) {
-                    button.style.display = 'none';
-                }
-                quickActions.appendChild(button);
-                this[btn.property] = button;
-            }
-        });
+        
+        this.btnRaids = raidsButton;
+        console.log('✅ Raids button created dynamically');
     }
 
     bindControls() {
-        console.log('🔗 Binding UI controls...');
-
-        // ИСПРАВЛЕНИЕ: Привязываем обычные кнопки навигации
-        if (this.btnBuildings) {
-            this.addEventListener(this.btnBuildings, 'click', () => {
-                console.log('🏗️ Buildings button clicked');
-                this.togglePanel('buildings');
-            });
-        }
+        // Кнопки навигации
+        this.addEventListener(this.btnBuildings, 'click', () => {
+            this.togglePanel('buildings');
+        });
         
-        if (this.btnSkills) {
-            this.addEventListener(this.btnSkills, 'click', () => {
-                console.log('🎯 Skills button clicked');
-                this.togglePanel('skills');
-            });
-        }
+        this.addEventListener(this.btnSkills, 'click', () => {
+            this.togglePanel('skills');
+        });
         
+        // НОВОЕ: Обработчик для кнопки рейдов
         if (this.btnRaids) {
             this.addEventListener(this.btnRaids, 'click', () => {
-                console.log('⚔️ Raids button clicked');
                 this.togglePanel('raids');
             });
         }
         
-        if (this.btnMarket) {
-            this.addEventListener(this.btnMarket, 'click', () => {
-                console.log('🛒 Market button clicked');
-                this.togglePanel('market');
-            });
-        }
+        this.addEventListener(this.btnMarket, 'click', () => {
+            this.togglePanel('market');
+        });
         
-        if (this.btnInfo) {
-            this.addEventListener(this.btnInfo, 'click', () => {
-                console.log('📚 Info button clicked');
-                this.togglePanel('info');
-            });
-        }
-
-        // ИСПРАВЛЕНИЕ: Привязываем быстрые кнопки Telegram
-        if (this.tgBuildingsBtn) {
-            this.addEventListener(this.tgBuildingsBtn, 'click', () => {
-                console.log('🏗️ Telegram Buildings button clicked');
-                this.togglePanel('buildings');
-            });
-        }
+        this.addEventListener(this.btnInfo, 'click', () => {
+            this.togglePanel('info');
+        });
         
-        if (this.tgSkillsBtn) {
-            this.addEventListener(this.tgSkillsBtn, 'click', () => {
-                console.log('🎯 Telegram Skills button clicked');
-                this.togglePanel('skills');
-            });
-        }
-        
-        if (this.tgRaidsBtn) {
-            this.addEventListener(this.tgRaidsBtn, 'click', () => {
-                console.log('⚔️ Telegram Raids button clicked');
-                this.togglePanel('raids');
-            });
-        }
-        
-        if (this.tgMarketBtn) {
-            this.addEventListener(this.tgMarketBtn, 'click', () => {
-                console.log('🛒 Telegram Market button clicked');
-                this.togglePanel('market');
-            });
-        }
-
         // Обработчики Save/Load/Reset
-        if (this.btnSave) {
-            this.addEventListener(this.btnSave, 'click', () => {
-                console.log('💾 Save button clicked');
-                this.saveLoadManager.performSave();
-            });
-        }
-        
-        if (this.btnLoad) {
-            this.addEventListener(this.btnLoad, 'click', () => {
-                console.log('📁 Load button clicked');
-                this.saveLoadManager.performLoad();
-            });
-        }
-        
-        if (this.btnReset) {
-            this.addEventListener(this.btnReset, 'click', () => {
-                console.log('🔄 Reset button clicked');
-                this.saveLoadManager.performReset();
-            });
-        }
-
-        // ИСПРАВЛЕНИЕ: Добавляем обработчик закрытия панели по клику вне
-        this.addEventListener(this.panel, 'click', (e) => {
-            if (e.target === this.panel) {
-                this.hidePanel();
-            }
-        });
-
-        // ИСПРАВЛЕНИЕ: Закрытие панели по Escape
-        this.addEventListener(document, 'keydown', (e) => {
-            if (e.key === 'Escape' && this.currentPanel) {
-                this.hidePanel();
-            }
+        this.addEventListener(this.btnSave, 'click', () => {
+            this.saveLoadManager.performSave();
         });
         
-        console.log('✅ UI controls bound successfully');
+        this.addEventListener(this.btnLoad, 'click', () => {
+            this.saveLoadManager.performLoad();
+        });
+        
+        this.addEventListener(this.btnReset, 'click', () => {
+            this.saveLoadManager.performReset();
+        });
+        
+        console.log('✅ UI controls bound with raids support');
     }
 
     bindEvents() {
         // Ограничение частоты уведомлений
         let lastEnergyNotification = 0;
         let lastSkillNotification = 0;
-        let lastRaidNotification = 0;
+        let lastSpecialNotification = 0;
+        let lastRaidNotification = 0; // НОВОЕ: для рейдов
         const energyNotificationCooldown = 3000;
         const skillNotificationCooldown = 1000;
-        const raidNotificationCooldown = 2000;
+        const specialNotificationCooldown = 500;
+        const raidNotificationCooldown = 2000; // НОВОЕ
 
         // События ресурсов
         eventBus.subscribe(GameEvents.RESOURCE_CHANGED, () => {
@@ -286,7 +186,7 @@ export default class UIManager extends CleanupMixin {
             this.updateDisplay();
         });
 
-        // События рейдов
+        // НОВОЕ: События рейдов
         eventBus.subscribe('raid:started', (data) => {
             const now = Date.now();
             if (now - lastRaidNotification > raidNotificationCooldown) {
@@ -294,6 +194,7 @@ export default class UIManager extends CleanupMixin {
                 lastRaidNotification = now;
             }
             
+            // Обновляем панель если рейды открыты
             if (this.currentPanel === 'raids') {
                 this.showPanel('raids');
             }
@@ -306,6 +207,7 @@ export default class UIManager extends CleanupMixin {
                 lastRaidNotification = now;
             }
             
+            // Обновляем панель если рейды открыты
             if (this.currentPanel === 'raids') {
                 this.showPanel('raids');
             }
@@ -316,7 +218,7 @@ export default class UIManager extends CleanupMixin {
             this.notificationManager.showSuccess('⚔️ Raid system unlocked!');
         });
 
-        // События зданий для проверки разблокировки рейдов
+        // НОВОЕ: События зданий для проверки разблокировки рейдов
         eventBus.subscribe(GameEvents.BUILDING_BOUGHT, (data) => {
             if (data.buildingId === 'watchTower') {
                 this.showRaidsButton();
@@ -327,7 +229,7 @@ export default class UIManager extends CleanupMixin {
             }
         });
         
-        // События энергии
+        // События энергии с ограничением
         eventBus.subscribe(GameEvents.ENERGY_CHANGED, () => {
             if (this.energyDisplay) {
                 this.energyDisplay.updateFromGameState();
@@ -371,7 +273,7 @@ export default class UIManager extends CleanupMixin {
             this.effectIndicators.update();
         });
         
-        // События навыков
+        // События навыков с ограничением частоты
         eventBus.subscribe(GameEvents.CRITICAL_HIT, (data) => {
             const now = Date.now();
             if (now - lastSkillNotification > skillNotificationCooldown) {
@@ -397,7 +299,7 @@ export default class UIManager extends CleanupMixin {
             this.notificationManager.showSkill('🛡️ Shield Block!', `Blocked ${debuff} (${remaining} left)`);
         });
         
-        // События покупок
+        // События зданий и маркета
         eventBus.subscribe(GameEvents.SKILL_BOUGHT, () => {
             if (this.currentPanel === 'skills') {
                 this.showPanel('skills');
@@ -425,32 +327,56 @@ export default class UIManager extends CleanupMixin {
             }
         });
         
-        console.log('✅ UI events bound');
+        // Специальные события с ограничением частоты
+        eventBus.subscribe(GameEvents.STAR_POWER_USED, (data) => {
+            const now = Date.now();
+            if (now - lastSpecialNotification > specialNotificationCooldown) {
+                const resource = data.resource || 'Unknown';
+                const amount = data.amount || 0;
+                const remaining = data.remaining || 0;
+                this.notificationManager.show(`⭐ Star Power: +${amount} ${resource} (${remaining} left)`);
+                lastSpecialNotification = now;
+            }
+        });
+        
+        eventBus.subscribe(GameEvents.SLOT_MACHINE_WIN, (data) => {
+            const now = Date.now();
+            if (now - lastSpecialNotification > specialNotificationCooldown) {
+                const resource = data.resource || 'Unknown';
+                const amount = data.amount || 0;
+                this.notificationManager.show(`🎰 Slot Win: +${amount} ${resource}`);
+                lastSpecialNotification = now;
+            }
+        });
+        
+        eventBus.subscribe(GameEvents.GHOST_CLICK, () => {
+            const now = Date.now();
+            if (now - lastSpecialNotification > specialNotificationCooldown) {
+                this.notificationManager.show('👻 Ghost Click: Ignored!');
+                lastSpecialNotification = now;
+            }
+        });
+        
+        console.log('✅ UI events bound with raid support');
     }
 
+    // НОВОЕ: Показать кнопку рейдов
     showRaidsButton() {
         if (this.btnRaids) {
             this.btnRaids.style.display = '';
+            console.log('⚔️ Raids button shown');
         }
-        if (this.tgRaidsBtn) {
-            this.tgRaidsBtn.style.display = '';
-        }
-        console.log('⚔️ Raids buttons shown');
     }
 
+    // НОВОЕ: Скрыть кнопку рейдов
     hideRaidsButton() {
         if (this.btnRaids) {
             this.btnRaids.style.display = 'none';
+            console.log('⚔️ Raids button hidden');
         }
-        if (this.tgRaidsBtn) {
-            this.tgRaidsBtn.style.display = 'none';
-        }
-        console.log('⚔️ Raids buttons hidden');
     }
 
     togglePanel(panelType) {
-        console.log(`📱 Toggle panel: ${panelType}, current: ${this.currentPanel}`);
-        
         if (this.currentPanel === panelType) {
             this.hidePanel();
         } else {
@@ -459,7 +385,6 @@ export default class UIManager extends CleanupMixin {
     }
 
     showPanel(panelType) {
-        console.log(`📱 Showing panel: ${panelType}`);
         this.currentPanel = panelType;
         
         try {
@@ -470,7 +395,7 @@ export default class UIManager extends CleanupMixin {
                 case 'skills':
                     this.panelManager.showSkills(this.panel);
                     break;
-                case 'raids':
+                case 'raids': // НОВОЕ: панель рейдов
                     this.showRaidsPanel();
                     break;
                 case 'market':
@@ -485,11 +410,7 @@ export default class UIManager extends CleanupMixin {
             }
             
             this.panel.classList.remove('hidden');
-            
-            // ИСПРАВЛЕНИЕ: Добавляем кнопку закрытия
-            this.addCloseButton();
-            
-            console.log(`✅ Panel ${panelType} shown successfully`);
+            console.log(`📱 Showing panel: ${panelType}`);
             
         } catch (error) {
             console.error(`❌ Error showing ${panelType} panel:`, error);
@@ -497,47 +418,20 @@ export default class UIManager extends CleanupMixin {
         }
     }
 
-    addCloseButton() {
-        // Удаляем старую кнопку закрытия если есть
-        const existingCloseBtn = this.panel.querySelector('.panel-close-btn');
-        if (existingCloseBtn) {
-            existingCloseBtn.remove();
-        }
-
-        // Создаем новую кнопку закрытия
-        const closeBtn = document.createElement('button');
-        closeBtn.className = 'panel-close-btn';
-        closeBtn.innerHTML = '❌ Close';
-        closeBtn.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 1001;
-            background: var(--error-color);
-            color: white;
-            border: none;
-            border-radius: var(--border-radius);
-            padding: var(--spacing-xs) var(--spacing-sm);
-            font-size: 0.8rem;
-            cursor: pointer;
-            box-shadow: var(--shadow-medium);
-        `;
-
-        this.addEventListener(closeBtn, 'click', () => {
-            this.hidePanel();
-        });
-
-        this.panel.appendChild(closeBtn);
-    }
-
+    // НОВОЕ: Показать панель рейдов
     showRaidsPanel() {
         try {
+            // Добавляем стили для рейдов
             this.raidPanel.addRaidStyles();
+            
+            // Создаем панель рейдов
             this.raidPanel.createRaidPanel(this.panel);
+            
         } catch (error) {
             console.error('❌ Error showing raids panel:', error);
             this.notificationManager.showError('Error loading raids panel');
             
+            // Fallback - показываем простое сообщение
             this.panel.innerHTML = `
                 <h2>⚔️ Raid System</h2>
                 <p>❌ Error loading raid system. Please try again.</p>
@@ -547,14 +441,16 @@ export default class UIManager extends CleanupMixin {
     }
 
     hidePanel() {
-        console.log('📱 Hiding panel');
         this.currentPanel = null;
         this.panel.classList.add('hidden');
         this.panel.innerHTML = '';
         
+        // НОВОЕ: Останавливаем обновления рейдов
         if (this.raidPanel) {
             this.raidPanel.stopStatusUpdate();
         }
+        
+        console.log('📱 Panel hidden');
     }
     
     updateDisplay() {
@@ -563,20 +459,24 @@ export default class UIManager extends CleanupMixin {
         try {
             this.resourceDisplay.update();
             this.effectIndicators.update();
+            
+            // НОВОЕ: Проверяем видимость кнопки рейдов
             this.updateRaidsButtonVisibility();
+            
         } catch (error) {
             console.warn('⚠️ Error updating display:', error);
         }
     }
 
+    // НОВОЕ: Обновить видимость кнопки рейдов
     updateRaidsButtonVisibility() {
-        if (!this.btnRaids && !this.tgRaidsBtn) return;
+        if (!this.btnRaids) return;
         
         const isUnlocked = this.gameState.buildingManager?.isRaidSystemUnlocked() || false;
         
-        if (isUnlocked) {
+        if (isUnlocked && this.btnRaids.style.display === 'none') {
             this.showRaidsButton();
-        } else {
+        } else if (!isUnlocked && this.btnRaids.style.display !== 'none') {
             this.hideRaidsButton();
         }
     }
@@ -598,8 +498,8 @@ export default class UIManager extends CleanupMixin {
             displayStats: this.resourceDisplay.getDisplayStats(),
             energyDisplay: this.energyDisplay ? this.energyDisplay.getDisplayInfo() : null,
             comboDisplay: this.comboDisplay ? this.comboDisplay.getDisplayInfo() : null,
-            raidsUnlocked: this.gameState.buildingManager?.isRaidSystemUnlocked() || false,
-            currentRaidStatus: this.gameState.raidManager?.getCurrentRaidStatus() || { inProgress: false }
+            raidsUnlocked: this.gameState.buildingManager?.isRaidSystemUnlocked() || false, // НОВОЕ
+            currentRaidStatus: this.gameState.raidManager?.getCurrentRaidStatus() || { inProgress: false } // НОВОЕ
         };
     }
 
@@ -618,10 +518,12 @@ export default class UIManager extends CleanupMixin {
                 this.comboDisplay.forceUpdate();
             }
             
+            // НОВОЕ: Обновляем панель рейдов если открыта
             if (this.currentPanel === 'raids' && this.raidPanel) {
                 this.raidPanel.updatePanel();
             }
             
+            // Обновляем текущую панель если открыта
             if (this.currentPanel && this.currentPanel !== 'raids') {
                 const currentPanel = this.currentPanel;
                 this.hidePanel();
@@ -635,14 +537,14 @@ export default class UIManager extends CleanupMixin {
         }
     }
 
+    // Получить отладочную информацию
     getDebugInfo() {
         return {
             isActive: this.isActive(),
             currentPanel: this.currentPanel,
             hasRequiredElements: {
                 buttons: !!(this.btnBuildings && this.btnSkills && this.btnMarket && this.btnInfo),
-                telegramButtons: !!(this.tgBuildingsBtn && this.tgSkillsBtn && this.tgMarketBtn),
-                raidsButtons: !!(this.btnRaids && this.tgRaidsBtn),
+                raidsButton: !!this.btnRaids, // НОВОЕ
                 panel: !!this.panel,
                 controls: !!(this.btnLoad && this.btnSave && this.btnReset)
             },
@@ -655,11 +557,11 @@ export default class UIManager extends CleanupMixin {
                 saveLoadManager: !!this.saveLoadManager,
                 energyDisplay: !!this.energyDisplay,
                 comboDisplay: !!this.comboDisplay,
-                raidPanel: !!this.raidPanel
+                raidPanel: !!this.raidPanel // НОВОЕ
             },
-            raids: {
+            raids: { // НОВОЕ: отладочная информация о рейдах
                 systemUnlocked: this.gameState.buildingManager?.isRaidSystemUnlocked() || false,
-                buttonsVisible: this.btnRaids ? this.btnRaids.style.display !== 'none' : false,
+                buttonVisible: this.btnRaids ? this.btnRaids.style.display !== 'none' : false,
                 managerAvailable: !!this.gameState.raidManager,
                 activeRaid: this.gameState.raidManager?.isRaidInProgress || false
             },
@@ -670,6 +572,7 @@ export default class UIManager extends CleanupMixin {
     destroy() {
         console.log('🧹 UIManager cleanup started');
         
+        // Скрываем панели и модальные окна
         this.hidePanel();
         
         if (this.modalManager) {
@@ -680,6 +583,7 @@ export default class UIManager extends CleanupMixin {
             this.notificationManager.clearAll();
         }
         
+        // Вызываем родительский деструктор
         super.destroy();
         
         console.log('✅ UIManager destroyed');
