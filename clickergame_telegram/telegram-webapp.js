@@ -1,664 +1,568 @@
-// telegram-webapp.js - Интеграция с Telegram Web App
-export class TelegramWebApp {
+// Telegram Web App Integration for Grid Clicker Game
+// Исправлен дублированный экспорт
+
+class TelegramWebApp {
   constructor() {
     this.tg = null;
     this.user = null;
-    this.isInitialized = false;
-    this.cloudSaveInterval = null;
-    this.lastCloudSave = 0;
-    this.cloudSaveCooldown = 120000; // 2 минуты между сохранениями
+    this.isReady = false;
+    this.isExpanded = false;
+    this.themeParams = {};
+    this.viewportHeight = window.innerHeight;
+    this.isClosingConfirmationEnabled = false;
     
-    this.initialize();
+    console.log('🤖 TelegramWebApp initializing...');
+    this.init();
   }
 
-  // Инициализация Telegram Web App
-  initialize() {
+  init() {
     try {
-      // Проверяем доступность Telegram Web App API
-      if (typeof window.Telegram?.WebApp === 'undefined') {
-        console.warn('⚠️ Telegram Web App API not available');
-        this.initializeMockMode();
-        return;
+      // Проверяем доступность Telegram WebApp
+      if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
+        this.tg = window.Telegram.WebApp;
+        console.log('✅ Telegram WebApp API found');
+        this.setupTelegramWebApp();
+      } else {
+        console.log('⚠️ Running outside Telegram WebApp - using fallback mode');
+        this.setupFallbackMode();
       }
+    } catch (error) {
+      console.error('❌ Error initializing TelegramWebApp:', error);
+      this.setupFallbackMode();
+    }
+  }
 
-      this.tg = window.Telegram.WebApp;
-      console.log('📱 Telegram Web App detected:', this.tg.version);
-
-      // Настройка Web App
-      this.setupWebApp();
+  setupTelegramWebApp() {
+    try {
+      // Инициализация Telegram WebApp
+      this.tg.ready();
+      this.isReady = true;
       
       // Получаем данные пользователя
-      this.setupUser();
+      this.user = this.tg.initDataUnsafe?.user || null;
       
-      // Настройка UI
-      this.setupUI();
+      // Получаем параметры темы
+      this.themeParams = this.tg.themeParams || {};
       
-      // Настройка автосохранения в облако
-      this.setupCloudSaving();
+      // Настраиваем внешний вид
+      this.setupAppearance();
       
-      this.isInitialized = true;
-      console.log('✅ Telegram Web App integration initialized');
+      // Настраиваем обработчики событий
+      this.setupEventHandlers();
       
-    } catch (error) {
-      console.error('❌ Failed to initialize Telegram Web App:', error);
-      this.initializeMockMode();
-    }
-  }
-
-  // Настройка Web App
-  setupWebApp() {
-    // Расширяем на полный экран
-    this.tg.expand();
-    
-    // Включаем закрытие по свайпу
-    this.tg.enableClosingConfirmation();
-    
-    // Устанавливаем цвета темы
-    this.tg.setHeaderColor('#667eea');
-    this.tg.setBackgroundColor('#667eea');
-    
-    // Включаем вибрацию для обратной связи
-    this.enableHapticFeedback();
-    
-    console.log('📱 Web App configured');
-  }
-
-  // Настройка пользователя
-  setupUser() {
-    if (this.tg.initDataUnsafe?.user) {
-      this.user = {
-        id: this.tg.initDataUnsafe.user.id,
-        firstName: this.tg.initDataUnsafe.user.first_name,
-        lastName: this.tg.initDataUnsafe.user.last_name,
-        username: this.tg.initDataUnsafe.user.username,
-        languageCode: this.tg.initDataUnsafe.user.language_code,
-        isPremium: this.tg.initDataUnsafe.user.is_premium || false
-      };
+      // Расширяем окно на весь экран
+      this.expandViewport();
       
-      console.log('👤 User data received:', this.user);
-    } else {
-      console.warn('⚠️ No user data available');
-      this.user = {
-        id: 'demo',
-        firstName: 'Demo',
-        lastName: 'User',
-        username: 'demo_user',
-        languageCode: 'en',
-        isPremium: false
-      };
-    }
-  }
-
-  // Настройка UI для мобильного использования
-  setupUI() {
-    // Скрываем главную кнопку пока не нужна
-    this.tg.MainButton.hide();
-    
-    // Настройка кнопки назад
-    this.tg.BackButton.onClick(() => {
-      this.handleBackButton();
-    });
-    
-    // Адаптируем viewport для мобильных устройств
-    this.setupMobileViewport();
-    
-    // Предотвращаем скролл при игре
-    this.preventBodyScroll();
-    
-    console.log('📱 Mobile UI configured');
-  }
-
-  // Настройка viewport для мобильных
-  setupMobileViewport() {
-    const viewportMeta = document.querySelector('meta[name="viewport"]');
-    if (viewportMeta) {
-      viewportMeta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
-    }
-    
-    // Адаптируем высоту под Telegram
-    const gameArea = document.getElementById('game-area');
-    if (gameArea) {
-      gameArea.style.minHeight = `${this.tg.viewportHeight}px`;
-      gameArea.style.paddingBottom = 'env(safe-area-inset-bottom)';
-    }
-    
-    // Слушаем изменения размера viewport
-    this.tg.onEvent('viewportChanged', () => {
-      this.handleViewportChange();
-    });
-  }
-
-  // Предотвращение скролла body
-  preventBodyScroll() {
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.width = '100%';
-    document.body.style.height = '100%';
-    
-    // Предотвращаем pull-to-refresh
-    document.addEventListener('touchstart', (e) => {
-      if (e.touches.length > 1) {
-        e.preventDefault();
-      }
-    }, { passive: false });
-    
-    document.addEventListener('touchmove', (e) => {
-      e.preventDefault();
-    }, { passive: false });
-  }
-
-  // Настройка автосохранения в облако
-  setupCloudSaving() {
-    // Автосохранение каждые 2 минуты
-    this.cloudSaveInterval = setInterval(() => {
-      this.performCloudSave();
-    }, this.cloudSaveCooldown);
-    
-    // Сохранение при закрытии
-    this.tg.onEvent('webAppClose', () => {
-      this.performCloudSave(true);
-    });
-    
-    // Сохранение при потере фокуса
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        this.performCloudSave();
-      }
-    });
-    
-    console.log('☁️ Cloud saving configured');
-  }
-
-  // Выполнить сохранение в облако
-  async performCloudSave(force = false) {
-    const now = Date.now();
-    
-    if (!force && now - this.lastCloudSave < this.cloudSaveCooldown) {
-      return; // Слишком рано для следующего сохранения
-    }
-    
-    try {
-      const gameCore = window.gameCore;
-      if (!gameCore || !gameCore.gameState) {
-        console.warn('⚠️ Game not ready for cloud save');
-        return;
-      }
+      // Включаем подтверждение закрытия
+      this.enableClosingConfirmation();
       
-      const saveData = gameCore.gameState.getSaveData();
-      if (!saveData) {
-        console.warn('⚠️ No save data to upload');
-        return;
-      }
+      // Применяем тему
+      this.applyTheme();
       
-      // Добавляем метаданные для облачного сохранения
-      const cloudData = {
-        type: 'game_save',
-        userId: this.user.id,
-        data: saveData,
-        timestamp: now,
-        gameVersion: saveData.saveVersion || '1.0',
-        userInfo: {
-          firstName: this.user.firstName,
-          username: this.user.username
-        }
-      };
+      console.log('🎉 Telegram WebApp initialized successfully');
+      console.log('👤 User:', this.user);
+      console.log('🎨 Theme:', this.themeParams);
       
-      // Отправляем данные через Telegram Web App API
-      this.tg.sendData(JSON.stringify(cloudData));
-      
-      this.lastCloudSave = now;
-      console.log('☁️ Cloud save completed');
-      
-      // Показываем уведомление пользователю
-      this.showHapticFeedback('success');
+      // Уведомляем игру о готовности
+      this.notifyGameReady();
       
     } catch (error) {
-      console.error('❌ Cloud save failed:', error);
-      this.showHapticFeedback('error');
+      console.error('❌ Error setting up Telegram WebApp:', error);
+      this.setupFallbackMode();
     }
   }
 
-  // Загрузить сохранение из облака
-  async loadFromCloud() {
-    try {
-      // Запрашиваем данные через main button
-      this.tg.MainButton.setText('📥 Loading from Cloud...');
-      this.tg.MainButton.show();
-      this.tg.MainButton.showProgress();
-      
-      // Отправляем запрос на загрузку
-      const loadRequest = {
-        type: 'load_request',
-        userId: this.user.id,
-        timestamp: Date.now()
-      };
-      
-      this.tg.sendData(JSON.stringify(loadRequest));
-      
-      console.log('☁️ Cloud load requested');
-      
-    } catch (error) {
-      console.error('❌ Cloud load failed:', error);
-      this.hideMainButton();
-      this.showHapticFeedback('error');
-    }
-  }
-
-  // Отправить статистику игры
-  async sendGameStatistics() {
-    try {
-      const gameCore = window.gameCore;
-      if (!gameCore || !gameCore.gameState) return;
-      
-      const stats = this.gatherGameStatistics(gameCore);
-      
-      const statisticsData = {
-        type: 'game_statistics',
-        userId: this.user.id,
-        stats: stats,
-        timestamp: Date.now()
-      };
-      
-      this.tg.sendData(JSON.stringify(statisticsData));
-      console.log('📊 Statistics sent to bot');
-      
-    } catch (error) {
-      console.error('❌ Failed to send statistics:', error);
-    }
-  }
-
-  // Собрать статистику игры
-  gatherGameStatistics(gameCore) {
-    const gameState = gameCore.gameState;
-    const resources = gameState.resources || {};
-    
-    // Подсчитываем общие ресурсы
-    const totalResources = Object.values(resources).reduce((sum, val) => sum + (val || 0), 0);
-    
-    // Подсчитываем общие уровни зданий
-    const buildingLevels = Object.values(gameState.buildings || {})
-      .reduce((sum, building) => sum + (building.level || 0), 0);
-    
-    // Подсчитываем общие уровни навыков
-    const skillLevels = Object.values(gameState.skills || {})
-      .reduce((sum, skill) => sum + (skill.level || 0), 0);
-    
-    return {
-      totalResources,
-      maxCombo: gameState.combo?.count || 0,
-      totalClicks: gameState.achievements?.statistics?.totalClicks || 0,
-      buildingLevels,
-      skillLevels,
-      raidsCompleted: gameState.raids?.statistics?.totalRaids || 0,
-      peopleLost: gameState.raids?.statistics?.peopleLost || 0,
-      // Приблизительное время игры (основано на общем прогрессе)
-      playtimeEstimate: Math.floor((totalResources + buildingLevels * 100 + skillLevels * 200) / 60)
+  setupFallbackMode() {
+    console.log('🔄 Setting up fallback mode...');
+    this.isReady = true;
+    this.user = {
+      id: Date.now(),
+      first_name: 'Player',
+      username: 'player_' + Math.random().toString(36).substr(2, 5),
+      language_code: 'en',
+      is_bot: false
     };
+    this.themeParams = {
+      bg_color: '#ffffff',
+      text_color: '#000000',
+      hint_color: '#999999',
+      link_color: '#2481cc',
+      button_color: '#2481cc',
+      button_text_color: '#ffffff'
+    };
+    this.applyTheme();
+    this.notifyGameReady();
   }
 
-  // Показать лидерборд
-  showLeaderboard() {
+  setupAppearance() {
+    if (!this.tg) return;
+    
     try {
-      const leaderboardData = {
-        type: 'show_leaderboard',
-        userId: this.user.id,
-        timestamp: Date.now()
-      };
+      // Настраиваем цвета заголовка
+      this.tg.setHeaderColor('secondary_bg_color');
       
-      this.tg.sendData(JSON.stringify(leaderboardData));
-      console.log('🏆 Leaderboard requested');
-      
-    } catch (error) {
-      console.error('❌ Failed to show leaderboard:', error);
-    }
-  }
-
-  // Экспорт данных игры
-  exportGameData() {
-    try {
-      const gameCore = window.gameCore;
-      if (!gameCore || !gameCore.gameState) {
-        throw new Error('Game not ready');
+      // Настраиваем цвет фона
+      if (this.tg.setBackgroundColor) {
+        this.tg.setBackgroundColor(this.themeParams.bg_color || '#ffffff');
       }
       
-      const exportData = {
-        type: 'game_export',
-        userId: this.user.id,
-        data: gameCore.gameState.getSaveData(),
-        stats: this.gatherGameStatistics(gameCore),
-        timestamp: Date.now()
-      };
-      
-      this.tg.sendData(JSON.stringify(exportData));
-      console.log('📤 Game data exported');
-      
+      console.log('🎨 Appearance configured');
     } catch (error) {
-      console.error('❌ Export failed:', error);
-      this.showHapticFeedback('error');
+      console.warn('⚠️ Error configuring appearance:', error);
     }
   }
 
-  // Отправить отчет об ошибке
-  reportError(error) {
+  setupEventHandlers() {
+    if (!this.tg) return;
+    
     try {
-      const errorData = {
-        type: 'error_report',
-        userId: this.user.id,
-        error: {
-          message: error.message || 'Unknown error',
-          stack: error.stack || 'No stack trace',
-          timestamp: Date.now(),
-          url: window.location.href,
-          userAgent: navigator.userAgent
-        },
-        gameState: this.getGameStateSnapshot()
-      };
+      // Обработчик изменения viewport
+      this.tg.onEvent('viewportChanged', () => {
+        this.handleViewportChange();
+      });
       
-      this.tg.sendData(JSON.stringify(errorData));
-      console.log('🐛 Error report sent');
+      // Обработчик изменения темы
+      this.tg.onEvent('themeChanged', () => {
+        this.handleThemeChange();
+      });
       
-    } catch (reportError) {
-      console.error('❌ Failed to send error report:', reportError);
-    }
-  }
-
-  // Получить снимок состояния игры для отчета об ошибке
-  getGameStateSnapshot() {
-    try {
-      const gameCore = window.gameCore;
-      if (!gameCore || !gameCore.gameState) return null;
+      // Обработчик кнопки "Назад"
+      this.tg.onEvent('backButtonClicked', () => {
+        this.handleBackButton();
+      });
       
-      return {
-        hasResources: !!gameCore.gameState.resources,
-        resourceCount: Object.keys(gameCore.gameState.resources || {}).length,
-        skillPoints: gameCore.gameState.skillPoints || 0,
-        combo: gameCore.gameState.combo?.count || 0,
-        buildingCount: Object.keys(gameCore.gameState.buildings || {}).length,
-        skillCount: Object.keys(gameCore.gameState.skills || {}).length,
-        activeBuffs: (gameCore.gameState.buffs || []).length,
-        activeDebuffs: (gameCore.gameState.debuffs || []).length
-      };
+      // Обработчик главной кнопки
+      this.tg.onEvent('mainButtonClicked', () => {
+        this.handleMainButton();
+      });
+      
+      console.log('📡 Event handlers configured');
     } catch (error) {
-      return { error: error.message };
+      console.warn('⚠️ Error setting up event handlers:', error);
     }
   }
 
-  // Вибрация для обратной связи
-  showHapticFeedback(type = 'selection') {
+  expandViewport() {
+    if (!this.tg) return;
+    
     try {
-      if (this.tg.HapticFeedback) {
-        switch (type) {
-          case 'success':
-            this.tg.HapticFeedback.notificationOccurred('success');
-            break;
-          case 'error':
-            this.tg.HapticFeedback.notificationOccurred('error');
-            break;
-          case 'warning':
-            this.tg.HapticFeedback.notificationOccurred('warning');
-            break;
-          case 'impact':
-            this.tg.HapticFeedback.impactOccurred('medium');
-            break;
-          default:
-            this.tg.HapticFeedback.selectionChanged();
+      if (this.tg.expand) {
+        this.tg.expand();
+        this.isExpanded = true;
+        console.log('📱 Viewport expanded');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error expanding viewport:', error);
+    }
+  }
+
+  enableClosingConfirmation() {
+    if (!this.tg) return;
+    
+    try {
+      if (this.tg.enableClosingConfirmation) {
+        this.tg.enableClosingConfirmation();
+        this.isClosingConfirmationEnabled = true;
+        console.log('🔒 Closing confirmation enabled');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error enabling closing confirmation:', error);
+    }
+  }
+
+  applyTheme() {
+    try {
+      const root = document.documentElement;
+      
+      // Применяем CSS переменные темы
+      if (this.themeParams.bg_color) {
+        root.style.setProperty('--tg-theme-bg-color', this.themeParams.bg_color);
+      }
+      if (this.themeParams.text_color) {
+        root.style.setProperty('--tg-theme-text-color', this.themeParams.text_color);
+      }
+      if (this.themeParams.hint_color) {
+        root.style.setProperty('--tg-theme-hint-color', this.themeParams.hint_color);
+      }
+      if (this.themeParams.link_color) {
+        root.style.setProperty('--tg-theme-link-color', this.themeParams.link_color);
+      }
+      if (this.themeParams.button_color) {
+        root.style.setProperty('--tg-theme-button-color', this.themeParams.button_color);
+      }
+      if (this.themeParams.button_text_color) {
+        root.style.setProperty('--tg-theme-button-text-color', this.themeParams.button_text_color);
+      }
+      if (this.themeParams.secondary_bg_color) {
+        root.style.setProperty('--tg-theme-secondary-bg-color', this.themeParams.secondary_bg_color);
+      }
+      
+      console.log('🎨 Theme applied:', this.themeParams);
+    } catch (error) {
+      console.warn('⚠️ Error applying theme:', error);
+    }
+  }
+
+  handleViewportChange() {
+    try {
+      const newHeight = this.tg?.viewportHeight || window.innerHeight;
+      const heightChanged = Math.abs(newHeight - this.viewportHeight) > 50;
+      
+      if (heightChanged) {
+        this.viewportHeight = newHeight;
+        console.log('📱 Viewport changed:', newHeight);
+        
+        // Обновляем высоту CSS
+        document.documentElement.style.setProperty('--tg-viewport-height', `${newHeight}px`);
+        
+        // Уведомляем игру об изменении
+        if (window.gameCore && typeof window.gameCore.handleViewportChange === 'function') {
+          window.gameCore.handleViewportChange(newHeight);
         }
       }
     } catch (error) {
-      console.warn('⚠️ Haptic feedback not available:', error);
+      console.warn('⚠️ Error handling viewport change:', error);
     }
   }
 
-  // Включить вибрацию для всех кликов
-  enableHapticFeedback() {
-    document.addEventListener('click', (e) => {
-      // Вибрация для кнопок и интерактивных элементов
-      if (e.target.matches('button, .buy-button, .item-card, .resource-display')) {
-        this.showHapticFeedback('selection');
+  handleThemeChange() {
+    try {
+      this.themeParams = this.tg?.themeParams || {};
+      this.applyTheme();
+      console.log('🎨 Theme changed:', this.themeParams);
+    } catch (error) {
+      console.warn('⚠️ Error handling theme change:', error);
+    }
+  }
+
+  handleBackButton() {
+    try {
+      console.log('🔙 Back button clicked');
+      
+      // Проверяем, открыта ли панель в игре
+      if (window.gameCore?.managers?.ui) {
+        const uiManager = window.gameCore.managers.ui;
+        if (uiManager.isPanelOpen && uiManager.isPanelOpen()) {
+          uiManager.hidePanel();
+          return;
+        }
       }
-    });
-    
-    // Особая вибрация для попаданий в цель
-    if (typeof window.eventBus !== 'undefined') {
-      window.eventBus.subscribe('zone:hit', (data) => {
-        if (data.isTarget) {
-          this.showHapticFeedback('impact');
+      
+      // Если панель не открыта, показываем подтверждение выхода
+      this.showExitConfirmation();
+    } catch (error) {
+      console.warn('⚠️ Error handling back button:', error);
+    }
+  }
+
+  handleMainButton() {
+    try {
+      console.log('⚡ Main button clicked');
+      
+      // Логика для главной кнопки (например, сохранение игры)
+      if (window.gameCore && typeof window.gameCore.autoSave === 'function') {
+        window.gameCore.autoSave();
+        this.showAlert('💾 Game saved!');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error handling main button:', error);
+    }
+  }
+
+  showExitConfirmation() {
+    try {
+      if (this.tg && this.tg.showConfirm) {
+        this.tg.showConfirm('Exit the game?', (confirmed) => {
+          if (confirmed) {
+            this.close();
+          }
+        });
+      } else {
+        // Fallback для браузера
+        if (confirm('Exit the game?')) {
+          window.close();
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Error showing exit confirmation:', error);
+    }
+  }
+
+  showAlert(message) {
+    try {
+      if (this.tg && this.tg.showAlert) {
+        this.tg.showAlert(message);
+      } else {
+        alert(message);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error showing alert:', error);
+    }
+  }
+
+  showConfirm(message, callback) {
+    try {
+      if (this.tg && this.tg.showConfirm) {
+        this.tg.showConfirm(message, callback);
+      } else {
+        const result = confirm(message);
+        if (callback) callback(result);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error showing confirm:', error);
+      if (callback) callback(false);
+    }
+  }
+
+  setMainButton(text, color = null) {
+    try {
+      if (!this.tg || !this.tg.MainButton) return;
+      
+      this.tg.MainButton.setText(text);
+      if (color) {
+        this.tg.MainButton.setParams({ color: color });
+      }
+      this.tg.MainButton.show();
+      
+      console.log('🔵 Main button set:', text);
+    } catch (error) {
+      console.warn('⚠️ Error setting main button:', error);
+    }
+  }
+
+  hideMainButton() {
+    try {
+      if (this.tg && this.tg.MainButton) {
+        this.tg.MainButton.hide();
+      }
+    } catch (error) {
+      console.warn('⚠️ Error hiding main button:', error);
+    }
+  }
+
+  showBackButton() {
+    try {
+      if (this.tg && this.tg.BackButton) {
+        this.tg.BackButton.show();
+      }
+    } catch (error) {
+      console.warn('⚠️ Error showing back button:', error);
+    }
+  }
+
+  hideBackButton() {
+    try {
+      if (this.tg && this.tg.BackButton) {
+        this.tg.BackButton.hide();
+      }
+    } catch (error) {
+      console.warn('⚠️ Error hiding back button:', error);
+    }
+  }
+
+  sendData(data) {
+    try {
+      if (this.tg && this.tg.sendData) {
+        const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
+        this.tg.sendData(jsonData);
+        console.log('📤 Data sent to Telegram:', jsonData);
+      } else {
+        console.log('📤 Would send data:', data);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error sending data:', error);
+    }
+  }
+
+  close() {
+    try {
+      if (this.tg && this.tg.close) {
+        this.tg.close();
+      } else {
+        window.close();
+      }
+    } catch (error) {
+      console.warn('⚠️ Error closing app:', error);
+    }
+  }
+
+  notifyGameReady() {
+    try {
+      // Создаём кастомное событие для уведомления игры
+      const event = new CustomEvent('telegramWebAppReady', {
+        detail: {
+          user: this.user,
+          themeParams: this.themeParams,
+          isExpanded: this.isExpanded
         }
       });
-    }
-  }
-
-  // Обработка кнопки назад
-  handleBackButton() {
-    const gameCore = window.gameCore;
-    if (gameCore && gameCore.managers && gameCore.managers.ui) {
-      const currentPanel = gameCore.managers.ui.getCurrentPanel();
       
-      if (currentPanel) {
-        // Закрываем текущую панель
-        gameCore.managers.ui.hidePanel();
-        this.tg.BackButton.hide();
-      } else {
-        // Закрываем Web App
-        this.tg.close();
+      window.dispatchEvent(event);
+      
+      // Также устанавливаем глобальную переменную
+      window.telegramWebApp = this;
+      
+      console.log('🎮 Game notified about Telegram WebApp readiness');
+    } catch (error) {
+      console.warn('⚠️ Error notifying game:', error);
+    }
+  }
+
+  // Геттеры для удобного доступа к данным
+  get isInTelegram() {
+    return !!this.tg;
+  }
+
+  get userId() {
+    return this.user?.id || null;
+  }
+
+  get userName() {
+    return this.user?.first_name || 'Player';
+  }
+
+  get userLanguage() {
+    return this.user?.language_code || 'en';
+  }
+
+  get colorScheme() {
+    return this.tg?.colorScheme || 'light';
+  }
+
+  // Методы для работы с сохранениями
+  saveToTelegram(gameData) {
+    try {
+      const saveData = {
+        type: 'game_save',
+        userId: this.userId,
+        timestamp: Date.now(),
+        data: gameData
+      };
+      
+      this.sendData(saveData);
+      console.log('💾 Game data saved to Telegram');
+    } catch (error) {
+      console.warn('⚠️ Error saving to Telegram:', error);
+    }
+  }
+
+  // Методы для аналитики
+  trackEvent(eventName, eventData = {}) {
+    try {
+      const analyticsData = {
+        type: 'analytics',
+        event: eventName,
+        data: eventData,
+        userId: this.userId,
+        timestamp: Date.now()
+      };
+      
+      console.log('📊 Analytics event:', analyticsData);
+      
+      // Отправляем в Telegram (опционально)
+      if (this.tg && eventName === 'game_completed') {
+        this.sendData(analyticsData);
       }
-    } else {
-      this.tg.close();
+    } catch (error) {
+      console.warn('⚠️ Error tracking event:', error);
     }
   }
 
-  // Обработка изменения размера viewport
-  handleViewportChange() {
-    const gameArea = document.getElementById('game-area');
-    if (gameArea) {
-      gameArea.style.minHeight = `${this.tg.viewportHeight}px`;
+  // Управление игровыми состояниями
+  onGameStateChange(state) {
+    try {
+      switch (state) {
+        case 'playing':
+          this.hideMainButton();
+          break;
+          
+        case 'paused':
+          this.setMainButton('Resume Game', this.themeParams.button_color);
+          break;
+          
+        case 'game_over':
+          this.setMainButton('Restart Game', '#ff4444');
+          break;
+          
+        case 'menu':
+          this.hideMainButton();
+          this.hideBackButton();
+          break;
+          
+        case 'in_panel':
+          this.showBackButton();
+          break;
+          
+        default:
+          this.hideMainButton();
+          this.hideBackButton();
+      }
+    } catch (error) {
+      console.warn('⚠️ Error handling game state change:', error);
     }
-    
-    // Перерисовываем canvas если нужно
-    const gameCore = window.gameCore;
-    if (gameCore && gameCore.gameLoop) {
-      gameCore.gameLoop.forceRedraw();
-    }
   }
 
-  // Показать главную кнопку с текстом
-  showMainButton(text, callback) {
-    this.tg.MainButton.setText(text);
-    this.tg.MainButton.show();
-    
-    this.tg.MainButton.onClick(() => {
-      if (callback) callback();
-    });
-  }
-
-  // Скрыть главную кнопку
-  hideMainButton() {
-    this.tg.MainButton.hide();
-    this.tg.MainButton.hideProgress();
-  }
-
-  // Mock режим для тестирования вне Telegram
-  initializeMockMode() {
-    console.log('🧪 Initializing mock mode for testing');
-    
-    this.tg = {
-      version: '6.0-mock',
-      expand: () => console.log('Mock: expand()'),
-      close: () => console.log('Mock: close()'),
-      sendData: (data) => console.log('Mock: sendData', data),
-      MainButton: {
-        show: () => console.log('Mock: MainButton.show()'),
-        hide: () => console.log('Mock: MainButton.hide()'),
-        setText: (text) => console.log('Mock: MainButton.setText', text),
-        showProgress: () => console.log('Mock: MainButton.showProgress()'),
-        hideProgress: () => console.log('Mock: MainButton.hideProgress()'),
-        onClick: (callback) => console.log('Mock: MainButton.onClick', callback)
-      },
-      BackButton: {
-        show: () => console.log('Mock: BackButton.show()'),
-        hide: () => console.log('Mock: BackButton.hide()'),
-        onClick: (callback) => console.log('Mock: BackButton.onClick', callback)
-      },
-      HapticFeedback: {
-        selectionChanged: () => console.log('Mock: haptic selection'),
-        impactOccurred: (style) => console.log('Mock: haptic impact', style),
-        notificationOccurred: (type) => console.log('Mock: haptic notification', type)
-      },
-      viewportHeight: window.innerHeight,
-      onEvent: (event, callback) => console.log('Mock: onEvent', event, callback),
-      enableClosingConfirmation: () => console.log('Mock: enableClosingConfirmation()'),
-      setHeaderColor: (color) => console.log('Mock: setHeaderColor', color),
-      setBackgroundColor: (color) => console.log('Mock: setBackgroundColor', color)
-    };
-    
-    this.user = {
-      id: 'mock_user_123',
-      firstName: 'Mock',
-      lastName: 'User',
-      username: 'mock_user',
-      languageCode: 'en',
-      isPremium: false
-    };
-    
-    this.isInitialized = true;
-  }
-
-  // Интеграция с игровыми событиями
-  setupGameIntegration() {
-    if (typeof window.eventBus === 'undefined') {
-      console.warn('⚠️ EventBus not available for integration');
-      return;
-    }
-    
-    const eventBus = window.eventBus;
-    
-    // Отправляем статистику при достижениях
-    eventBus.subscribe('achievement:unlocked', () => {
-      this.sendGameStatistics();
-    });
-    
-    // Автосохранение при важных событиях
-    eventBus.subscribe('building:bought', () => {
-      this.performCloudSave();
-    });
-    
-    eventBus.subscribe('skill:bought', () => {
-      this.performCloudSave();
-    });
-    
-    eventBus.subscribe('raid:completed', () => {
-      this.performCloudSave();
-      this.sendGameStatistics();
-    });
-    
-    // Вибрация для специальных событий
-    eventBus.subscribe('critical_hit', () => {
-      this.showHapticFeedback('impact');
-    });
-    
-    eventBus.subscribe('buff_applied', () => {
-      this.showHapticFeedback('success');
-    });
-    
-    eventBus.subscribe('debuff_applied', () => {
-      this.showHapticFeedback('warning');
-    });
-    
-    console.log('🎮 Game integration set up');
-  }
-
-  // Создать быстрые действия в интерфейсе
-  createQuickActions() {
-    const quickActionsContainer = document.createElement('div');
-    quickActionsContainer.id = 'telegram-quick-actions';
-    quickActionsContainer.innerHTML = `
-      <div class="quick-actions-panel">
-        <button id="cloud-save-btn" class="quick-action-btn">☁️ Save</button>
-        <button id="cloud-load-btn" class="quick-action-btn">📥 Load</button>
-        <button id="leaderboard-btn" class="quick-action-btn">🏆 Top</button>
-        <button id="export-btn" class="quick-action-btn">📤 Export</button>
-      </div>
-    `;
-    
-    quickActionsContainer.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 1000;
-      background: rgba(0,0,0,0.1);
-      padding: 8px;
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-    `;
-    
-    document.body.appendChild(quickActionsContainer);
-    
-    // Привязываем обработчики
-    document.getElementById('cloud-save-btn').onclick = () => {
-      this.performCloudSave(true);
-      this.showHapticFeedback('success');
-    };
-    
-    document.getElementById('cloud-load-btn').onclick = () => {
-      this.loadFromCloud();
-    };
-    
-    document.getElementById('leaderboard-btn').onclick = () => {
-      this.showLeaderboard();
-    };
-    
-    document.getElementById('export-btn').onclick = () => {
-      this.exportGameData();
-    };
-  }
-
-  // Получить информацию об интеграции
-  getIntegrationInfo() {
+  // Метод для отладки
+  getDebugInfo() {
     return {
-      isInitialized: this.isInitialized,
-      isTelegram: typeof window.Telegram?.WebApp !== 'undefined',
+      isReady: this.isReady,
+      isInTelegram: this.isInTelegram,
+      isExpanded: this.isExpanded,
       user: this.user,
-      viewportHeight: this.tg?.viewportHeight || window.innerHeight,
-      version: this.tg?.version || 'unknown',
-      lastCloudSave: this.lastCloudSave,
-      cloudSaveInterval: !!this.cloudSaveInterval
+      themeParams: this.themeParams,
+      viewportHeight: this.viewportHeight,
+      colorScheme: this.colorScheme,
+      version: this.tg?.version || 'fallback'
     };
-  }
-
-  // Очистка ресурсов
-  destroy() {
-    if (this.cloudSaveInterval) {
-      clearInterval(this.cloudSaveInterval);
-      this.cloudSaveInterval = null;
-    }
-    
-    if (this.tg?.MainButton) {
-      this.tg.MainButton.hide();
-    }
-    
-    if (this.tg?.BackButton) {
-      this.tg.BackButton.hide();
-    }
-    
-    console.log('🧹 Telegram Web App integration destroyed');
   }
 }
-
-// Глобальная инициализация
-let telegramWebApp = null;
 
 // Инициализация при загрузке
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    telegramWebApp = new TelegramWebApp();
-    window.telegramWebApp = telegramWebApp;
-  });
-} else {
-  telegramWebApp = new TelegramWebApp();
-  window.telegramWebApp = telegramWebApp;
+let telegramWebAppInstance = null;
+
+function initTelegramWebApp() {
+  try {
+    if (!telegramWebAppInstance) {
+      telegramWebAppInstance = new TelegramWebApp();
+    }
+    return telegramWebAppInstance;
+  } catch (error) {
+    console.error('❌ Failed to initialize TelegramWebApp:', error);
+    return null;
+  }
 }
 
-// Экспорт для использования в модулях
-export { TelegramWebApp };
-export default telegramWebApp;
+// Автоматическая инициализация
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initTelegramWebApp);
+} else {
+  initTelegramWebApp();
+}
+
+// Экспорт для использования в других модулях
+export { TelegramWebApp, initTelegramWebApp };
+
+// Глобальный доступ (для совместимости)
+window.TelegramWebApp = TelegramWebApp;
+window.initTelegramWebApp = initTelegramWebApp;
+
+// Добавляем интеграцию с игрой
+window.addEventListener('telegramWebAppReady', (event) => {
+  console.log('🎉 Telegram WebApp integration ready!', event.detail);
+  
+  // Интеграция с игрой
+  if (window.gameCore) {
+    try {
+      // Применяем тему к игре
+      const { themeParams } = event.detail;
+      if (themeParams) {
+        // Дополнительные настройки темы для игры
+        console.log('🎨 Applying Telegram theme to game');
+      }
+    } catch (error) {
+      console.warn('⚠️ Error integrating with game:', error);
+    }
+  }
+});
+
+console.log('📱 Telegram WebApp integration script loaded');
