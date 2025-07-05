@@ -217,33 +217,31 @@ autoSave() {
   }
 
   try {
-    // ИСПРАВЛЕНИЕ: Сохраняем текущую целевую клетку
+    // Обновляем счетчик сохранений
+    if (!this.gameState._saveCount) {
+      this.gameState._saveCount = 0;
+    }
+    this.gameState._saveCount++;
+
+    // Сохраняем позицию сетки
     if (this.gridManager) {
       this.gameState.targetZone = this.gridManager.getTargetCell();
     }
-    
-    // КРИТИЧЕСКИ ВАЖНО: Принудительно сохраняем состояние рейда ПЕРЕД получением saveData
+
+    // ИСПРАВЛЕНО: Принудительно сохраняем состояние рейдов
     if (this.managers.raid && this.managers.raid.isRaidInProgress) {
-      console.log('💾 Force saving active raid state before auto-save...');
-      
-      // Обновляем все поля состояния рейда в gameState
+      console.log('💾 Saving active raid state...');
       this.gameState.raids.activeRaid = this.managers.raid.activeRaid;
       this.gameState.raids.isRaidInProgress = this.managers.raid.isRaidInProgress;
       this.gameState.raids.raidStartTime = this.managers.raid.raidStartTime;
       this.gameState.raids.raidProgress = this.managers.raid.raidProgress;
       this.gameState.raids.autoClickerWasActive = this.managers.raid.autoClickerWasActive;
-      
-      console.log('💾 Raid state updated in gameState:', {
-        raidId: this.managers.raid.activeRaid?.id,
-        progress: this.managers.raid.raidProgress,
-        startTime: this.managers.raid.raidStartTime
-      });
     }
-    
+
     const saveData = this.gameState.getSaveData();
     if (!saveData) return false;
-    
-    // ДОПОЛНИТЕЛЬНАЯ ЗАЩИТА: Добавляем резервные данные рейда в корень saveData
+
+    // Добавляем экстренный бэкап рейдов
     if (this.managers.raid && this.managers.raid.isRaidInProgress) {
       saveData.activeRaidEmergencyBackup = {
         raidId: this.managers.raid.activeRaid?.id,
@@ -255,20 +253,24 @@ autoSave() {
         savedAt: Date.now(),
         emergencyFlag: true
       };
-      console.log('💾 Emergency raid backup added to save:', saveData.activeRaidEmergencyBackup);
     }
-    
+
+    // Сохраняем локально
     const success = this.storageManager.safeSave({
       ...saveData,
       getSaveData: () => saveData
     });
-    
-    if (success) {
-      console.log('💾 Auto-save completed with raid protection');
+
+    // НОВОЕ: Уведомляем облачный менеджер сохранений
+    if (this.cloudSaveManager) {
+      this.cloudSaveManager.scheduleSave(5000);
     }
-    
+
+    if (success) {
+      console.log('💾 Auto-save completed successfully');
+    }
+
     return success;
-    
   } catch (error) {
     console.error('❌ Auto-save failed:', error);
     return false;

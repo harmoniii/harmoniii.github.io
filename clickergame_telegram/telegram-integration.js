@@ -511,6 +511,99 @@ class TelegramIntegration {
     }
   }
 
+async sendDataToBot(data) {
+    try {
+      if (!this.tg || !this.tg.sendData) {
+        console.warn('🤖 Telegram WebApp sendData not available');
+        return false;
+      }
+
+      const jsonData = JSON.stringify(data);
+      const maxSize = 4096;
+
+      if (jsonData.length > maxSize) {
+        console.warn('📦 Data too large for Telegram, splitting...');
+        
+        // Разбиваем на части
+        const chunks = this.splitData(jsonData, 3500);
+        for (let i = 0; i < chunks.length; i++) {
+          const chunkData = {
+            type: 'data_chunk',
+            chunk_index: i,
+            total_chunks: chunks.length,
+            chunk_id: `${Date.now()}_${i}`,
+            data: chunks[i],
+            timestamp: Date.now()
+          };
+          this.tg.sendData(JSON.stringify(chunkData));
+          
+          // Небольшая задержка между частями
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      } else {
+        this.tg.sendData(jsonData);
+      }
+
+      console.log('📤 Data sent to bot successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to send data to bot:', error);
+      return false;
+    }
+  }
+
+  async sendGameStatistics(gameData) {
+    // ИСПРАВЛЕНО: Более подробная статистика
+    const statsData = {
+      type: 'game_statistics',
+      user_id: this.user?.id,
+      timestamp: Date.now(),
+      stats: {
+        // Основные ресурсы
+        totalResources: Object.values(gameData.resources || {}).reduce((sum, val) => sum + (val || 0), 0),
+        resources: gameData.resources || {},
+        
+        // Прогресс
+        maxCombo: gameData.combo?.count || 0,
+        skillPoints: gameData.skillPoints || 0,
+        totalClicks: gameData.achievements?.statistics?.totalClicks || 0,
+        
+        // Постройки и навыки
+        buildingLevels: Object.values(gameData.buildings || {}).reduce((sum, building) => sum + (building.level || 0), 0),
+        skillLevels: Object.values(gameData.skills || {}).reduce((sum, skill) => sum + (skill.level || 0), 0),
+        totalBuildings: Object.values(gameData.buildings || {}).filter(b => (b.level || 0) > 0).length,
+        totalSkills: Object.values(gameData.skills || {}).filter(s => (s.level || 0) > 0).length,
+        
+        // Рейды
+        raidsCompleted: gameData.raids?.statistics?.totalRaids || 0,
+        successfulRaids: gameData.raids?.statistics?.successfulRaids || 0,
+        peopleLost: gameData.raids?.statistics?.peopleLost || 0,
+        raidSystemUnlocked: !!gameData.buildings?.watchTower?.level,
+        
+        // Достижения
+        achievementsCount: gameData.achievements?.completed?.size || gameData.achievements?.completed?.length || 0,
+        
+        // Оценка времени игры
+        playtimeEstimate: Math.floor((Object.values(gameData.resources || {}).reduce((sum, val) => sum + (val || 0), 0) / 100) || 1),
+        
+        // Дополнительные метрики
+        marketReputation: gameData.market?.reputation || 0,
+        totalPurchases: gameData.market?.purchaseHistory?.length || 0,
+        activeEffects: (gameData.buffs?.length || 0) + (gameData.debuffs?.length || 0),
+        
+        // Энергия
+        energyStats: {
+          current: gameData.energy?.current || 0,
+          max: gameData.energy?.max || 0,
+          totalConsumed: gameData.energy?.totalConsumed || 0,
+          totalRegenerated: gameData.energy?.totalRegenerated || 0
+        }
+      }
+    };
+
+    return await this.sendDataToBot(statsData);
+  }
+
   // Остальные методы обработки событий...
   handleViewportChange() {
     try {
@@ -715,7 +808,7 @@ class TelegramIntegration {
   get userLanguage() {
     return this.user?.language_code || 'en';
   }
-
+  
   getDebugInfo() {
     return {
       isReady: this.isReady,
