@@ -1,0 +1,275 @@
+{
+  "skills": [
+    {
+      "id": "goldMultiplier",
+      "name": "Golden Touch",
+      "icon": "💰",
+      "description": "Increase gold gain from clicks",
+      "category": "clicking",
+      "maxLevel": 20,
+      "baseCost": 1,
+      "costMultiplier": 1.2,
+      "effect": {
+        "type": "multiplier",
+        "target": "gold",
+        "value": 0.05,
+        "diminishing": true,
+        "diminishingFactor": 0.8
+      }
+    },
+    {
+      "id": "criticalHit",
+      "name": "Critical Strike",
+      "icon": "💥",
+      "description": "Chance for double damage on clicks",
+      "category": "clicking",
+      "maxLevel": 10,
+      "baseCost": 2,
+      "costMultiplier": 1.3,
+      "effect": {
+        "type": "chance",
+        "target": "critical",
+        "value": 0.03,
+        "cap": 0.25
+      }
+    },
+    {
+      "id": "resourceBonus",
+      "name": "Resource Finder",
+      "icon": "🔍",
+      "description": "Chance to find bonus resources when clicking",
+      "category": "clicking",
+      "maxLevel": 15,
+      "baseCost": 3,
+      "costMultiplier": 1.25,
+      "effect": {
+        "type": "chance",
+        "target": "bonus_resource",
+        "value": 0.02,
+        "cap": 0.2
+      }
+    },
+    {
+      "id": "comboProtection",
+      "name": "Steady Hand",
+      "icon": "🎯",
+      "description": "Protection against combo breaks",
+      "category": "combo",
+      "maxLevel": 3,
+      "baseCost": 8,
+      "costMultiplier": 2.5,
+      "effect": { 
+        "type": "charges", 
+        "target": "miss_protection", 
+        "value": 1 
+      }
+    },
+    {
+      "id": "comboExtension",
+      "name": "Time Stretch",
+      "icon": "⏰",
+      "description": "Extend combo timeout duration",
+      "category": "combo",
+      "maxLevel": 8,
+      "baseCost": 4,
+      "costMultiplier": 1.4,
+      "effect": {
+        "type": "duration",
+        "target": "combo_timeout",
+        "value": 800,
+        "diminishing": true,
+        "diminishingFactor": 0.7
+      }
+    },
+    {
+      "id": "comboMultiplier",
+      "name": "Combo Master",
+      "icon": "🔥",
+      "description": "Increase effectiveness of combos",
+      "category": "combo",
+      "maxLevel": 10,
+      "baseCost": 6,
+      "costMultiplier": 1.6,
+      "effect": {
+        "type": "multiplier",
+        "target": "combo",
+        "value": 0.08,
+        "cap": 0.5
+      }
+    },
+    {
+      "id": "energyEfficiency",
+      "name": "Energy Efficiency",
+      "icon": "💡",
+      "description": "Reduce energy consumption",
+      "category": "energy",
+      "maxLevel": 3,
+      "baseCost": 8,
+      "costMultiplier": 2.5,
+      "effect": {
+        "type": "reduction",
+        "target": "energy_cost",
+        "value": 0.15,
+        "cap": 0.4
+      }
+    },
+    {
+      "id": "energyMastery",
+      "name": "Energy Mastery",
+      "icon": "⚡",
+      "description": "Increase energy regeneration rate",
+      "category": "energy",
+      "maxLevel": 5,
+      "baseCost": 10,
+      "costMultiplier": 2.0,
+      "effect": {
+        "type": "multiplier",
+        "target": "energy_regen",
+        "value": 0.4,
+        "diminishing": true,
+        "diminishingFactor": 0.75
+      }
+    },
+    {
+      "id": "powerStorage",
+      "name": "Power Storage",
+      "icon": "🔋",
+      "description": "Increase maximum energy capacity",
+      "category": "energy",
+      "maxLevel": 4,
+      "baseCost": 12,
+      "costMultiplier": 2.0,
+      "effect": {
+        "type": "bonus",
+        "target": "max_energy",
+        "value": 25,
+        "diminishing": true,
+        "diminishingFactor": 0.8
+      }
+    },
+    {
+      "id": "autoClicker",
+      "name": "Auto Clicker",
+      "icon": "🤖",
+      "description": "Automatically click the target zone",
+      "category": "special",
+      "maxLevel": 3,
+      "baseCost": 30,
+      "costMultiplier": 4.0,
+      "effect": {
+        "type": "automation",
+        "target": "clicking",
+        "value": 1,
+        "interval": 15000
+      }
+    },
+    {
+      "id": "zonePreview",
+      "name": "Future Sight",
+      "icon": "👁️",
+      "description": "Preview the next target zone",
+      "category": "special",
+      "maxLevel": 1,
+      "baseCost": 25,
+      "costMultiplier": 1.0,
+      "effect": { 
+        "type": "preview", 
+        "target": "zone", 
+        "value": 1 
+      }
+    },
+    {
+      "id": "buffDuration",
+      "name": "Buff Duration",
+      "icon": "⏱️",
+      "description": "Increase duration of positive effects",
+      "category": "effects",
+      "maxLevel": 5,
+      "baseCost": 15,
+      "costMultiplier": 2.0,
+      "effect": {
+        "type": "duration",
+        "target": "buffs",
+        "value": 0.25,
+        "diminishing": true,
+        "diminishingFactor": 0.85,
+        "cap": 1.0
+      }
+    },
+    {
+      "id": "debuffResistance",
+      "name": "Debuff Resistance",
+      "icon": "🛡️",
+      "description": "Reduce duration of negative effects",
+      "category": "effects",
+      "maxLevel": 4,
+      "baseCost": 20,
+      "costMultiplier": 2.5,
+      "effect": {
+        "type": "reduction",
+        "target": "debuffs",
+        "value": 0.2,
+        "diminishing": true,
+        "diminishingFactor": 0.8,
+        "cap": 0.6
+      }
+    },
+    {
+      "id": "treasureHunter",
+      "name": "Treasure Hunter",
+      "icon": "💰",
+      "description": "Chance to find treasure chests with rare resources",
+      "category": "special",
+      "maxLevel": 8,
+      "baseCost": 25,
+      "costMultiplier": 1.8,
+      "effect": {
+        "type": "chance",
+        "target": "treasure",
+        "value": 0.015,
+        "cap": 0.1
+      }
+    },
+    {
+      "id": "abundance",
+      "name": "Abundance",
+      "icon": "🌟",
+      "description": "All resource sources work more efficiently",
+      "category": "resources",
+      "maxLevel": 6,
+      "baseCost": 30,
+      "costMultiplier": 2.2,
+      "effect": {
+        "type": "multiplier",
+        "target": "all_production",
+        "value": 0.15,
+        "diminishing": true,
+        "diminishingFactor": 0.9,
+        "cap": 0.75
+      }
+    },
+    {
+      "id": "comboShield",
+      "name": "Combo Shield",
+      "icon": "🛡️",
+      "description": "First few misses in combo do not break it",
+      "category": "combo",
+      "maxLevel": 3,
+      "baseCost": 40,
+      "costMultiplier": 3.0,
+      "effect": {
+        "type": "charges",
+        "target": "combo_protection",
+        "value": 1
+      }
+    }
+  ],
+  "categories": {
+    "clicking": "Clicking Skills",
+    "combo": "Combo Skills",
+    "resources": "Resource Skills",
+    "effects": "Effect Skills",
+    "special": "Special Skills",
+    "energy": "Energy Skills"
+  }
+}
