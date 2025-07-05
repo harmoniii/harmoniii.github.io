@@ -4,87 +4,38 @@ import { getResourceEmoji } from '../config/ResourceConfig.js';
 import { dataLoader } from '../utils/DataLoader.js';
 
 export class RaidManager extends CleanupMixin {
-    constructor(gameState) {
-        super();
-        this.gameState = gameState;
-        this.activeRaid = null;
-        this.raidProgress = 0;
-        this.raidStartTime = 0;
-        this.isRaidInProgress = false;
-        this.autoClickerWasActive = false;
-        this.raidDefs = [];
-        this.specialRewards = {};
-        this.difficultyInfo = {};
-        this.isDataLoaded = false;
-        this.initializeRaidState();
-        this.bindEvents();
-        this.loadRaidData().then(() => {
-            this.restoreRaidStateFromSave();
-        });
-        console.log('⚔️ RaidManager initialized');
-    }
+  constructor(gameState) {
+    super();
+    this.gameState = gameState;
+    this.activeRaid = null;
+    this.raidProgress = 0;
+    this.raidStartTime = 0;
+    this.isRaidInProgress = false;
+    this.autoClickerWasActive = false;
+    this.raidDefs = [];
+    this.specialRewards = {};
+    this.difficultyInfo = {};
+    this.isDataLoaded = false;
+    this.initializeRaidState();
+    this.bindEvents();
+    this.loadRaidData().then(() => {
+      this.restoreRaidStateFromSave();
+    });
+    console.log('⚔️ RaidManager initialized');
+  }
 
-    async loadRaidData() {
-        try {
-            const data = await dataLoader.loadRaidsData();
-            if (dataLoader.validateRaidsData(data)) {
-                this.raidDefs = data.raids;
-                this.specialRewards = data.specialRewards || {};
-                this.difficultyInfo = data.difficulties || {};
-                this.isDataLoaded = true;
-                console.log(`✅ RaidManager: Loaded ${this.raidDefs.length} raid definitions`);
-            } else {
-                throw new Error('Raid data validation failed');
-            }
-        } catch (error) {
-            console.error('❌ Failed to load raid data:', error);
-            this.setupFallbackRaids();
-        }
+  async loadRaidData() {
+    const data = await dataLoader.loadRaidsData();
+    if (!dataLoader.validateRaidsData(data)) {
+      throw new Error('Raid data validation failed');
     }
-
-    setupFallbackRaids() {
-        console.warn('⚠️ Using fallback raid definitions');
-        this.raidDefs = [
-            {
-                id: 'city_ruins',
-                name: '🏚️ City Ruins',
-                description: 'Explore the remnants of a once-great city for resources and technology',
-                difficulty: 'beginner',
-                unlockCondition: { building: 'watchTower', level: 1 },
-                requirements: {
-                    people: 4,
-                    food: 12,
-                    water: 8
-                },
-                duration: 120000,
-                riskPercentage: 20,
-                rewards: {
-                    guaranteed: [
-                        { resource: 'wood', min: 2, max: 5 },
-                        { resource: 'stone', min: 2, max: 5 },
-                        { resource: 'iron', min: 2, max: 5 }
-                    ],
-                    chance: [
-                        {
-                            probability: 0.15,
-                            reward: { resource: 'science', amount: 2 },
-                            description: 'Found ancient technology'
-                        }
-                    ]
-                },
-                category: 'exploration'
-            }
-        ];
-        this.specialRewards = {};
-        this.difficultyInfo = {
-            beginner: {
-                name: 'Beginner',
-                color: '#28a745',
-                description: 'Low risk expeditions to nearby areas'
-            }
-        };
-        this.isDataLoaded = true;
-    }
+    
+    this.raidDefs = data.raids;
+    this.specialRewards = data.specialRewards || {};
+    this.difficultyInfo = data.difficulties || {};
+    this.isDataLoaded = true;
+    console.log(`✅ RaidManager: Loaded ${this.raidDefs.length} raid definitions`);
+  }
 
     initializeRaidState() {
         if (!this.gameState.raids) {

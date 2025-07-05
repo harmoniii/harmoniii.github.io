@@ -13,73 +13,41 @@ export const SKILL_CATEGORIES = {
 };
 
 export class SkillManager extends CleanupMixin {
-    constructor(gameState) {
-        super();
-        this.gameState = gameState;
-        this.generationIntervals = new Map();
-        this.autoClickerInterval = null;
-        this.skillDefs = [];
-        this.skillCategories = {};
-        this.isDataLoaded = false;
-        this.initializeSkills();
-    }
+  constructor(gameState) {
+    super();
+    this.gameState = gameState;
+    this.generationIntervals = new Map();
+    this.autoClickerInterval = null;
+    this.skillDefs = [];
+    this.skillCategories = {};
+    this.isDataLoaded = false;
+    this.initializeSkills();
+  }
 
-    async initializeSkills() {
-        try {
-            await this.loadSkillData();
-            this.setupGameStateSkills();
-            this.validateSkillPoints();
-            this.startGeneration();
-            console.log(`✅ SkillManager: Loaded ${this.skillDefs.length} skill definitions`);
-        } catch (error) {
-            console.error('❌ SkillManager initialization failed:', error);
-            this.setupFallbackSkills();
-        }
+  async initializeSkills() {
+    try {
+      await this.loadSkillData();
+      this.setupGameStateSkills();
+      this.validateSkillPoints();
+      this.startGeneration();
+      console.log(`✅ SkillManager: Loaded ${this.skillDefs.length} skill definitions`);
+    } catch (error) {
+      console.error('❌ SkillManager initialization failed:', error);
+      throw new Error(`SkillManager failed to initialize: ${error.message}`);
     }
+  }
 
-    async loadSkillData() {
-        try {
-            const data = await dataLoader.loadSkillsData();
-            if (dataLoader.validateSkillsData(data)) {
-                this.skillDefs = data.skills;
-                this.skillCategories = data.categories;
-                this.isDataLoaded = true;
-                console.log('✅ Skill data loaded and validated');
-            } else {
-                throw new Error('Skill data validation failed');
-            }
-        } catch (error) {
-            console.error('❌ Failed to load skill data:', error);
-            throw error;
-        }
+  async loadSkillData() {
+    const data = await dataLoader.loadSkillsData();
+    if (!dataLoader.validateSkillsData(data)) {
+      throw new Error('Skill data validation failed');
     }
-
-    setupFallbackSkills() {
-        console.warn('⚠️ Using fallback skill definitions');
-        this.skillDefs = [
-            {
-                id: 'goldMultiplier',
-                name: 'Golden Touch',
-                icon: '💰',
-                description: 'Increase gold gain from clicks',
-                category: 'clicking',
-                maxLevel: 20,
-                baseCost: 1,
-                costMultiplier: 1.2,
-                effect: {
-                    type: 'multiplier',
-                    target: 'gold',
-                    value: 0.05,
-                    diminishing: true,
-                    diminishingFactor: 0.8
-                }
-            }
-        ];
-        this.skillCategories = { clicking: 'Clicking Skills' };
-        this.isDataLoaded = true;
-        this.setupGameStateSkills();
-        this.startGeneration();
-    }
+    
+    this.skillDefs = data.skills;
+    this.skillCategories = data.categories;
+    this.isDataLoaded = true;
+    console.log('✅ Skill data loaded and validated');
+  }
 
     setupGameStateSkills() {
         if (!this.gameState.skills) {
