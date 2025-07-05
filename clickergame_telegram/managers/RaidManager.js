@@ -666,4 +666,329 @@ export class RaidManager extends CleanupMixin {
         if (this.gameState.raids) {
             this.gameState.raids.activeRaid = null;
             this.gameState.raids.isRaidInProgress = false;
-            this.gameState.raids.raidStartTime = 0;
+            this.gameState.raids.raidProgress = 0;
+            this.gameState.raids.autoClickerWasActive = false;
+            this.saveRaidStateToGameState();
+            this.blockGameField(false);
+            this.resumeAutoClicker();}
+
+    eventBus.emit(GameEvents.RAID_COMPLETED, {
+        raid: this.activeRaid,
+        timestamp: Date.now()
+    });
+
+    console.log(`✅ Raid ended: ${this.activeRaid ? this.activeRaid.name : 'Unknown'}`);
+    this.activeRaid = null;
+}
+
+cancelRaid() {
+    if (!this.isRaidInProgress || !this.activeRaid) {
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ No active raid to cancel');
+        return false;
+    }
+
+    console.log(`⚔️ Cancelling raid: ${this.activeRaid.name}`);
+
+    try {
+        // Возвращаем 50% ресурсов
+        const requirements = this.activeRaid.requirements;
+        Object.entries(requirements).forEach(([resource, amount]) => {
+            const refundAmount = Math.floor(amount * 0.5);
+            this.gameState.resources[resource] = 
+                (this.gameState.resources[resource] || 0) + refundAmount;
+        });
+
+        // Обновляем статистику
+        this.gameState.raids.statistics.totalRaids++;
+
+        this.endRaid();
+
+        eventBus.emit(GameEvents.NOTIFICATION, '⚔️ Raid cancelled - 50% resources refunded');
+        eventBus.emit(GameEvents.RAID_CANCELLED, {
+            raid: this.activeRaid,
+            timestamp: Date.now()
+        });
+
+        eventBus.emit(GameEvents.RESOURCE_CHANGED);
+
+        console.log('✅ Raid cancelled successfully');
+        return true;
+    } catch (error) {
+        console.error('❌ Error cancelling raid:', error);
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ Failed to cancel raid');
+        return false;
+    }
+}
+
+getRaidInfo(raidId) {
+    const raidDef = this.getRaidDefinition(raidId);
+    if (!raidDef) return null;
+
+    const canStartResult = this.canStartRaid(raidId);
+    const completedCount = this.gameState.raids.completed.filter(
+        completed => completed.raidId === raidId
+    ).length;
+
+    return {
+        ...raidDef,
+        canStart: canStartResult.can,
+        canStartReason: canStartResult.reason,
+        durationText: this.formatDuration(raidDef.duration),
+        completedCount: completedCount
+    };
+}
+
+formatDuration(milliseconds) {
+    const minutes = Math.floor(milliseconds / 60000);
+    const seconds = Math.floor((milliseconds % 60000) / 1000);
+    if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    }
+    return `${seconds}s`;
+}
+
+getCurrentRaidStatus() {
+    if (!this.isRaidInProgress || !this.activeRaid) {
+        return { inProgress: false };
+    }
+
+    const now = Date.now();
+    const elapsed = now - this.raidStartTime;
+    const remaining = Math.max(0, this.activeRaid.duration - elapsed);
+    const progress = Math.min(100, (elapsed / this.activeRaid.duration) * 100);
+
+    return {
+        inProgress: true,
+        raid: this.activeRaid,
+        progress: progress,
+        timeRemaining: remaining,
+        timeRemainingText: this.formatDuration(remaining),
+        startTime: this.raidStartTime,
+        autoClickerWasActive: this.autoClickerWasActive
+    };
+}
+
+getRaidStatistics() {
+    const stats = this.gameState.raids.statistics;
+    const successRate = stats.totalRaids > 0 ? 
+        `${Math.round((stats.successfulRaids / stats.totalRaids) * 100)}%` : '0%';
+
+    return {
+        totalRaids: stats.totalRaids,
+        successfulRaids: stats.successfulRaids,
+        successRate: successRate,
+        peopleLost: stats.peopleLost,
+        resourcesGained: { ...stats.resourcesGained }
+    };
+}
+
+getSpecialRewards() {
+    const rewards = [];
+    Object.entries(this.gameState.raids.specialRewards).forEach(([rewardId, count]) => {
+        if (count > 0) {
+            const rewardDef = this.specialRewards[rewardId];
+            rewards.push({
+                id: rewardId,
+                count: count,
+                name: rewardDef ? rewardDef.name : rewardId,
+                icon: rewardDef ? rewardDef.icon : '🎁',
+                definition: rewardDef
+            });
+        }
+    });
+    return rewards;
+}
+
+useSpecialReward(rewardId) {
+    const available = this.gameState.raids.specialRewards[rewardId] || 0;
+    if (available <= 0) {
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ No rewards of this type available');
+        return false;
+    }
+
+    const rewardDef = this.specialRewards[rewardId];
+    if (!rewardDef) {
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ Unknown reward type');
+        return false;
+    }
+
+    try {
+        // Применяем эффект награды
+        this.applySpecialRewardEffect(rewardId, rewardDef);
+
+        // Уменьшаем количество
+        this.gameState.raids.specialRewards[rewardId]--;
+        if (this.gameState.raids.specialRewards[rewardId] <= 0) {
+            delete this.gameState.raids.specialRewards[rewardId];
+        }
+
+        eventBus.emit(GameEvents.NOTIFICATION, `✨ Used: ${rewardDef.name}`);
+        return true;
+    } catch (error) {
+        console.error('❌ Error using special reward:', error);
+        eventBus.emit(GameEvents.NOTIFICATION, '❌ Failed to use reward');
+        return false;
+    }
+}
+
+applySpecialRewardEffect(rewardId, rewardDef) {
+    switch (rewardId) {
+        case 'ancient_blueprint':
+            // 25% скидка на следующее улучшение здания
+            this.gameState.tempBuildingDiscount = {
+                discount: 0.25,
+                uses: 1
+            };
+            eventBus.emit(GameEvents.NOTIFICATION, '📜 Ancient Blueprint: 25% building discount!');
+            break;
+        
+        case 'energy_crystal':
+            // Восстанавливает всю энергию
+            if (this.gameState.energyManager) {
+                this.gameState.energyManager.restoreEnergy(1000, 'energy_crystal');
+            }
+            break;
+        
+        case 'skill_tome':
+            // Дает 5 очков навыков
+            if (this.gameState.skillManager) {
+                this.gameState.skillManager.addSkillPoints(5);
+            }
+            break;
+        
+        default:
+            console.warn('Unknown special reward effect:', rewardId);
+    }
+}
+
+isRaidSystemUnlocked() {
+    const watchTower = this.gameState.buildings?.watchTower;
+    return watchTower && watchTower.level >= 1;
+}
+
+validateRaidData() {
+    if (!this.gameState.raids) {
+        this.gameState.raids = {
+            completed: [],
+            specialRewards: {},
+            statistics: {
+                totalRaids: 0,
+                successfulRaids: 0,
+                resourcesGained: {},
+                peopleLost: 0
+            },
+            activeRaid: null,
+            isRaidInProgress: false,
+            raidStartTime: 0,
+            raidProgress: 0,
+            autoClickerWasActive: false
+        };
+    }
+
+    // Валидация статистики
+    const stats = this.gameState.raids.statistics;
+    stats.totalRaids = Math.max(0, stats.totalRaids || 0);
+    stats.successfulRaids = Math.max(0, stats.successfulRaids || 0);
+    stats.peopleLost = Math.max(0, stats.peopleLost || 0);
+    
+    if (!stats.resourcesGained || typeof stats.resourcesGained !== 'object') {
+        stats.resourcesGained = {};
+    }
+
+    // Валидация завершенных рейдов
+    if (!Array.isArray(this.gameState.raids.completed)) {
+        this.gameState.raids.completed = [];
+    }
+
+    // Валидация специальных наград
+    if (!this.gameState.raids.specialRewards || typeof this.gameState.raids.specialRewards !== 'object') {
+        this.gameState.raids.specialRewards = {};
+    }
+}
+
+getDebugInfo() {
+    return {
+        isDataLoaded: this.isDataLoaded,
+        raidDefsCount: this.raidDefs.length,
+        specialRewardsCount: Object.keys(this.specialRewards).length,
+        isRaidInProgress: this.isRaidInProgress,
+        activeRaidId: this.activeRaid?.id || null,
+        gameStateRaidsExists: !!this.gameState.raids,
+        raidSystemUnlocked: this.isRaidSystemUnlocked(),
+        totalCompletedRaids: this.gameState.raids?.completed?.length || 0,
+        currentRaidStatus: this.getCurrentRaidStatus()
+    };
+}
+
+async reloadRaidData() {
+    try {
+        console.log('🔄 Reloading raid data...');
+        dataLoader.clearCache();
+        await this.loadRaidData();
+        console.log('✅ Raid data reloaded successfully');
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to reload raid data:', error);
+        return false;
+    }
+}
+
+exportRaidStatistics() {
+    return {
+        statistics: this.getRaidStatistics(),
+        specialRewards: this.getSpecialRewards(),
+        completedRaids: this.gameState.raids.completed.map(raid => ({
+            raidId: raid.raidId,
+            timestamp: raid.timestamp,
+            success: raid.result?.success || false,
+            resourcesGained: raid.result?.resourcesGained || {},
+            peopleLost: raid.result?.peopleLost || 0
+        })),
+        systemUnlocked: this.isRaidSystemUnlocked(),
+        currentStatus: this.getCurrentRaidStatus()
+    };
+}
+
+// Методы для интеграции с другими системами
+pauseForRaid() {
+    console.log('⚔️ Pausing other systems for raid...');
+    // Уведомляем систему автокликера о паузе
+    eventBus.emit(GameEvents.RAID_AUTOCLICKER_PAUSE);
+}
+
+resumeAfterRaid() {
+    console.log('⚔️ Resuming systems after raid...');
+    // Уведомляем систему автокликера о возобновлении
+    eventBus.emit(GameEvents.RAID_AUTOCLICKER_RESUME);
+}
+
+// Методы для восстановления состояния
+emergencyEndRaid() {
+    console.log('🚨 Emergency raid termination...');
+    if (this.isRaidInProgress) {
+        this.blockGameField(false);
+        this.resumeAutoClicker();
+        this.isRaidInProgress = false;
+        this.activeRaid = null;
+        this.raidProgress = 0;
+        this.raidStartTime = 0;
+        this.autoClickerWasActive = false;
+        this.saveRaidStateToGameState();
+        console.log('🚨 Emergency raid termination completed');
+    }
+}
+
+destroy() {
+    console.log('🧹 RaidManager cleanup started');
+    
+    if (this.isRaidInProgress) {
+        console.log('⚔️ Active raid detected during cleanup, ending gracefully...');
+        this.emergencyEndRaid();
+    }
+
+    // Очищаем все таймеры и интервалы
+    super.destroy();
+    
+    console.log('✅ RaidManager destroyed');
+}
+}
