@@ -1,0 +1,267 @@
+{
+  "raids": [
+    {
+      "id": "city_ruins",
+      "name": "🏚️ City Ruins",
+      "description": "Explore the remnants of a once-great city for resources and technology",
+      "difficulty": "beginner",
+      "unlockCondition": { "building": "watchTower", "level": 1 },
+      "requirements": {
+        "people": 4,
+        "food": 12,
+        "water": 8
+      },
+      "duration": 120000,
+      "riskPercentage": 20,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "wood", "min": 2, "max": 5 },
+          { "resource": "stone", "min": 2, "max": 5 },
+          { "resource": "iron", "min": 2, "max": 5 }
+        ],
+        "chance": [
+          {
+            "probability": 0.15,
+            "reward": { "resource": "science", "amount": 2 },
+            "description": "Found ancient technology"
+          },
+          {
+            "probability": 0.05,
+            "reward": { "type": "special", "id": "ancient_blueprint" },
+            "description": "Discovered Ancient Blueprint"
+          }
+        ]
+      },
+      "category": "exploration"
+    },
+    {
+      "id": "abandoned_farm",
+      "name": "🌾 Abandoned Farm",
+      "description": "Search through the ruins of an old agricultural facility for seeds and tools",
+      "difficulty": "beginner",
+      "unlockCondition": { "building": "watchTower", "level": 1 },
+      "requirements": {
+        "people": 3,
+        "food": 8,
+        "water": 10
+      },
+      "duration": 90000,
+      "riskPercentage": 15,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "food", "min": 5, "max": 8 },
+          { "resource": "wood", "min": 3, "max": 6 }
+        ],
+        "chance": [
+          {
+            "probability": 0.25,
+            "reward": { "resource": "water", "amount": 5 },
+            "description": "Found underground water source"
+          },
+          {
+            "probability": 0.10,
+            "reward": { "type": "special", "id": "fertile_seeds" },
+            "description": "Discovered rare seeds"
+          }
+        ]
+      },
+      "category": "resource_gathering"
+    },
+    {
+      "id": "old_quarry",
+      "name": "⛏️ Old Quarry",
+      "description": "Scavenge stone and minerals from an abandoned mining site",
+      "difficulty": "beginner",
+      "unlockCondition": { "building": "watchTower", "level": 1 },
+      "requirements": {
+        "people": 5,
+        "food": 10,
+        "iron": 2
+      },
+      "duration": 150000,
+      "riskPercentage": 25,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "stone", "min": 6, "max": 10 },
+          { "resource": "iron", "min": 1, "max": 3 }
+        ],
+        "chance": [
+          {
+            "probability": 0.20,
+            "reward": { "resource": "gold", "amount": 15 },
+            "description": "Found precious metal veins"
+          },
+          {
+            "probability": 0.08,
+            "reward": { "type": "special", "id": "mining_tools" },
+            "description": "Recovered mining equipment"
+          }
+        ]
+      },
+      "category": "resource_gathering"
+    },
+    {
+      "id": "corrupted_metropolis",
+      "name": "🌆 Corrupted Metropolis",
+      "description": "Venture into the chaos-twisted heart of a fallen megacity where reality bends",
+      "difficulty": "advanced",
+      "unlockCondition": { "building": "watchTower", "level": 3 },
+      "requirements": {
+        "people": 25,
+        "food": 80,
+        "water": 60,
+        "iron": 25,
+        "science": 15,
+        "faith": 10
+      },
+      "duration": 480000,
+      "riskPercentage": 45,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "science", "min": 25, "max": 40 },
+          { "resource": "iron", "min": 30, "max": 50 },
+          { "resource": "skillPoints", "min": 5, "max": 8 }
+        ],
+        "chance": [
+          {
+            "probability": 0.35,
+            "reward": { "resource": "gold", "amount": 150 },
+            "description": "Looted corporate vaults"
+          },
+          {
+            "probability": 0.25,
+            "reward": { "type": "special", "id": "chaos_crystal" },
+            "description": "Crystallized chaos energy"
+          },
+          {
+            "probability": 0.15,
+            "reward": { "type": "special", "id": "master_blueprint" },
+            "description": "Pre-war construction plans"
+          }
+        ]
+      },
+      "category": "chaos_expedition"
+    },
+    {
+      "id": "chaos_nexus",
+      "name": "🌪️ Chaos Nexus",
+      "description": "Assault the epicenter of chaos itself - where reality breaks down completely",
+      "difficulty": "impossible",
+      "unlockCondition": { "building": "watchTower", "level": 4 },
+      "requirements": {
+        "people": 50,
+        "food": 200,
+        "water": 150,
+        "iron": 80,
+        "science": 50,
+        "faith": 100,
+        "chaos": 25
+      },
+      "duration": 900000,
+      "riskPercentage": 75,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "skillPoints", "min": 25, "max": 40 },
+          { "resource": "science", "min": 60, "max": 100 },
+          { "resource": "chaos", "min": -50, "max": -30 }
+        ],
+        "chance": [
+          {
+            "probability": 0.50,
+            "reward": { "resource": "gold", "amount": 500 },
+            "description": "Chaos-forged treasures"
+          },
+          {
+            "probability": 0.30,
+            "reward": { "type": "special", "id": "reality_anchor" },
+            "description": "Device that stabilizes reality"
+          },
+          {
+            "probability": 0.15,
+            "reward": { "type": "special", "id": "chaos_mastery" },
+            "description": "Understanding of chaos itself"
+          }
+        ]
+      },
+      "category": "ultimate"
+    }
+  ],
+  "specialRewards": {
+    "ancient_blueprint": {
+      "name": "Ancient Blueprint",
+      "description": "10% discount on next building upgrade",
+      "icon": "📜",
+      "effect": { "type": "building_discount", "value": 0.1, "uses": 1 }
+    },
+    "fertile_seeds": {
+      "name": "Fertile Seeds",
+      "description": "Farms produce 25% more food for 1 hour",
+      "icon": "🌱",
+      "effect": { "type": "production_boost", "target": "farm", "value": 0.25, "duration": 3600000 }
+    },
+    "mining_tools": {
+      "name": "Mining Tools",
+      "description": "Quarries and mines produce 20% more for 30 minutes",
+      "icon": "⛏️",
+      "effect": { "type": "production_boost", "target": "mining", "value": 0.2, "duration": 1800000 }
+    },
+    "chaos_crystal": {
+      "name": "Chaos Crystal",
+      "description": "Can convert 10 chaos into 50 science",
+      "icon": "💎",
+      "effect": { "type": "converter", "from": "chaos", "to": "science", "ratio": 5, "uses": 3 }
+    },
+    "master_blueprint": {
+      "name": "Master Blueprint",
+      "description": "50% discount on all buildings for next hour",
+      "icon": "📐",
+      "effect": { "type": "global_discount", "target": "buildings", "value": 0.5, "duration": 3600000 }
+    },
+    "reality_anchor": {
+      "name": "Reality Anchor",
+      "description": "Prevents all negative effects for 24 hours",
+      "icon": "⚓",
+      "effect": { "type": "immunity", "target": "all_debuffs", "duration": 86400000 }
+    },
+    "chaos_mastery": {
+      "name": "Chaos Mastery",
+      "description": "Can control chaos effects instead of being harmed by them",
+      "icon": "🌀",
+      "effect": { "type": "chaos_control", "permanent": true }
+    }
+  },
+  "difficulties": {
+    "beginner": {
+      "name": "Beginner",
+      "color": "#28a745",
+      "description": "Low risk expeditions to nearby areas",
+      "riskRange": "10-25%",
+      "duration": "1.5-3 minutes",
+      "requirements": "Basic resources and small teams"
+    },
+    "intermediate": {
+      "name": "Intermediate",
+      "color": "#ffc107",
+      "description": "Moderate risk raids to dangerous zones",
+      "riskRange": "25-35%",
+      "duration": "4-6 minutes",
+      "requirements": "Significant resources and larger teams"
+    },
+    "advanced": {
+      "name": "Advanced",
+      "color": "#dc3545",
+      "description": "High risk assaults on heavily fortified or corrupted areas",
+      "riskRange": "40-55%",
+      "duration": "7-10 minutes",
+      "requirements": "Substantial investment and experienced teams"
+    },
+    "impossible": {
+      "name": "Impossible",
+      "color": "#6f42c1",
+      "description": "Legendary expeditions that defy reality itself",
+      "riskRange": "65-85%",
+      "duration": "12-25 minutes",
+      "requirements": "Massive resources and ultimate preparation"
+    }
+  }
+}

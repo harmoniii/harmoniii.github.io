@@ -1,0 +1,170 @@
+{
+  "buildings": [
+    {
+      "id": "sawmill",
+      "img": "🪚",
+      "name": "Sawmill",
+      "description": "Last surviving woodworking workshop from the Old World. Each cut brings hope, transforming fallen trees into the building blocks of a new civilization. Survivors work tirelessly, knowing that every plank is a step towards reconstruction. Produces wood automatically",
+      "price": { "wood": 0, "stone": 10, "iron": 5 },
+      "production": { "resource": "wood", "amount": 1, "interval": 10000 },
+      "maxLevel": 10,
+      "category": "production"
+    },
+    {
+      "id": "quarry",
+      "img": "⛏️",
+      "name": "Stone Quarry",
+      "description": "A massive excavation site where the last stonemasons extract precious building materials from the scarred earth. Each stone pulled from the ground is a testament to human resilience and the dream of rebuilding what was lost. Mines stone continuously",
+      "price": { "wood": 15, "stone": 0, "iron": 10 },
+      "production": { "resource": "stone", "amount": 1, "interval": 12000 },
+      "maxLevel": 10,
+      "category": "production"
+    },
+    {
+      "id": "farm",
+      "img": "🌾",
+      "name": "Farm",
+      "description": "A carefully cultivated patch of land, reclaimed from the wasteland. Here, determined farmers fight against environmental chaos, growing food that sustains the last remnants of humanity. Every seed planted is an act of defiance against total extinction. Grows food for your people",
+      "price": { "wood": 20, "stone": 5, "water": 10 },
+      "production": { "resource": "food", "amount": 2, "interval": 8000 },
+      "maxLevel": 15,
+      "category": "production"
+    },
+    {
+      "id": "well",
+      "img": "🪣",
+      "name": "Water Well",
+      "description": "More than just a source of water - a lifeline in a world where clean water is more precious than gold. Dug by hand through layers of debris and hope, this well represents survival against all odds. Provides fresh water",
+      "price": { "wood": 10, "stone": 25, "iron": 5 },
+      "production": { "resource": "water", "amount": 1, "interval": 6000 },
+      "maxLevel": 8,
+      "category": "production"
+    },
+    {
+      "id": "mine",
+      "img": "⚒️",
+      "name": "Iron Mine",
+      "description": "Deep within the scarred mountains, brave miners extract the metal that will forge new tools, new weapons, and new hope. Each piece of iron represents potential - the potential to rebuild, to defend, to survive. Extracts iron ore",
+      "price": { "wood": 30, "stone": 20, "people": 5 },
+      "production": { "resource": "iron", "amount": 1, "interval": 15000 },
+      "maxLevel": 12,
+      "category": "production"
+    },
+    {
+      "id": "house",
+      "img": "🏠",
+      "name": "House",
+      "description": "Not just a shelter, but a beacon of hope. Each new house signals the gradual rebirth of community, attracting survivors who dream of something more than mere survival. Here, humanity begins to heal. Attracts new people",
+      "price": { "wood": 25, "stone": 15, "food": 10 },
+      "production": { "resource": "people", "amount": 1, "interval": 30000 },
+      "maxLevel": 20,
+      "category": "population"
+    },
+    {
+      "id": "generator",
+      "img": "⚡",
+      "name": "Generator",
+      "description": "A salvaged piece of pre-catastrophe technology, carefully restored to provide energy in a world of darkness. Its hum is a promise - civilization can be restarted, one spark at a time. Produces energy and increases energy capacity.",
+      "price": { "iron": 20, "stone": 15, "people": 3 },
+      "production": { "resource": "energy", "amount": 2, "interval": 10000 },
+      "energyBonus": {
+        "maxEnergy": 10,
+        "regenBonus": 0.5
+      },
+      "maxLevel": 10,
+      "category": "energy"
+    },
+    {
+      "id": "laboratory",
+      "img": "🔬",
+      "name": "Laboratory",
+      "description": "The crucible of human knowledge, where surviving scientists piece together lost technologies. Every discovery is a weapon against chaos, every experiment a step towards understanding the cataclysm that nearly destroyed everything. Researches new technologies",
+      "price": { "iron": 30, "people": 5 },
+      "production": { "resource": "science", "amount": 1, "interval": 20000 },
+      "maxLevel": 10,
+      "category": "advanced"
+    },
+    {
+      "id": "temple",
+      "img": "⛪",
+      "name": "Temple",
+      "description": "A sanctuary of spiritual resistance against the encroaching chaos. More than a religious site, it's a place of collective healing, where faith is both a shield and a weapon against the destructive energies that threaten to consume the world. Increases faith",
+      "price": { "wood": 40, "stone": 50, "gold": 100 },
+      "production": { "resource": "faith", "amount": 1, "interval": 25000 },
+      "maxLevel": 5,
+      "category": "special"
+    },
+    {
+      "id": "boneyard",
+      "img": "🪦",
+      "name": "Boneyard",
+      "description": "A hallowed ground of bone, a spiritual redoubt against the storm of chaos. Here, the veneration of mortality transforms relics of the past into both shield and conduit for faith, draining corruption from the world. Increases chaos",
+      "price": { "stone": 50, "wood": 50, "iron": 100, "people": 1 },
+      "production": { "resource": "chaos", "amount": 1, "interval": 30000 },
+      "maxLevel": 5,
+      "category": "special"
+    },
+    {
+      "id": "fortress",
+      "img": "🏰",
+      "name": "Fortress",
+      "description": "The last line of defense against the unknown threats that lurk beyond the reconstructed borders. Part shelter, part beacon, this fortress represents humanity's unbreakable will to protect what has been rebuilt at such great cost. Provides protection and order",
+      "price": { "stone": 100, "iron": 50, "people": 10 },
+      "special": {
+        "effect": "protection",
+        "description": "Reduces debuff duration by 20%",
+        "value": 0.2
+      },
+      "maxLevel": 3,
+      "category": "special"
+    },
+    {
+      "id": "watchTower",
+      "img": "🗼",
+      "name": "Watch Tower",
+      "description": "A tall fortified structure that serves as both lookout post and command center for expeditions into the wasteland. From its heights, scouts can identify potential raid targets and coordinate dangerous missions to recover lost resources and technology. Unlocks raid system",
+      "price": { "wood": 50, "stone": 80, "iron": 30, "people": 8 },
+      "special": {
+        "effect": "unlock_raids",
+        "description": "Unlocks the raid system for expeditions",
+        "value": 1
+      },
+      "maxLevel": 5,
+      "category": "military"
+    },
+    {
+      "id": "battery",
+      "img": "🔋",
+      "name": "Energy Battery",
+      "description": "Advanced energy storage systems recovered from the ruins of the old world. These batteries can store excess energy beyond normal capacity, ensuring no power is wasted in the struggle for survival.",
+      "price": { "iron": 30, "energy": 20, "science": 5 },
+      "energyBonus": {
+        "maxEnergy": 25,
+        "overflow": true
+      },
+      "maxLevel": 8,
+      "category": "energy"
+    },
+    {
+      "id": "solarPanel",
+      "img": "☀️",
+      "name": "Solar Panel",
+      "description": "Gleaming photovoltaic cells that capture the life-giving energy of the sun, converting light into hope. A symbol of humanities ability to harness nature for reconstruction.",
+      "price": { "iron": 25, "science": 10, "gold": 500 },
+      "energyBonus": {
+        "passiveRegen": 0.5
+      },
+      "maxLevel": 5,
+      "category": "energy"
+    }
+  ],
+  "categories": {
+    "production": "🏭 Production",
+    "population": "👥 Population",
+    "advanced": "🔬 Advanced",
+    "special": "✨ Special",
+    "military": "⚔️ Military",
+    "energy": "⚡ Energy",
+    "other": "📦 Other"
+  }
+}
