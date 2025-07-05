@@ -1,248 +1,61 @@
-// managers/MarketManager.js - Система торговли
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
 import { getResourceEmoji } from '../config/ResourceConfig.js';
+import { dataLoader } from '../utils/DataLoader.js';
 
-// Категории маркета
 export const MARKET_CATEGORIES = {
   resources: 'Basic Resources',
   advanced: 'Advanced Materials',
   special: 'Special Items',
   premium: 'Premium Goods',
   energy: 'Energy Replenish',
-  consumables: 'Consumables',      // НОВАЯ
-  building_materials: 'Building Materials', // НОВАЯ
-  rare: 'Rare Artifacts'           // НОВАЯ
+  consumables: 'Consumables',
+  building_materials: 'Building Materials',
+  rare: 'Rare Artifacts'
 };
-
-// Товары маркета
-export const MARKET_ITEMS = [
-  {
-    id: 'wood',
-    name: 'Wood',
-    icon: '🌲',
-    description: 'Basic building material',
-    basePrice: { gold: 500 }, // снижено
-    reward: { wood: 1 },
-    category: 'resources',
-    adaptive: true, // новое поле
-    scalingFactor: 1.1 // цена растет на 10% за каждую покупку
-  },
-  {
-    id: 'stone',
-    name: 'Stone',
-    icon: '🪨',
-    description: 'Construction material',
-    basePrice: { gold: 500 },
-    reward: { stone: 1 },
-    category: 'resources',
-    adaptive: true,
-    scalingFactor: 1.1
-  },
-  {
-    id: 'energy_pack',
-    name: 'Energy Pack',
-    icon: '⚡',
-    description: 'Immediate energy restoration',
-    basePrice: { gold: 1000 }, // снижено
-    reward: { energy: 25 }, // уменьшено
-    category: 'advanced',
-    adaptive: true,
-    scalingFactor: 1.15 // растет быстрее
-  },
-  {
-    id: 'skill_crystal',
-    name: 'Skill Crystal',
-    icon: '💎',
-    description: 'Crystallized knowledge',
-    basePrice: { gold: 5000, science: 3, faith: 2 }, // снижено
-    reward: { skillPoints: 2 }, // уменьшено с 3
-    category: 'premium',
-    adaptive: true,
-    scalingFactor: 1.25 // растет значительно
-  },
-  {
-  id: 'food_package',
-  name: 'Food Package',
-  icon: '🍎',
-  description: 'Emergency food supplies',
-  basePrice: { gold: 600 },
-  reward: { food: 2 },
-  category: 'resources',
-  adaptive: true,
-  scalingFactor: 1.1
-  },
-  {
-  id: 'water_container', 
-  name: 'Water Container',
-  icon: '💧',
-  description: 'Pure drinking water',
-  basePrice: { gold: 400 },
-  reward: { water: 3 },
-  category: 'resources',
-  adaptive: true,
-  scalingFactor: 1.1
-  },
-  {
-  id: 'iron_ingot',
-  name: 'Iron Ingot',
-  icon: '⛓️',
-  description: 'Refined iron for construction',
-  basePrice: { gold: 800 },
-  reward: { iron: 1 },
-  category: 'resources', 
-  adaptive: true,
-  scalingFactor: 1.12
-  },
-  {
-  id: 'science_kit',
-  name: 'Science Kit',
-  icon: '🧪',
-  description: 'Research materials and tools',
-  basePrice: { gold: 1500, iron: 2 },
-  reward: { science: 3 },
-  category: 'advanced',
-  adaptive: true,
-  scalingFactor: 1.2
-  },
-  {
-  id: 'population_beacon',
-  name: 'Population Beacon',
-  icon: '📡',
-  description: 'Attracts new settlers',
-  basePrice: { gold: 2000, food: 5, water: 5 },
-  reward: { people: 3 },
-  category: 'advanced',
-  adaptive: true,
-  scalingFactor: 1.18
-  },
-  {
-  id: 'energy_core',
-  name: 'Energy Core',
-  icon: '⚡',
-  description: 'High-capacity energy storage',
-  basePrice: { gold: 3000, iron: 5, science: 2 },
-  reward: { energy: 50 },
-  category: 'advanced',
-  adaptive: true,
-  scalingFactor: 1.25
-  },
-  {
-  id: 'chaos_suppressor',
-  name: 'Chaos Suppressor',
-  icon: '🛡️',
-  description: 'Device that neutralizes chaotic energy',
-  basePrice: { gold: 12000, science: 8, faith: 5 },
-  reward: { chaos: -5 },
-  category: 'special',
-  adaptive: true,
-  scalingFactor: 1.35
-  },
-  {
-  id: 'experience_tome',
-  name: 'Experience Tome',
-  icon: '📚',
-  description: 'Ancient knowledge condensed into skill points',
-  basePrice: { gold: 15000, science: 10, faith: 8 },
-  reward: { skillPoints: 5 },
-  category: 'special',
-  adaptive: true,
-  scalingFactor: 1.4
-  },
-  {
-  id: 'master_crystal',
-  name: 'Master Crystal',
-  icon: '💎',
-  description: 'Ultimate source of knowledge and power',
-  basePrice: { gold: 50000, science: 25, faith: 20, people: 10 },
-  reward: { skillPoints: 15 },
-  category: 'premium',
-  adaptive: true,
-  scalingFactor: 1.5
-  },
-  {
-  id: 'small_energy_cell',
-  name: 'Small Energy Cell',
-  icon: '🔋',
-  description: 'Quick energy boost',
-  basePrice: { gold: 500 },
-  reward: { energy: 15 },
-  category: 'energy',
-  adaptive: true,
-  scalingFactor: 1.1
-  },
-  {
-  id: 'energy_amplifier',
-  name: 'Energy Amplifier',
-  icon: '⚡',
-  description: 'Permanently increases max energy',
-  basePrice: { gold: 10000, science: 8, iron: 10 },
-  reward: { maxEnergyBonus: 25 }, // Специальная награда
-  category: 'energy',
-  adaptive: true,
-  scalingFactor: 1.4
-  },
-  {
-  id: 'protection_ward',
-  name: 'Protection Ward',
-  icon: '🛡️',
-  description: 'Blocks next 5 debuffs',
-  basePrice: { gold: 5000, faith: 8, stone: 10 },
-  reward: { shieldCharges: 5 }, // Заряды щита
-  category: 'consumables',
-  adaptive: true,
-  scalingFactor: 1.25
-  },
-  {
-  id: 'advanced_blueprint',
-  name: 'Advanced Blueprint',
-  icon: '📋',
-  description: 'Reduces next building upgrade cost by 25%',
-  basePrice: { gold: 12000, science: 15 },
-  reward: { buildingDiscount: 0.25 }, // Скидка
-  category: 'building_materials',
-  adaptive: true,
-  scalingFactor: 1.35
-  },
-  {
-  id: 'void_fragment',
-  name: 'Void Fragment',
-  icon: '🕳️',
-  description: 'Dangerous artifact that doubles chaos but gives massive skill points',
-  basePrice: { gold: 40000, science: 30 },
-  reward: { skillPoints: 25, chaos: 50 },
-  category: 'rare',
-  adaptive: true,
-  scalingFactor: 1.7
-  },
-  {
-  id: 'phoenix_feather',
-  name: 'Phoenix Feather',
-  icon: '🪶',
-  description: 'Legendary item that restores all resources by 10%',
-  basePrice: { gold: 30000, faith: 25, science: 20 },
-  reward: { allResourcesPercent: 0.1 },
-  category: 'rare',
-  adaptive: true,
-  scalingFactor: 1.6
-  },
-];
 
 export class MarketManager extends CleanupMixin {
   constructor(gameState) {
     super();
-    
     this.gameState = gameState;
-    
+    this.marketItems = [];
+    this.marketCategories = {};
+    this.isDataLoaded = false;
     this.initializeMarket();
-    
     console.log('🛒 MarketManager initialized');
   }
 
-  // Инициализация маркета
-  initializeMarket() {
-    // Создаем объект маркета если его нет
+  async initializeMarket() {
+    try {
+      await this.loadMarketData();
+      this.setupGameStateMarket();
+      this.validateMarketData();
+      console.log(`✅ MarketManager: Loaded ${this.marketItems.length} market items`);
+    } catch (error) {
+      console.error('❌ MarketManager initialization failed:', error);
+      throw new Error(`Failed to initialize MarketManager: ${error.message}`);
+    }
+  }
+
+  async loadMarketData() {
+    try {
+      const data = await dataLoader.loadMarketData();
+      if (dataLoader.validateMarketData(data)) {
+        this.marketItems = data.items;
+        this.marketCategories = data.categories || MARKET_CATEGORIES;
+        this.isDataLoaded = true;
+        console.log('✅ Market data loaded and validated');
+      } else {
+        throw new Error('Market data validation failed');
+      }
+    } catch (error) {
+      console.error('❌ Failed to load market data:', error);
+      throw error;
+    }
+  }
+
+  setupGameStateMarket() {
     if (!this.gameState.market) {
       this.gameState.market = {
         dailyDeals: [],
@@ -251,207 +64,269 @@ export class MarketManager extends CleanupMixin {
         permanentBonuses: {}
       };
     }
-    
-    // Валидируем данные маркета
-    this.validateMarketData();
+    this.validateGameStateMarket();
   }
 
-  // Валидация данных маркета
-  validateMarketData() {
+  validateGameStateMarket() {
     const market = this.gameState.market;
     
-    // Валидируем репутацию
     if (typeof market.reputation !== 'number' || isNaN(market.reputation)) {
       market.reputation = 0;
     } else {
       market.reputation = Math.max(0, Math.floor(market.reputation));
     }
-    
-    // Валидируем массивы
+
     if (!Array.isArray(market.dailyDeals)) {
       market.dailyDeals = [];
     }
-    
+
     if (!Array.isArray(market.purchaseHistory)) {
       market.purchaseHistory = [];
     }
-    
-    // Валидируем постоянные бонусы
+
     if (!market.permanentBonuses || typeof market.permanentBonuses !== 'object') {
       market.permanentBonuses = {};
     }
-    
-    // Очищаем историю если она слишком большая
+
+    // Ограничиваем историю покупок
     if (market.purchaseHistory.length > 1000) {
       market.purchaseHistory = market.purchaseHistory.slice(-500);
     }
   }
 
-  // Получить определение товара
+  validateMarketData() {
+    // Проверяем целостность данных о товарах
+    this.marketItems = this.marketItems.filter(item => {
+      if (!item.id || !item.name || !item.basePrice || !item.reward) {
+        console.warn(`Invalid market item removed:`, item);
+        return false;
+      }
+      return true;
+    });
+
+    if (this.marketItems.length === 0) {
+      throw new Error('No valid market items found in data');
+    }
+  }
+
   getItemDefinition(itemId) {
-    return MARKET_ITEMS.find(item => item.id === itemId);
+    return this.marketItems.find(item => item.id === itemId);
   }
 
-calculateAdaptivePrice(itemId) {
-  const item = this.getItemDefinition(itemId);
-  if (!item || !item.adaptive) {
-    return item.price;
+  calculateAdaptivePrice(itemId) {
+    const item = this.getItemDefinition(itemId);
+    if (!item || !item.adaptive) {
+      return item?.basePrice || {};
+    }
+
+    const purchaseCount = this.gameState.market.purchaseHistory.filter(
+      purchase => purchase.itemId === itemId
+    ).length;
+
+    const scalingFactor = Math.pow(item.scalingFactor || 1.1, purchaseCount);
+    const scaledPrice = {};
+
+    Object.entries(item.basePrice).forEach(([resource, amount]) => {
+      scaledPrice[resource] = Math.floor(amount * scalingFactor);
+    });
+
+    return scaledPrice;
   }
-  
-  // Считаем количество покупок этого товара
-  const purchaseCount = this.gameState.market.purchaseHistory.filter(
-    purchase => purchase.itemId === itemId
-  ).length;
-  
-  // Рассчитываем масштабированную цену
-  const scalingFactor = Math.pow(item.scalingFactor || 1.1, purchaseCount);
-  const scaledPrice = {};
-  
-  Object.entries(item.basePrice).forEach(([resource, amount]) => {
-    scaledPrice[resource] = Math.floor(amount * scalingFactor);
-  });
-  
-  return scaledPrice;
-}
 
-calculateEffectivePrice(basePrice) {
-  const discount = this.getReputationDiscount();
-  const effectivePrice = {};
-  
-  Object.entries(basePrice).forEach(([resource, amount]) => {
-    effectivePrice[resource] = Math.floor(amount * discount);
-  });
-  
-  return effectivePrice;
-}
+  calculateEffectivePrice(basePrice) {
+    const reputationDiscount = this.getReputationDiscount();
+    const marketDiscount = this.getMarketDiscount();
+    const totalDiscount = Math.min(0.5, reputationDiscount + marketDiscount); // Максимум 50% скидка
 
-canAfford(itemId) {
-  return this.canAffordAdaptive(itemId);
-}
+    const effectivePrice = {};
+    Object.entries(basePrice).forEach(([resource, amount]) => {
+      effectivePrice[resource] = Math.max(1, Math.floor(amount * (1 - totalDiscount)));
+    });
 
-formatPrice(price) {
-  if (!price || typeof price !== 'object') {
-    return 'Invalid price';
+    return effectivePrice;
   }
-  
-  return Object.entries(price)
-    .map(([resource, amount]) => `${Math.floor(amount)} ${getResourceEmoji(resource)}`)
-    .join(' + ');
-}
 
-  // Проверить, можем ли позволить себе товар
-canAffordAdaptive(itemId) {
-  const item = this.getItemDefinition(itemId);
-  if (!item) return false;
-
-  const price = item.adaptive ? 
-    this.calculateAdaptivePrice(itemId) : 
-    this.calculateEffectivePrice(item.price);
+  getMarketDiscount() {
+    // Проверяем активный Tax Boom buff
+    if (this.gameState.buffManager && 
+        typeof this.gameState.buffManager.getMarketDiscount === 'function') {
+      return this.gameState.buffManager.getMarketDiscount();
+    }
     
-  return this.gameState.canAffordResources(price);
-}
-
-// Получить количество покупок товара
-getPurchaseCount(itemId) {
-  return this.gameState.market.purchaseHistory.filter(
-    purchase => purchase.itemId === itemId
-  ).length;
-}
-
-  // Купить товар
-buyItem(itemId) {
-  const item = this.getItemDefinition(itemId);
-  if (!item) {
-    console.warn(`Unknown item: ${itemId}`);
-    return false;
+    // Проверяем напрямую через эффекты
+    if (this.gameState.effectStates?.taxBoomActive) {
+      return 0.33; // 33% скидка от Tax Boom
+    }
+    
+    return 0;
   }
 
-  // Используем адаптивную цену
-  const effectivePrice = item.adaptive ? 
-    this.calculateAdaptivePrice(itemId) : 
-    this.calculateEffectivePrice(item.price);
-
-  if (!this.gameState.canAffordResources(effectivePrice)) {
-    console.warn(`Cannot afford item ${itemId}`);
-    return false;
+  canAfford(itemId) {
+    return this.canAffordAdaptive(itemId);
   }
 
-  if (!this.gameState.spendResources(effectivePrice)) {
-    console.warn(`Failed to spend resources for ${itemId}`);
-    return false;
+  canAffordAdaptive(itemId) {
+    const item = this.getItemDefinition(itemId);
+    if (!item) return false;
+
+    const basePrice = item.adaptive ? 
+      this.calculateAdaptivePrice(itemId) : 
+      item.basePrice;
+    
+    const effectivePrice = this.calculateEffectivePrice(basePrice);
+    
+    return this.gameState.canAffordResources(effectivePrice);
   }
 
-  // Выдаем награды с возможными ограничениями
-  if (!this.giveRewardsWithLimits(item.reward, itemId)) {
-    this.refundResources(effectivePrice);
-    return false;
+  getPurchaseCount(itemId) {
+    return this.gameState.market.purchaseHistory.filter(
+      purchase => purchase.itemId === itemId
+    ).length;
   }
 
-  // Записываем покупку с адаптивной ценой
-  this.recordPurchase(item, effectivePrice);
+  buyItem(itemId) {
+    const item = this.getItemDefinition(itemId);
+    if (!item) {
+      console.warn(`Unknown item: ${itemId}`);
+      return false;
+    }
 
-  // Репутация растет медленнее для дорогих покупок
-  const reputationGain = Math.max(1, Math.floor(10 / Math.sqrt(this.getPurchaseCount(itemId) + 1)));
-  this.gameState.market.reputation = Math.min(
-    this.gameState.market.reputation + reputationGain,
-    1000
-  );
+    const basePrice = item.adaptive ? 
+      this.calculateAdaptivePrice(itemId) : 
+      item.basePrice;
+    
+    const effectivePrice = this.calculateEffectivePrice(basePrice);
 
-  eventBus.emit(GameEvents.RESOURCE_CHANGED);
-  eventBus.emit(GameEvents.ITEM_PURCHASED, { 
-    item: item, 
-    reputation: this.gameState.market.reputation,
-    adaptivePrice: effectivePrice
-  });
+    if (!this.gameState.canAffordResources(effectivePrice)) {
+      console.warn(`Cannot afford item ${itemId}`);
+      return false;
+    }
 
-  console.log(`Purchased ${item.name} for`, effectivePrice);
-  return true;
-}
+    if (!this.gameState.spendResources(effectivePrice)) {
+      console.warn(`Failed to spend resources for ${itemId}`);
+      return false;
+    }
 
-  // Выдать награды
-giveRewardsWithLimits(rewards, itemId) {
-  try {
-    Object.entries(rewards).forEach(([resource, amount]) => {
-      if (resource === 'skillPoints') {
-        // Ограничиваем получение skill points
-        const currentSP = Math.floor(this.gameState.skillPoints || 0);
-        const purchaseCount = this.getPurchaseCount(itemId);
-        
-        // Уменьшаем награду skill points с каждой покупкой
-        const reducedAmount = Math.max(1, Math.floor(amount * Math.pow(0.9, purchaseCount)));
-        
-        if (this.gameState.skillManager && 
-            typeof this.gameState.skillManager.addSkillPoints === 'function') {
-          this.gameState.skillManager.addSkillPoints(reducedAmount);
+    if (!this.giveRewardsWithLimits(item.reward, itemId)) {
+      this.refundResources(effectivePrice);
+      return false;
+    }
+
+    this.recordPurchase(item, effectivePrice);
+    this.updateReputation(itemId);
+
+    eventBus.emit(GameEvents.RESOURCE_CHANGED);
+    eventBus.emit(GameEvents.ITEM_PURCHASED, {
+      item: item,
+      reputation: this.gameState.market.reputation,
+      adaptivePrice: effectivePrice
+    });
+
+    console.log(`Purchased ${item.name} for`, effectivePrice);
+    return true;
+  }
+
+  updateReputation(itemId) {
+    const purchaseCount = this.getPurchaseCount(itemId);
+    const reputationGain = Math.max(1, Math.floor(10 / Math.sqrt(purchaseCount + 1)));
+    
+    this.gameState.market.reputation = Math.min(
+      this.gameState.market.reputation + reputationGain,
+      1000 // Максимальная репутация
+    );
+  }
+
+  giveRewardsWithLimits(rewards, itemId) {
+    try {
+      Object.entries(rewards).forEach(([resource, amount]) => {
+        if (resource === 'skillPoints') {
+          this.handleSkillPointsReward(amount, itemId);
+        } else if (resource === 'energy') {
+          this.handleEnergyReward(amount);
+        } else if (resource === 'chaos' && amount < 0) {
+          this.handleChaosReduction(amount);
+        } else if (resource === 'maxEnergyBonus') {
+          this.handleMaxEnergyBonus(amount);
+        } else if (resource === 'shieldCharges') {
+          this.handleShieldCharges(amount);
+        } else if (resource === 'buildingDiscount') {
+          this.handleBuildingDiscount(amount);
+        } else if (resource === 'allResourcesPercent') {
+          this.handleAllResourcesPercent(amount);
         } else {
-          const newSP = Math.min(currentSP + reducedAmount, GAME_CONSTANTS.MAX_SKILL_POINTS);
-          this.gameState.skillPoints = newSP;
-          eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
+          // Обычный ресурс
+          this.gameState.addResource(resource, amount);
         }
-      } else if (resource === 'energy') {
-        // Ограничиваем восстановление энергии
-        const maxRestore = Math.min(amount, 50); // не больше 50 за раз
-        if (this.gameState.energyManager) {
-          this.gameState.energyManager.restoreEnergy(maxRestore, 'market_purchase');
-        }
-      } else if (resource === 'chaos' && amount < 0) {
-        // Уменьшение хаоса
-        const currentChaos = this.gameState.resources[resource] || 0;
-        const actualReduction = Math.min(Math.abs(amount), currentChaos);
-        this.gameState.resources[resource] = currentChaos - actualReduction;
-      } else {
-        // Обычные ресурсы
-        this.gameState.addResource(resource, amount);
+      });
+      return true;
+    } catch (error) {
+      console.warn('Error giving rewards:', error);
+      return false;
+    }
+  }
+
+  handleSkillPointsReward(amount, itemId) {
+    const currentSP = Math.floor(this.gameState.skillPoints || 0);
+    const purchaseCount = this.getPurchaseCount(itemId);
+    const reducedAmount = Math.max(1, Math.floor(amount * Math.pow(0.9, purchaseCount)));
+    
+    if (this.gameState.skillManager &&
+        typeof this.gameState.skillManager.addSkillPoints === 'function') {
+      this.gameState.skillManager.addSkillPoints(reducedAmount);
+    } else {
+      const newSP = Math.min(currentSP + reducedAmount, GAME_CONSTANTS.MAX_SKILL_POINTS);
+      this.gameState.skillPoints = newSP;
+      eventBus.emit(GameEvents.SKILL_POINTS_CHANGED, this.gameState.skillPoints);
+    }
+  }
+
+  handleEnergyReward(amount) {
+    const maxRestore = Math.min(amount, 50);
+    if (this.gameState.energyManager) {
+      this.gameState.energyManager.restoreEnergy(maxRestore, 'market_purchase');
+    }
+  }
+
+  handleChaosReduction(amount) {
+    const currentChaos = this.gameState.resources.chaos || 0;
+    const actualReduction = Math.min(Math.abs(amount), currentChaos);
+    this.gameState.resources.chaos = currentChaos - actualReduction;
+  }
+
+  handleMaxEnergyBonus(amount) {
+    if (this.gameState.energy) {
+      this.gameState.energy.max += amount;
+      if (this.gameState.energyManager) {
+        this.gameState.energyManager.updateMaxEnergy();
+      }
+    }
+  }
+
+  handleShieldCharges(amount) {
+    if (this.gameState.skillStates) {
+      this.gameState.skillStates.missProtectionCharges = 
+        (this.gameState.skillStates.missProtectionCharges || 0) + amount;
+    }
+  }
+
+  handleBuildingDiscount(discount) {
+    this.gameState.tempBuildingDiscount = {
+      discount: discount,
+      uses: 1
+    };
+    eventBus.emit(GameEvents.NOTIFICATION, `📜 Building discount: ${Math.floor(discount * 100)}% off next upgrade!`);
+  }
+
+  handleAllResourcesPercent(percent) {
+    Object.entries(this.gameState.resources).forEach(([resource, amount]) => {
+      if (amount > 0) {
+        const bonus = Math.floor(amount * percent);
+        this.gameState.addResource(resource, bonus);
       }
     });
-    return true;
-  } catch (error) {
-    console.warn('Error giving rewards:', error);
-    return false;
+    eventBus.emit(GameEvents.NOTIFICATION, `🪶 Phoenix Feather: +${Math.floor(percent * 100)}% to all resources!`);
   }
-}
 
-  // Вернуть ресурсы
   refundResources(price) {
     try {
       Object.entries(price).forEach(([resource, amount]) => {
@@ -462,7 +337,6 @@ giveRewardsWithLimits(rewards, itemId) {
     }
   }
 
-  // Записать покупку в историю
   recordPurchase(item, actualPrice) {
     try {
       const purchaseRecord = {
@@ -477,7 +351,7 @@ giveRewardsWithLimits(rewards, itemId) {
 
       // Ограничиваем размер истории
       if (this.gameState.market.purchaseHistory.length > 1000) {
-        this.gameState.market.purchaseHistory = 
+        this.gameState.market.purchaseHistory =
           this.gameState.market.purchaseHistory.slice(-500);
       }
     } catch (error) {
@@ -485,28 +359,53 @@ giveRewardsWithLimits(rewards, itemId) {
     }
   }
 
-  // Получить информацию о товаре
-getItemInfo(itemId) {
-  const item = this.getItemDefinition(itemId);
-  if (!item) return null;
+  getItemInfo(itemId) {
+    const item = this.getItemDefinition(itemId);
+    if (!item) return null;
 
-  // Используем адаптивную цену если доступна
-  const effectivePrice = item.adaptive ? 
-    this.calculateAdaptivePrice(itemId) : 
-    this.calculateEffectivePrice(item.price);
+    const basePrice = item.adaptive ? 
+      this.calculateAdaptivePrice(itemId) : 
+      item.basePrice;
+    
+    const effectivePrice = this.calculateEffectivePrice(basePrice);
 
-  return {
-    ...item,
-    price: effectivePrice, // перезаписываем цену
-    canAfford: this.canAffordAdaptive(itemId),
-    priceText: this.formatPrice(effectivePrice),
-    rewardText: this.formatReward(item.reward),
-    effectivePrice: effectivePrice,
-    purchaseCount: this.getPurchaseCount(itemId) // для отображения
-  };
-}
+    return {
+      ...item,
+      price: effectivePrice,
+      originalPrice: basePrice,
+      canAfford: this.canAffordAdaptive(itemId),
+      priceText: this.formatPrice(effectivePrice),
+      rewardText: this.formatReward(item.reward),
+      effectivePrice: effectivePrice,
+      purchaseCount: this.getPurchaseCount(itemId),
+      hasDiscount: this.hasDiscount(basePrice, effectivePrice)
+    };
+  }
 
-  // Форматировать награду
+  hasDiscount(originalPrice, effectivePrice) {
+    const originalTotal = Object.values(originalPrice).reduce((sum, val) => sum + val, 0);
+    const effectiveTotal = Object.values(effectivePrice).reduce((sum, val) => sum + val, 0);
+    return originalTotal > effectiveTotal;
+  }
+
+  formatPrice(price) {
+    if (!price || typeof price !== 'object') {
+      return 'Invalid price';
+    }
+
+    const validEntries = Object.entries(price).filter(([resource, amount]) => {
+      return typeof amount === 'number' && !isNaN(amount) && amount >= 0;
+    });
+
+    if (validEntries.length === 0) {
+      return 'Free';
+    }
+
+    return validEntries
+      .map(([resource, amount]) => `${Math.floor(amount)} ${getResourceEmoji(resource)}`)
+      .join(' + ');
+  }
+
   formatReward(reward) {
     return Object.entries(reward)
       .map(([resource, amount]) => {
@@ -517,57 +416,50 @@ getItemInfo(itemId) {
       .join(' + ');
   }
 
-  // Получить все товары
   getAllItems() {
-    return MARKET_ITEMS.map(item => this.getItemInfo(item.id)).filter(Boolean);
+    return this.marketItems.map(item => this.getItemInfo(item.id)).filter(Boolean);
   }
 
-  // Получить товары по категориям
   getItemsByCategory() {
     const categories = {};
-    
-    Object.keys(MARKET_CATEGORIES).forEach(cat => {
-      categories[cat] = MARKET_ITEMS
+    Object.keys(this.marketCategories).forEach(cat => {
+      categories[cat] = this.marketItems
         .filter(item => item.category === cat)
         .map(item => this.getItemInfo(item.id))
         .filter(Boolean);
     });
-    
     return categories;
   }
 
-  // Генерация ежедневных предложений
   generateDailyDeals() {
     const dealCount = 3;
-    const availableItems = MARKET_ITEMS.filter(item => 
-      item.category !== 'premium' // Исключаем премиум товары
+    const availableItems = this.marketItems.filter(item =>
+      item.category !== 'premium'
     );
-    
+
     const deals = [];
     const maxAttempts = availableItems.length * 2;
     let attempts = 0;
-    
+
     while (deals.length < dealCount && attempts < maxAttempts) {
       const item = availableItems[Math.floor(Math.random() * availableItems.length)];
       if (!deals.find(deal => deal.id === item.id)) {
-        // Создаем версию товара со скидкой
         const discountedItem = {
           ...item,
           id: `${item.id}_deal`,
-          price: this.applyDiscount(item.price, 0.8), // 20% скидка
+          basePrice: this.applyDiscount(item.basePrice, 0.8),
           isDeal: true,
-          originalPrice: { ...item.price }
+          originalPrice: { ...item.basePrice }
         };
         deals.push(discountedItem);
       }
       attempts++;
     }
-    
+
     this.gameState.market.dailyDeals = deals;
     return deals;
   }
 
-  // Применить скидку
   applyDiscount(price, multiplier) {
     const discountedPrice = {};
     Object.entries(price).forEach(([resource, amount]) => {
@@ -576,122 +468,113 @@ getItemInfo(itemId) {
     return discountedPrice;
   }
 
-  // Получить репутацию маркета
   getMarketReputation() {
     return this.gameState.market.reputation || 0;
   }
 
-  // Получить историю покупок
   getPurchaseHistory() {
     return this.gameState.market.purchaseHistory || [];
   }
 
-  // Получить скидку на основе репутации
   getReputationDiscount() {
     const reputation = this.getMarketReputation();
-    if (reputation >= 100) return 0.85; // 15% скидка
-    if (reputation >= 50) return 0.9;   // 10% скидка
-    if (reputation >= 25) return 0.95;  // 5% скидка
-    return 1.0; // Без скидки
+    if (reputation >= 500) return 0.20; // 20% скидка
+    if (reputation >= 250) return 0.15; // 15% скидка
+    if (reputation >= 100) return 0.10; // 10% скидка
+    if (reputation >= 50) return 0.05;  // 5% скидка
+    return 0.0; // Нет скидки
   }
 
-  // Получить постоянные бонусы
   getPermanentBonuses() {
     return this.gameState.market.permanentBonuses || {};
   }
 
-  // Получить статистику маркета
   getMarketStats() {
     const history = this.getPurchaseHistory();
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
-    
+
     return {
       totalPurchases: history.length,
       todayPurchases: history.filter(p => now - p.timestamp < dayMs).length,
       reputation: this.getMarketReputation(),
-      discount: Math.floor((1 - this.getReputationDiscount()) * 100),
+      reputationDiscount: Math.floor(this.getReputationDiscount() * 100),
+      marketDiscount: Math.floor(this.getMarketDiscount() * 100),
+      totalDiscount: Math.floor((this.getReputationDiscount() + this.getMarketDiscount()) * 100),
       favoriteCategory: this.getFavoriteCategory(history),
       totalSpent: this.calculateTotalSpent(history),
       permanentBonuses: this.getPermanentBonuses()
     };
   }
 
-  // Получить любимую категорию
   getFavoriteCategory(history) {
     const categoryCount = {};
-    
     history.forEach(purchase => {
-      const item = MARKET_ITEMS.find(i => i.id === purchase.itemId);
+      const item = this.marketItems.find(i => i.id === purchase.itemId);
       if (item) {
         categoryCount[item.category] = (categoryCount[item.category] || 0) + 1;
       }
     });
-    
+
     let maxCount = 0;
     let favoriteCategory = 'none';
-    
     Object.entries(categoryCount).forEach(([category, count]) => {
       if (count > maxCount) {
         maxCount = count;
         favoriteCategory = category;
       }
     });
-    
-    return MARKET_CATEGORIES[favoriteCategory] || favoriteCategory;
+
+    return this.marketCategories[favoriteCategory] || favoriteCategory;
   }
 
-  // Рассчитать общие траты
   calculateTotalSpent(history) {
     const totalSpent = {};
-    
     history.forEach(purchase => {
       Object.entries(purchase.price).forEach(([resource, amount]) => {
         totalSpent[resource] = (totalSpent[resource] || 0) + amount;
       });
     });
-    
     return totalSpent;
   }
 
-  // Проверить доступность товара
   isItemUnlocked(itemId) {
-    // Простая система разблокировки - можно расширить
-    const basicItems = ['wood', 'stone', 'food', 'water', 'iron', 'resource_bundle'];
+    const basicItems = ['wood', 'stone', 'food', 'water', 'iron', 'food_package', 'water_container', 'iron_ingot'];
     if (basicItems.includes(itemId)) {
       return true;
     }
 
-    // Продвинутые товары требуют определенного прогресса
-    const advancedItems = ['energy_pack', 'science_book'];
+    const advancedItems = ['energy_pack', 'science_kit', 'population_beacon', 'energy_core', 'small_energy_cell'];
     if (advancedItems.includes(itemId)) {
       return this.gameState.resources.energy >= 1 || this.gameState.resources.science >= 1;
     }
 
-    // Специальные товары требуют веры или науки
-    const specialItems = ['faith_relic', 'chaos_neutralizer'];
+    const specialItems = ['chaos_suppressor', 'experience_tome', 'energy_amplifier', 'protection_ward'];
     if (specialItems.includes(itemId)) {
       return this.gameState.resources.faith >= 5 || this.gameState.resources.science >= 3;
     }
 
-    // Премиум товары требуют высокой репутации
-    const premiumItems = ['skill_crystal', 'golden_charm'];
+    const premiumItems = ['skill_crystal', 'master_crystal', 'advanced_blueprint'];
     if (premiumItems.includes(itemId)) {
       return this.getMarketReputation() >= 50;
+    }
+
+    const rareItems = ['void_fragment', 'phoenix_feather'];
+    if (rareItems.includes(itemId)) {
+      return this.getMarketReputation() >= 200;
     }
 
     return true;
   }
 
-  // Получить рекомендованные товары
   getRecommendedItems() {
     const recommendations = [];
     const currentResources = this.gameState.resources;
-    
-    // Рекомендуем ресурсы, которых мало
+
+    // Рекомендации на основе нехватки ресурсов
     Object.entries(currentResources).forEach(([resource, amount]) => {
       if (amount < 10) {
-        const item = MARKET_ITEMS.find(i => 
+        const item = this.marketItems.find(i =>
           i.reward[resource] && i.reward[resource] > 0
         );
         if (item && this.canAfford(item.id)) {
@@ -702,25 +585,59 @@ getItemInfo(itemId) {
         }
       }
     });
-    
-    // Рекомендуем skill crystal если много золота
+
+    // Рекомендация по энергии
+    if (this.gameState.energy && this.gameState.energy.current < 30) {
+      const energyItem = this.marketItems.find(i => i.reward.energy && i.reward.energy > 0);
+      if (energyItem && this.canAfford(energyItem.id)) {
+        recommendations.push({
+          ...this.getItemInfo(energyItem.id),
+          reason: 'Low energy'
+        });
+      }
+    }
+
+    // Рекомендация для избытка золота
     if (currentResources.gold > 30000 && this.canAfford('skill_crystal')) {
       recommendations.push({
         ...this.getItemInfo('skill_crystal'),
         reason: 'Invest excess gold in skill points'
       });
     }
-    
-    return recommendations.slice(0, 3); // Максимум 3 рекомендации
+
+    return recommendations.slice(0, 3);
   }
 
-  // Деструктор
+  getDebugInfo() {
+    return {
+      isDataLoaded: this.isDataLoaded,
+      marketItemsCount: this.marketItems.length,
+      categoriesCount: Object.keys(this.marketCategories).length,
+      gameStateMarketExists: !!this.gameState.market,
+      reputation: this.getMarketReputation(),
+      purchaseHistoryLength: this.getPurchaseHistory().length,
+      reputationDiscount: this.getReputationDiscount(),
+      marketDiscount: this.getMarketDiscount()
+    };
+  }
+
+  async reloadMarketData() {
+    try {
+      console.log('🔄 Reloading market data...');
+      dataLoader.clearCache();
+      await this.loadMarketData();
+      this.validateMarketData();
+      console.log('✅ Market data reloaded successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Failed to reload market data:', error);
+      return false;
+    }
+  }
+
   destroy() {
     console.log('🧹 MarketManager cleanup started');
-    
-    // Вызываем родительский деструктор
     super.destroy();
-    
     console.log('✅ MarketManager destroyed');
   }
 }

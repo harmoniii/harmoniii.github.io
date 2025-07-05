@@ -1,7 +1,7 @@
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { getResourceEmoji } from '../config/ResourceConfig.js';
-import { dataLoader } from '../utils/dataloader.js';
+import { dataLoader } from '../utils/DataLoader.js';
 
 export class RaidManager extends CleanupMixin {
     constructor(gameState) {
