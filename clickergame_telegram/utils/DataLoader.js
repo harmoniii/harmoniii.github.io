@@ -308,6 +308,92 @@ export class DataLoader {
     };
   }
 
+  validateRaidsData(data) {
+if (!data || !Array.isArray(data.raids)) {
+console.error('❌ Invalid raids data: missing raids array');
+return false;
+}
+for (const raid of data.raids) {
+  // Проверяем обязательные поля
+  if (!raid.id || !raid.name || !raid.difficulty) {
+    console.error('❌ Invalid raid data - missing required fields:', raid);
+    return false;
+  }
+
+  // Проверяем требования
+  if (!raid.requirements || typeof raid.requirements !== 'object') {
+    console.error('❌ Invalid raid data - missing or invalid requirements:', raid);
+    return false;
+  }
+
+  // Проверяем продолжительность
+  if (typeof raid.duration !== 'number' || raid.duration <= 0) {
+    console.error('❌ Invalid raid data - invalid duration:', raid);
+    return false;
+  }
+
+  // Проверяем процент риска
+  if (typeof raid.riskPercentage !== 'number' || raid.riskPercentage < 0 || raid.riskPercentage > 100) {
+    console.error('❌ Invalid raid data - invalid risk percentage:', raid);
+    return false;
+  }
+
+  // Проверяем награды
+  if (!raid.rewards || !raid.rewards.guaranteed || !Array.isArray(raid.rewards.guaranteed)) {
+    console.error('❌ Invalid raid data - missing or invalid rewards:', raid);
+    return false;
+  }
+
+  // Проверяем условия разблокировки
+  if (raid.unlockCondition && typeof raid.unlockCondition !== 'object') {
+    console.error('❌ Invalid raid data - invalid unlock condition:', raid);
+    return false;
+  }
+}
+
+// Проверяем специальные награды (если есть)
+if (data.specialRewards && typeof data.specialRewards !== 'object') {
+  console.error('❌ Invalid raids data: invalid specialRewards object');
+  return false;
+}
+
+// Проверяем уровни сложности (если есть)
+if (data.difficulties && typeof data.difficulties !== 'object') {
+  console.error('❌ Invalid raids data: invalid difficulties object');
+  return false;
+}
+
+console.log('✅ Raids data validation passed');
+return true;
+}
+validateMarketData(data) {
+if (!data || !Array.isArray(data.items)) {
+console.error('❌ Invalid market data: missing items array');
+return false;
+}
+for (const item of data.items) {
+  if (!item.id || !item.name || !item.basePrice || !item.reward) {
+    console.error('❌ Invalid market item data:', item);
+    return false;
+  }
+
+  // Проверяем цену
+  if (typeof item.basePrice !== 'object') {
+    console.error('❌ Invalid market item - invalid basePrice:', item);
+    return false;
+  }
+
+  // Проверяем награду
+  if (typeof item.reward !== 'object') {
+    console.error('❌ Invalid market item - invalid reward:', item);
+    return false;
+  }
+}
+
+console.log('✅ Market data validation passed');
+return true;
+}
+
   /**
    * Валидирует структуру данных строений
    * @param {Object} data - Данные для валидации
