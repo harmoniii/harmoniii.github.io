@@ -24,45 +24,21 @@ export class BuildingManager extends CleanupMixin {
       console.log(`✅ BuildingManager: Loaded ${this.buildingDefs.length} building definitions`);
     } catch (error) {
       console.error('❌ BuildingManager initialization failed:', error);
-      this.setupFallbackBuildings();
+      // Вместо полного fallback - просто выбрасываем ошибку
+      throw new Error(`BuildingManager failed to initialize: ${error.message}`);
     }
   }
 
   async loadBuildingData() {
-    try {
-      const data = await dataLoader.loadBuildingsData();
-      if (dataLoader.validateBuildingsData(data)) {
-        this.buildingDefs = data.buildings;
-        this.buildingCategories = data.categories;
-        this.isDataLoaded = true;
-        console.log('✅ Building data loaded and validated');
-      } else {
-        throw new Error('Building data validation failed');
-      }
-    } catch (error) {
-      console.error('❌ Failed to load building data:', error);
-      throw error;
+    const data = await dataLoader.loadBuildingsData();
+    if (!dataLoader.validateBuildingsData(data)) {
+      throw new Error('Building data validation failed');
     }
-  }
-
-  setupFallbackBuildings() {
-    console.warn('⚠️ Using fallback building definitions');
-    this.buildingDefs = [
-      {
-        id: 'sawmill',
-        img: '🪚',
-        name: 'Sawmill',
-        description: 'Produces wood automatically',
-        price: { wood: 0, stone: 10, iron: 5 },
-        production: { resource: 'wood', amount: 1, interval: 10000 },
-        maxLevel: 10,
-        category: 'production'
-      }
-    ];
-    this.buildingCategories = { production: '🏭 Production' };
+    
+    this.buildingDefs = data.buildings;
+    this.buildingCategories = data.categories;
     this.isDataLoaded = true;
-    this.setupGameStateBuildings();
-    this.startProduction();
+    console.log('✅ Building data loaded and validated');
   }
 
   setupGameStateBuildings() {
