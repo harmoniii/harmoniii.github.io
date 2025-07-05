@@ -1,7 +1,7 @@
 import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 import { GAME_CONSTANTS } from '../config/GameConstants.js';
-import { dataLoader } from '../utils/dataloader.js';
+import { dataLoader } from '../utils/DataLoader.js';
 
 export const SKILL_CATEGORIES = {
     clicking: 'Clicking Skills',
