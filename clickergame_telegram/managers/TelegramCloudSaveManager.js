@@ -3,10 +3,17 @@ import { eventBus, GameEvents } from '../core/GameEvents.js';
 
 export class TelegramCloudSaveManager extends CleanupMixin {
   constructor(gameState, telegramWebApp) {
-    super();
-    this.gameState = gameState;
-    this.tg = telegramWebApp;
-    this.isEnabled = this.tg && this.tg.isReady;
+super();
+  this.gameState = gameState;
+  this.tg = telegramWebApp;
+  
+  // Проверяем, что у нас есть правильная ссылка на Telegram интеграцию
+  if (!this.tg && window.telegramIntegration) {
+    this.tg = window.telegramIntegration;
+    console.log('☁️ Using global telegramIntegration instance');
+  }
+  
+    this.isEnabled = this.tg && (this.tg.isReady || this.tg.isInTelegram);
     this.lastCloudSave = 0;
     this.saveInterval = null;
     this.syncInProgress = false;
@@ -346,16 +353,23 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     return this.gatherDetailedGameStatistics();
   }
 
-  async sendToBot(data) {
-    try {
-      if (!this.tg?.sendData) {
-        console.warn('☁️ Telegram Web App sendData not available');
-        return false;
-      }
+async sendToBot(data) {
+  try {
+    if (!this.tg) {
+      console.warn('☁️ Telegram integration not available');
+      return false;
+    }
 
+    // Проверяем, есть ли метод sendDataToBot
+    if (typeof this.tg.sendDataToBot === 'function') {
+      return await this.tg.sendDataToBot(data);
+    }
+
+    // Fallback: прямое использование Telegram WebApp API
+    if (this.tg.sendData && typeof this.tg.sendData === 'function') {
       const jsonData = JSON.stringify(data);
-      const maxSize = 4000; // Немного уменьшаем лимит для надежности
-
+      const maxSize = 4000;
+      
       if (jsonData.length > maxSize) {
         console.warn(`☁️ Data too large (${jsonData.length} bytes), compressing...`);
         const compressedData = this.compressData(data);
@@ -363,7 +377,6 @@ export class TelegramCloudSaveManager extends CleanupMixin {
         
         if (compressedJson.length > maxSize) {
           console.error('☁️ Data still too large after compression');
-          // Попытка отправить только критически важные данные
           const criticalData = this.extractCriticalData(data);
           this.tg.sendData(JSON.stringify(criticalData));
         } else {
@@ -372,13 +385,18 @@ export class TelegramCloudSaveManager extends CleanupMixin {
       } else {
         this.tg.sendData(jsonData);
       }
-
       return true;
-    } catch (error) {
-      console.error('☁️ Error sending data to bot:', error);
-      return false;
     }
+
+    // Если ничего не сработало
+    console.error('☁️ No valid send method available');
+    return false;
+
+  } catch (error) {
+    console.error('☁️ Error sending data to bot:', error);
+    return false;
   }
+}
 
   extractCriticalData(data) {
     // Извлекаем только самые важные данные если размер слишком большой

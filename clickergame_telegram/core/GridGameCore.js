@@ -134,30 +134,50 @@ export class GridGameCore extends CleanupMixin {
     console.log('✅ Manager references set up with Telegram support');
   }
 
-  async initializeTelegramIntegration() {
-    console.log('📱 Initializing Telegram integration...');
-    try {
-      // Ждем готовности Telegram WebApp
-      await this.waitForTelegramReady();
-      
-      if (window.telegramIntegration) {
-        this.telegramIntegration = window.telegramIntegration;
-        
-        // Инициализируем облачные сохранения
-        this.cloudSaveManager = new TelegramCloudSaveManager(this.gameState, this.telegramIntegration);
-        this.cleanupManager.registerComponent(this.cloudSaveManager, 'TelegramCloudSaveManager');
-        
-        // Устанавливаем ссылку в gameState
-        this.gameState.cloudSaveManager = this.cloudSaveManager;
-        
-        console.log('✅ Telegram integration initialized successfully');
-      } else {
-        console.warn('⚠️ Telegram integration not available, using local storage only');
-      }
-    } catch (error) {
-      console.warn('⚠️ Telegram integration failed, falling back to local storage:', error);
+async initializeTelegramIntegration() {
+  console.log('📱 Initializing Telegram integration...');
+  try {
+    await this.waitForTelegramReady();
+    
+    if (window.telegramIntegration && window.telegramIntegration.isReady) {
+      this.telegramIntegration = window.telegramIntegration;
+      this.cloudSaveManager = new TelegramCloudSaveManager(this.gameState, this.telegramIntegration);
+      this.cleanupManager.registerComponent(this.cloudSaveManager, 'TelegramCloudSaveManager');
+      this.gameState.cloudSaveManager = this.cloudSaveManager;
+      console.log('✅ Telegram integration initialized successfully');
+    } else {
+      console.warn('⚠️ Telegram integration not available, using local storage only');
     }
+  } catch (error) {
+    console.warn('⚠️ Telegram integration failed, falling back to local storage:', error);
   }
+}
+
+waitForTelegramReady() {
+  return new Promise((resolve) => {
+    if (window.telegramIntegration?.isReady) {
+      resolve();
+      return;
+    }
+
+    // Слушаем событие готовности
+    const handleReady = () => {
+      if (window.telegramIntegration?.isReady) {
+        window.removeEventListener('telegramIntegrationComplete', handleReady);
+        resolve();
+      }
+    };
+
+    window.addEventListener('telegramIntegrationComplete', handleReady);
+
+    // Таймаут на случай, если интеграция не загрузится
+    setTimeout(() => {
+      window.removeEventListener('telegramIntegrationComplete', handleReady);
+      console.warn('⏰ Telegram integration timeout');
+      resolve();
+    }, 5000);
+  });
+}
 
   waitForTelegramReady() {
     return new Promise((resolve) => {
