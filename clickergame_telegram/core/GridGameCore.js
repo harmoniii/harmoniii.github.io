@@ -1,4 +1,3 @@
-// core/GridGameCore.js - ОБНОВЛЕНО: интеграция RaidManager
 import { CleanupMixin } from './CleanupManager.js';
 import { GameState } from './GameState.js';
 import { StorageManager } from './StorageManager.js';
@@ -8,52 +7,49 @@ import { GridFeatureManager } from '../managers/GridFeatureManager.js';
 import { BuildingManager } from '../managers/BuildingManager.js';
 import { SkillManager } from '../managers/SkillManager.js';
 import { MarketManager } from '../managers/MarketManager.js';
-import { RaidManager } from '../managers/RaidManager.js'; // НОВОЕ: RaidManager
+import { RaidManager } from '../managers/RaidManager.js';
 import { BuffManager } from '../effects/BuffManager.js';
 import { AchievementManager } from '../managers/AchievementManager.js';
 import { EnergyManager } from '../managers/EnergyManager.js';
+import { TelegramCloudSaveManager } from '../managers/TelegramCloudSaveManager.js';
 import UIManager from '../ui/UIManager.js';
 import { GridGameLoop } from './GridGameLoop.js';
 
 export class GridGameCore extends CleanupMixin {
   constructor() {
     super();
-    
     this.gameState = null;
     this.storageManager = new StorageManager();
     this.gridManager = null;
     this.managers = {};
     this.gameLoop = null;
+    this.cloudSaveManager = null;
+    this.telegramIntegration = null;
+    this.isFullyInitialized = false;
     
     this.initialize();
   }
 
   async initialize() {
     try {
-      console.log('🎮 Initializing Grid Clicker with Raid System...');
+      console.log('🎮 Initializing Grid Clicker with Telegram Integration...');
       
-      // Шаг 1: Инициализируем состояние игры
       await this.initializeGameState();
-      
-      // Шаг 2: Создаем GridManager ПЕРВЫМ
       await this.initializeGridManager();
-      
-      // Шаг 3: Инициализируем остальные менеджеры
       await this.initializeManagers();
-      
-      // Шаг 4: Настраиваем ссылки между менеджерами
       await this.setupManagerReferences();
-      
-      // Шаг 5: Инициализируем UI
+      await this.initializeTelegramIntegration();
       await this.initializeUI();
-      
-      // Шаг 6: Запускаем игровой цикл (последним!)
       await this.startGameLoop();
       
       this.bindSystemEvents();
+      this.isFullyInitialized = true;
       
-      console.log('✅ Grid Game with Raids initialized successfully');
-      eventBus.emit(GameEvents.NOTIFICATION, '🎮 Grid Game with Raid System loaded!');
+      console.log('✅ Grid Game with Telegram integration initialized successfully');
+      eventBus.emit(GameEvents.NOTIFICATION, '🎮 Grid Game with Telegram integration loaded!');
+      
+      // Отправляем начальную статистику
+      this.sendInitialStatistics();
       
     } catch (error) {
       console.error('💀 Critical error during initialization:', error);
@@ -63,14 +59,13 @@ export class GridGameCore extends CleanupMixin {
 
   async initializeGameState() {
     console.log('📊 Initializing game state...');
-    
     const saveData = this.storageManager.load();
     this.gameState = new GameState();
-    
+
     if (!this.gameState.energy) {
       this.gameState.energy = {
-        current: GAME_CONSTANTS.INITIAL_ENERGY || 100,
-        max: GAME_CONSTANTS.INITIAL_MAX_ENERGY || 100,
+        current: 100,
+        max: 100,
         lastRegenTime: Date.now(),
         totalConsumed: 0,
         totalRegenerated: 0
@@ -85,50 +80,39 @@ export class GridGameCore extends CleanupMixin {
         console.warn('⚠️ Failed to load save data:', error);
       }
     }
-    
+
     this.cleanupManager.registerComponent(this.gameState, 'GameState');
   }
 
-  // Создаем GridManager первым
   async initializeGridManager() {
     console.log('🎯 Initializing GridManager...');
-    
     this.gridManager = new GridManager();
     this.cleanupManager.registerComponent(this.gridManager, 'GridManager');
-    
-    // Устанавливаем целевую клетку из сохранения
+
     if (this.gameState.targetZone !== undefined) {
       this.gridManager.setTargetCell(this.gameState.targetZone);
     }
-    
+
     console.log('✅ GridManager initialized');
   }
 
   async initializeManagers() {
-    console.log('🔧 Initializing managers with raid support...');
-    
+    console.log('🔧 Initializing managers with Telegram support...');
     try {
-      // Базовые менеджеры
       this.managers.energy = new EnergyManager(this.gameState);
       this.managers.achievement = new AchievementManager(this.gameState);
       this.managers.building = new BuildingManager(this.gameState);
       this.managers.skill = new SkillManager(this.gameState);
       this.managers.market = new MarketManager(this.gameState);
       this.managers.buff = new BuffManager(this.gameState);
-      
-      // НОВОЕ: RaidManager после BuildingManager
       this.managers.raid = new RaidManager(this.gameState);
-      
-      // GridFeatureManager получает готовый GridManager
       this.managers.feature = new GridFeatureManager(this.gameState, this.gridManager, this.managers.buff);
-      
-      // Регистрируем для очистки
+
       Object.entries(this.managers).forEach(([name, manager]) => {
         this.cleanupManager.registerComponent(manager, `${name}Manager`);
       });
-      
-      console.log('✅ All managers initialized including raids');
-      
+
+      console.log('✅ All managers initialized with Telegram support');
     } catch (error) {
       console.error('💀 Failed to initialize managers:', error);
       throw error;
@@ -137,8 +121,6 @@ export class GridGameCore extends CleanupMixin {
 
   async setupManagerReferences() {
     console.log('🔗 Setting up manager references...');
-    
-    // Устанавливаем ссылки в gameState
     this.gameState.gridManager = this.gridManager;
     this.gameState.buffManager = this.managers.buff;
     this.gameState.energyManager = this.managers.energy;
@@ -147,151 +129,263 @@ export class GridGameCore extends CleanupMixin {
     this.gameState.skillManager = this.managers.skill;
     this.gameState.marketManager = this.managers.market;
     this.gameState.featureManager = this.managers.feature;
-    this.gameState.raidManager = this.managers.raid; // НОВОЕ: RaidManager
+    this.gameState.raidManager = this.managers.raid;
     this.gameState.managers = this.managers;
-    
-    console.log('✅ Manager references set up including raids');
+    console.log('✅ Manager references set up with Telegram support');
+  }
+
+  async initializeTelegramIntegration() {
+    console.log('📱 Initializing Telegram integration...');
+    try {
+      // Ждем готовности Telegram WebApp
+      await this.waitForTelegramReady();
+      
+      if (window.telegramIntegration) {
+        this.telegramIntegration = window.telegramIntegration;
+        
+        // Инициализируем облачные сохранения
+        this.cloudSaveManager = new TelegramCloudSaveManager(this.gameState, this.telegramIntegration);
+        this.cleanupManager.registerComponent(this.cloudSaveManager, 'TelegramCloudSaveManager');
+        
+        // Устанавливаем ссылку в gameState
+        this.gameState.cloudSaveManager = this.cloudSaveManager;
+        
+        console.log('✅ Telegram integration initialized successfully');
+      } else {
+        console.warn('⚠️ Telegram integration not available, using local storage only');
+      }
+    } catch (error) {
+      console.warn('⚠️ Telegram integration failed, falling back to local storage:', error);
+    }
+  }
+
+  waitForTelegramReady() {
+    return new Promise((resolve) => {
+      if (window.telegramIntegration?.isReady) {
+        resolve();
+        return;
+      }
+
+      const checkTelegram = () => {
+        if (window.telegramIntegration?.isReady) {
+          resolve();
+        } else {
+          setTimeout(checkTelegram, 100);
+        }
+      };
+
+      // Таймаут 5 секунд
+      setTimeout(() => {
+        console.warn('⏰ Telegram integration timeout');
+        resolve();
+      }, 5000);
+
+      checkTelegram();
+    });
   }
 
   async initializeUI() {
-    console.log('🖥️ Initializing UI with raid support...');
-    
+    console.log('🖥️ Initializing UI with Telegram support...');
     this.managers.ui = new UIManager(this.gameState);
     this.cleanupManager.registerComponent(this.managers.ui, 'UIManager');
-    
-    console.log('✅ UI initialized with raid support');
+    console.log('✅ UI initialized with Telegram support');
   }
 
   async startGameLoop() {
     console.log('🔄 Starting grid game loop...');
-    
-    // Передаем GridManager в GridGameLoop
     this.gameLoop = new GridGameLoop(this.gameState, this.gridManager);
     this.cleanupManager.registerComponent(this.gameLoop, 'GridGameLoop');
-    
     this.gameLoop.start();
     console.log('✅ Grid game loop started');
   }
 
   bindSystemEvents() {
-    // Автосохранение
+    // Автосохранение каждые 30 секунд
     this.createInterval(() => {
       this.autoSave();
     }, 30000, 'auto-save');
-    
-    // События сброса игры
+
+    // Отправка статистики в Telegram каждые 5 минут
+    this.createInterval(() => {
+      this.sendTelegramStatistics();
+    }, 300000, 'telegram-stats');
+
+    // События игры
     eventBus.subscribe(GameEvents.GAME_RESET, () => {
       this.handleGameReset();
     });
-    
-    // НОВОЕ: События рейдов
+
     eventBus.subscribe('raid:started', (data) => {
       console.log('⚔️ Raid started:', data.raid?.name);
+      this.sendTelegramStatistics(); // Отправляем обновленную статистику
     });
-    
+
     eventBus.subscribe('raid:completed', (data) => {
       console.log('⚔️ Raid completed at:', new Date(data.timestamp));
-      // Автосохранение после завершения рейда
       this.autoSave();
+      this.sendTelegramStatistics();
     });
-    
-    // Обработка закрытия страницы
+
+    eventBus.subscribe(GameEvents.ACHIEVEMENT_UNLOCKED, (data) => {
+      console.log('🏆 Achievement unlocked:', data.achievement?.name);
+      this.sendTelegramAchievement(data);
+      this.sendTelegramStatistics();
+    });
+
+    eventBus.subscribe(GameEvents.BUILDING_BOUGHT, () => {
+      this.sendTelegramStatistics();
+    });
+
+    eventBus.subscribe(GameEvents.SKILL_BOUGHT, () => {
+      this.sendTelegramStatistics();
+    });
+
+    eventBus.subscribe(GameEvents.ITEM_PURCHASED, () => {
+      this.sendTelegramStatistics();
+    });
+
+    // События браузера
     this.addEventListener(window, 'beforeunload', (e) => {
       this.autoSave();
+      this.sendTelegramStatistics();
     });
-    
+
     this.addEventListener(window, 'unload', () => {
       this.destroy();
     });
-    
+
     this.addEventListener(document, 'visibilitychange', () => {
       if (document.hidden) {
         this.autoSave();
+        this.sendTelegramStatistics();
       }
     });
   }
 
-autoSave() {
-  if (!this.gameState || this.gameState.isDestroyed || !this.storageManager) {
-    return false;
+  sendInitialStatistics() {
+    try {
+      if (!this.isFullyInitialized) return;
+      
+      // Небольшая задержка для полной инициализации
+      this.createTimeout(() => {
+        this.sendTelegramStatistics();
+      }, 2000);
+    } catch (error) {
+      console.warn('⚠️ Error sending initial statistics:', error);
+    }
   }
 
-  try {
-    // Обновляем счетчик сохранений
-    if (!this.gameState._saveCount) {
-      this.gameState._saveCount = 0;
+  async sendTelegramStatistics() {
+    try {
+      if (!this.telegramIntegration || !this.gameState) return;
+
+      const saveData = this.gameState.getSaveData();
+      if (saveData) {
+        await this.telegramIntegration.sendGameStatistics(saveData);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error sending Telegram statistics:', error);
     }
-    this.gameState._saveCount++;
-
-    // Сохраняем позицию сетки
-    if (this.gridManager) {
-      this.gameState.targetZone = this.gridManager.getTargetCell();
-    }
-
-    // ИСПРАВЛЕНО: Принудительно сохраняем состояние рейдов
-    if (this.managers.raid && this.managers.raid.isRaidInProgress) {
-      console.log('💾 Saving active raid state...');
-      this.gameState.raids.activeRaid = this.managers.raid.activeRaid;
-      this.gameState.raids.isRaidInProgress = this.managers.raid.isRaidInProgress;
-      this.gameState.raids.raidStartTime = this.managers.raid.raidStartTime;
-      this.gameState.raids.raidProgress = this.managers.raid.raidProgress;
-      this.gameState.raids.autoClickerWasActive = this.managers.raid.autoClickerWasActive;
-    }
-
-    const saveData = this.gameState.getSaveData();
-    if (!saveData) return false;
-
-    // Добавляем экстренный бэкап рейдов
-    if (this.managers.raid && this.managers.raid.isRaidInProgress) {
-      saveData.activeRaidEmergencyBackup = {
-        raidId: this.managers.raid.activeRaid?.id,
-        name: this.managers.raid.activeRaid?.name,
-        startTime: this.managers.raid.raidStartTime,
-        progress: this.managers.raid.raidProgress,
-        autoClickerWasActive: this.managers.raid.autoClickerWasActive,
-        difficulty: this.managers.raid.activeRaid?.difficulty,
-        savedAt: Date.now(),
-        emergencyFlag: true
-      };
-    }
-
-    // Сохраняем локально
-    const success = this.storageManager.safeSave({
-      ...saveData,
-      getSaveData: () => saveData
-    });
-
-    // НОВОЕ: Уведомляем облачный менеджер сохранений
-    if (this.cloudSaveManager) {
-      this.cloudSaveManager.scheduleSave(5000);
-    }
-
-    if (success) {
-      console.log('💾 Auto-save completed successfully');
-    }
-
-    return success;
-  } catch (error) {
-    console.error('❌ Auto-save failed:', error);
-    return false;
   }
-}
+
+  async sendTelegramAchievement(achievementData) {
+    try {
+      if (!this.telegramIntegration) return;
+
+      await this.telegramIntegration.onAchievementUnlocked(achievementData);
+    } catch (error) {
+      console.warn('⚠️ Error sending Telegram achievement:', error);
+    }
+  }
+
+  autoSave() {
+    if (!this.gameState || this.gameState.isDestroyed || !this.storageManager) {
+      return false;
+    }
+
+    try {
+      if (!this.gameState._saveCount) {
+        this.gameState._saveCount = 0;
+      }
+      this.gameState._saveCount++;
+
+      // Сохраняем текущую зону
+      if (this.gridManager) {
+        this.gameState.targetZone = this.gridManager.getTargetCell();
+      }
+
+      // Сохраняем активный рейд если есть
+      if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+        console.log('💾 Saving active raid state...');
+        this.gameState.raids.activeRaid = this.managers.raid.activeRaid;
+        this.gameState.raids.isRaidInProgress = this.managers.raid.isRaidInProgress;
+        this.gameState.raids.raidStartTime = this.managers.raid.raidStartTime;
+        this.gameState.raids.raidProgress = this.managers.raid.raidProgress;
+        this.gameState.raids.autoClickerWasActive = this.managers.raid.autoClickerWasActive;
+      }
+
+      const saveData = this.gameState.getSaveData();
+      if (!saveData) return false;
+
+      // Резервное сохранение активного рейда
+      if (this.managers.raid && this.managers.raid.isRaidInProgress) {
+        saveData.activeRaidEmergencyBackup = {
+          raidId: this.managers.raid.activeRaid?.id,
+          name: this.managers.raid.activeRaid?.name,
+          startTime: this.managers.raid.raidStartTime,
+          progress: this.managers.raid.raidProgress,
+          autoClickerWasActive: this.managers.raid.autoClickerWasActive,
+          difficulty: this.managers.raid.activeRaid?.difficulty,
+          savedAt: Date.now(),
+          emergencyFlag: true
+        };
+      }
+
+      // Локальное сохранение
+      const localSuccess = this.storageManager.safeSave({
+        ...saveData,
+        getSaveData: () => saveData
+      });
+
+      // Облачное сохранение через Telegram
+      if (this.cloudSaveManager) {
+        this.cloudSaveManager.scheduleSave(5000);
+      }
+
+      if (localSuccess) {
+        console.log('💾 Auto-save completed successfully');
+        eventBus.emit(GameEvents.SAVE_COMPLETED, { saveData, timestamp: Date.now() });
+      }
+
+      return localSuccess;
+    } catch (error) {
+      console.error('❌ Auto-save failed:', error);
+      return false;
+    }
+  }
 
   handleGameReset() {
     console.log('🔥 Handling game reset...');
-    
     try {
       if (this.gameLoop) {
         this.gameLoop.stop();
       }
-      
-      // НОВОЕ: Отменяем активные рейды при сбросе
+
       if (this.managers.raid && this.managers.raid.isRaidInProgress) {
         this.managers.raid.endRaid();
       }
-      
+
+      // Отправляем уведомление в Telegram о сбросе
+      if (this.telegramIntegration) {
+        this.telegramIntegration.sendDataToBot({
+          type: 'game_event',
+          userId: this.telegramIntegration.userId,
+          event_type: 'game_reset',
+          timestamp: Date.now()
+        });
+      }
+
       this.destroy();
-      
     } catch (error) {
       console.error('💀 Error handling game reset:', error);
     }
@@ -300,6 +394,20 @@ autoSave() {
   handleInitializationError(error) {
     const errorMessage = `Grid Game initialization failed: ${error.message}`;
     
+    // Отправляем ошибку в Telegram
+    if (this.telegramIntegration) {
+      this.telegramIntegration.sendDataToBot({
+        type: 'error_report',
+        userId: this.telegramIntegration.userId,
+        error: {
+          message: error.message,
+          stack: error.stack,
+          timestamp: Date.now(),
+          context: 'initialization'
+        }
+      });
+    }
+
     const errorDiv = document.createElement('div');
     errorDiv.style.cssText = `
       position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -307,7 +415,6 @@ autoSave() {
       z-index: 10000; text-align: center; font-family: Arial, sans-serif;
       box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     `;
-    
     errorDiv.innerHTML = `
       <h3>💀 Grid Game Error</h3>
       <p>${errorMessage}</p>
@@ -317,19 +424,20 @@ autoSave() {
         font-weight: bold; margin-top: 10px;
       ">🔄 Reload Page</button>
     `;
-    
     document.body.appendChild(errorDiv);
 
+    // Экстренное сохранение
     if (this.gameState && !this.gameState.isDestroyed && this.storageManager) {
-  try {
-    console.log('💾 Emergency save before error handling...');
-    this.storageManager.autoSaveToLocalStorage(this.gameState);
-  } catch (saveError) {
-    console.error('❌ Emergency save failed:', saveError);
+      try {
+        console.log('💾 Emergency save before error handling...');
+        this.storageManager.autoSaveToLocalStorage(this.gameState);
+      } catch (saveError) {
+        console.error('❌ Emergency save failed:', saveError);
+      }
+    }
   }
-  }
-}
 
+  // Геттеры для внешнего доступа
   getGameState() {
     return this.gameState;
   }
@@ -342,34 +450,42 @@ autoSave() {
     return this.managers;
   }
 
-  // НОВОЕ: Получить RaidManager
   getRaidManager() {
     return this.managers.raid;
   }
 
+  getTelegramIntegration() {
+    return this.telegramIntegration;
+  }
+
+  getCloudSaveManager() {
+    return this.cloudSaveManager;
+  }
+
   isGameActive() {
-    return this.isActive() && 
-           this.gameState && 
+    return this.isActive() &&
+           this.gameState &&
            this.gridManager?.isManagerReady() &&
            this.gameLoop?.running === true;
   }
 
-  // НОВОЕ: Проверить, заблокирована ли игра рейдом
   isGameBlocked() {
     return this.managers.raid?.isRaidInProgress || false;
   }
 
+  // Методы для отладки
   enableDebugMode() {
-    console.log('🐛 Enabling debug mode for grid game with raids...');
-    
+    console.log('🐛 Enabling debug mode for grid game with Telegram...');
     window.gameDebug = {
       getGameState: () => this.gameState,
       getGridManager: () => this.gridManager,
       getManagers: () => this.managers,
-      getRaidManager: () => this.managers.raid, // НОВОЕ
+      getRaidManager: () => this.managers.raid,
+      getTelegramIntegration: () => this.telegramIntegration,
+      getCloudSaveManager: () => this.cloudSaveManager,
       getGameCore: () => this,
       
-      // Клетки сетки
+      // Grid методы
       grid: {
         getInfo: () => this.gridManager?.getDebugInfo(),
         getStats: () => this.gridManager?.getStats(),
@@ -378,7 +494,7 @@ autoSave() {
         isReady: () => this.gridManager?.isManagerReady()
       },
       
-      // НОВОЕ: Отладка рейдов
+      // Raid методы
       raids: {
         getAvailable: () => this.managers.raid?.getAvailableRaids(),
         getCurrentStatus: () => this.managers.raid?.getCurrentRaidStatus(),
@@ -394,33 +510,46 @@ autoSave() {
         }
       },
       
-      // Энергия
+      // Energy методы
       energy: {
         getCurrent: () => this.managers.energy?.getEnergyInfo(),
         restore: (amount) => this.managers.energy?.restoreEnergy(amount, 'debug'),
         consume: (amount) => this.managers.energy?.consumeEnergy(amount)
       },
       
-      // Достижения
+      // Achievement методы
       achievements: {
         getAll: () => this.managers.achievement?.getAllAchievements(),
         getCompleted: () => this.managers.achievement?.getCompletedAchievements()
       },
       
-      triggerAutoSave: () => this.autoSave(),
+      // Telegram методы
+      telegram: {
+        getIntegration: () => this.telegramIntegration,
+        getCloudSaveManager: () => this.cloudSaveManager,
+        sendStats: () => this.sendTelegramStatistics(),
+        getSyncStatus: () => this.cloudSaveManager?.getSyncStatus(),
+        forceSyncToCloud: () => this.cloudSaveManager?.forceSyncToCloud(),
+        getDebugInfo: () => this.telegramIntegration?.getDebugInfo()
+      },
       
+      // Общие методы
+      triggerAutoSave: () => this.autoSave(),
       getStats: () => ({
         gameState: this.getGameStats(),
         grid: this.gridManager?.getStats(),
         cleanup: this.cleanupManager.getStats(),
         gameLoop: this.gameLoop?.getRenderStats(),
-        raids: this.managers.raid?.getRaidStatistics() // НОВОЕ
+        raids: this.managers.raid?.getRaidStatistics(),
+        telegram: this.telegramIntegration?.getDebugInfo(),
+        cloudSave: this.cloudSaveManager?.getSyncStatus()
       })
     };
     
-    console.log('✅ Debug mode enabled for grid game with raids');
+    console.log('✅ Debug mode enabled for grid game with Telegram');
     console.log('🔧 Available commands: window.gameDebug.*');
     console.log('⚔️ Raid commands: window.gameDebug.raids.*');
+    console.log('📱 Telegram commands: window.gameDebug.telegram.*');
   }
 
   getGameStats() {
@@ -434,14 +563,14 @@ autoSave() {
       activeDebuffs: this.gameState.debuffs.length,
       targetCell: this.gridManager?.getTargetCell(),
       gridReady: this.gridManager?.isManagerReady(),
-      // НОВОЕ: статистика рейдов
       raidsUnlocked: this.managers.raid?.isRaidSystemUnlocked() || false,
       activeRaid: this.managers.raid?.isRaidInProgress || false,
-      totalRaids: this.gameState.raids?.statistics?.totalRaids || 0
+      totalRaids: this.gameState.raids?.statistics?.totalRaids || 0,
+      telegramConnected: !!this.telegramIntegration?.isReady,
+      cloudSaveEnabled: !!this.cloudSaveManager?.isEnabled
     };
   }
 
-  // НОВОЕ: Получить полную статистику игры включая рейды
   getFullGameStats() {
     const baseStats = this.getGameStats();
     if (!baseStats) return null;
@@ -452,11 +581,12 @@ autoSave() {
       skills: this.managers.skill?.getSkillStatistics(),
       raids: this.managers.raid?.getRaidStatistics(),
       energy: this.managers.energy?.getEnergyInfo(),
-      effects: this.managers.buff?.getEffectStatistics()
+      effects: this.managers.buff?.getEffectStatistics(),
+      telegram: this.telegramIntegration?.getDebugInfo(),
+      cloudSave: this.cloudSaveManager?.getSyncStatus()
     };
   }
 
-  // НОВОЕ: Экспорт данных для анализа
   exportGameData() {
     try {
       const exportData = {
@@ -473,50 +603,41 @@ autoSave() {
         managers: {
           grid: this.gridManager?.getDebugInfo(),
           raids: this.managers.raid?.getDebugInfo?.() || null
+        },
+        telegram: {
+          integration: this.telegramIntegration?.getDebugInfo(),
+          cloudSave: this.cloudSaveManager?.getSyncStatus()
         }
       };
       
-      console.log('📊 Game data exported:', exportData);
+      console.log('📊 Game data exported with Telegram info:', exportData);
       return exportData;
-      
     } catch (error) {
       console.error('❌ Failed to export game data:', error);
       return null;
     }
   }
 
-  // НОВОЕ: Тестирование системы рейдов
-  testRaidSystem() {
-    console.log('🧪 Testing raid system...');
-    
+  testTelegramIntegration() {
+    console.log('🧪 Testing Telegram integration...');
     try {
-      const raidManager = this.managers.raid;
-      if (!raidManager) {
-        console.log('❌ RaidManager not available');
+      if (!this.telegramIntegration) {
+        console.log('❌ Telegram integration not available');
         return false;
       }
-      
-      // Проверяем разблокировку системы
-      const isUnlocked = raidManager.isRaidSystemUnlocked();
-      console.log('🔓 Raid system unlocked:', isUnlocked);
-      
-      // Получаем доступные рейды
-      const availableRaids = raidManager.getAvailableRaids();
-      console.log('📋 Available raids:', availableRaids.length);
-      
-      // Проверяем статистику
-      const stats = raidManager.getRaidStatistics();
-      console.log('📊 Raid statistics:', stats);
-      
-      // Проверяем текущий статус
-      const status = raidManager.getCurrentRaidStatus();
-      console.log('⚔️ Current raid status:', status);
-      
-      console.log('✅ Raid system test completed');
+
+      const debugInfo = this.telegramIntegration.getDebugInfo();
+      console.log('📱 Telegram integration info:', debugInfo);
+
+      if (this.cloudSaveManager) {
+        const syncStatus = this.cloudSaveManager.getSyncStatus();
+        console.log('☁️ Cloud save status:', syncStatus);
+      }
+
+      console.log('✅ Telegram integration test completed');
       return true;
-      
     } catch (error) {
-      console.error('❌ Raid system test failed:', error);
+      console.error('❌ Telegram integration test failed:', error);
       return false;
     }
   }
@@ -524,19 +645,21 @@ autoSave() {
   destroy() {
     console.log('🧹 GridGameCore cleanup started');
     
-    // Останавливаем игровой цикл
     if (this.gameLoop) {
       this.gameLoop.stop();
     }
     
-    // НОВОЕ: Завершаем активные рейды при уничтожении
     if (this.managers.raid && this.managers.raid.isRaidInProgress) {
       console.log('⚔️ Ending active raid during cleanup...');
       this.managers.raid.endRaid();
     }
     
-    super.destroy();
+    // Финальная отправка статистики
+    if (this.telegramIntegration && this.isFullyInitialized) {
+      this.sendTelegramStatistics();
+    }
     
+    super.destroy();
     console.log('✅ GridGameCore destroyed');
   }
 }

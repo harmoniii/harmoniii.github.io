@@ -11,9 +11,11 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     this.saveInterval = null;
     this.syncInProgress = false;
     this.pendingSave = false;
-    this.autoSaveInterval = 120000; // 2 минуты
+    this.autoSaveInterval = 120000; // Увеличен до 2 минут
     this.maxRetries = 3;
     this.retryDelay = 5000;
+    this.lastStatsSent = 0;
+    this.statsInterval = 300000; // 5 минут между отправкой статистики
 
     if (this.isEnabled) {
       this.initialize();
@@ -29,28 +31,30 @@ export class TelegramCloudSaveManager extends CleanupMixin {
   }
 
   setupAutoSave() {
-    // Автосохранение каждые 2 минуты
     this.saveInterval = this.createInterval(() => {
       if (!this.syncInProgress && !this.pendingSave) {
         this.saveToCloud();
       }
     }, this.autoSaveInterval, 'cloud-auto-save');
 
-    // Сохранение при закрытии приложения
+    // Отправка статистики отдельно от сохранений
+    this.createInterval(() => {
+      this.sendGameStatistics();
+    }, this.statsInterval, 'stats-sender');
+
     this.addEventListener(window, 'beforeunload', () => {
       this.performEmergencySave();
     });
 
-    // Сохранение при сворачивании приложения
     this.addEventListener(document, 'visibilitychange', () => {
       if (document.hidden && !this.syncInProgress) {
         this.saveToCloud(true);
+        this.sendGameStatistics();
       }
     });
   }
 
   bindGameEvents() {
-    // Критические события - сохраняем сразу
     const criticalEvents = [
       GameEvents.BUILDING_BOUGHT,
       GameEvents.SKILL_BOUGHT,
@@ -60,12 +64,13 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     ];
 
     criticalEvents.forEach(event => {
-      eventBus.subscribe(event, () => {
-        this.scheduleSave(5000); // Сохранение через 5 секунд
+      eventBus.subscribe(event, (data) => {
+        console.log(`📊 Critical event detected: ${event}`, data);
+        this.scheduleSave(5000);
+        this.scheduleStatsUpdate(2000);
       });
     });
 
-    // Обычные события - сохраняем реже
     const normalEvents = [
       GameEvents.RESOURCE_CHANGED,
       GameEvents.SKILL_POINTS_CHANGED,
@@ -74,9 +79,27 @@ export class TelegramCloudSaveManager extends CleanupMixin {
 
     normalEvents.forEach(event => {
       eventBus.subscribe(event, () => {
-        this.scheduleSave(30000); // Сохранение через 30 секунд
+        this.scheduleSave(30000);
       });
     });
+  }
+
+  bindTelegramEvents() {
+    // Если есть обработчики от Telegram WebApp
+    if (this.tg && this.tg.onEvent) {
+      this.tg.onEvent('mainButtonClicked', () => {
+        this.forceSyncToCloud();
+      });
+    }
+  }
+
+  scheduleStatsUpdate(delay = 5000) {
+    const now = Date.now();
+    if (now - this.lastStatsSent < 10000) return; // Не чаще раза в 10 секунд
+
+    this.createTimeout(() => {
+      this.sendGameStatistics();
+    }, delay);
   }
 
   scheduleSave(delay = 5000) {
@@ -105,35 +128,27 @@ export class TelegramCloudSaveManager extends CleanupMixin {
 
     const now = Date.now();
     if (!force && now - this.lastCloudSave < 30000) {
-      return false; // Не чаще чем раз в 30 секунд
+      return false;
     }
 
     try {
       this.syncInProgress = true;
       console.log('☁️ Starting cloud save...');
 
-      // ИСПРАВЛЕНО: Получаем полные данные игры
       const saveData = this.getCompleteSaveData();
       if (!saveData) {
         throw new Error('No save data available');
       }
 
-      // Создаем данные для облака
       const cloudSaveData = this.createCloudSaveData(saveData);
-      
-      // Отправляем в бота
       const success = await this.sendToBot(cloudSaveData);
-      
+
       if (success) {
         this.lastCloudSave = now;
         console.log('☁️ Cloud save successful');
-        
         if (force) {
           this.showCloudNotification('✅ Saved to cloud', 'success');
         }
-        
-        // Отправляем статистику
-        this.sendGameStatistics();
         return true;
       } else {
         throw new Error('Failed to send data to bot');
@@ -144,7 +159,6 @@ export class TelegramCloudSaveManager extends CleanupMixin {
       return false;
     } finally {
       this.syncInProgress = false;
-      
       if (this.pendingSave) {
         this.pendingSave = false;
         this.createTimeout(() => {
@@ -154,7 +168,6 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     }
   }
 
-  // НОВЫЙ МЕТОД: Получение полных данных сохранения
   getCompleteSaveData() {
     try {
       if (!this.gameState || this.gameState.isDestroyed) {
@@ -162,7 +175,7 @@ export class TelegramCloudSaveManager extends CleanupMixin {
         return null;
       }
 
-      // Принудительно обновляем состояние рейдов
+      // Сохраняем активный рейд если есть
       if (this.gameState.raidManager && this.gameState.raidManager.isRaidInProgress) {
         this.gameState.raids.activeRaid = this.gameState.raidManager.activeRaid;
         this.gameState.raids.isRaidInProgress = this.gameState.raidManager.isRaidInProgress;
@@ -171,18 +184,17 @@ export class TelegramCloudSaveManager extends CleanupMixin {
         this.gameState.raids.autoClickerWasActive = this.gameState.raidManager.autoClickerWasActive;
       }
 
-      // Получаем данные сохранения
       const saveData = this.gameState.getSaveData();
       if (!saveData) {
         console.warn('⚠️ getSaveData returned null');
         return null;
       }
 
-      // ИСПРАВЛЕНО: Добавляем метаданные
-      saveData.cloudSaveVersion = '1.1';
+      // Добавляем метаданные
+      saveData.cloudSaveVersion = '1.2';
       saveData.saveTimestamp = Date.now();
       saveData.gameVersion = '1.0.10';
-
+      
       return saveData;
     } catch (error) {
       console.error('❌ Error getting complete save data:', error);
@@ -191,7 +203,7 @@ export class TelegramCloudSaveManager extends CleanupMixin {
   }
 
   createCloudSaveData(saveData) {
-    const userData = this.tg.user || {};
+    const userData = this.tg?.user || this.tg?.initDataUnsafe?.user || {};
     
     return {
       type: 'cloud_save',
@@ -207,32 +219,63 @@ export class TelegramCloudSaveManager extends CleanupMixin {
       timestamp: Date.now(),
       version: saveData.saveVersion || '1.0.10',
       platform: 'telegram_webapp',
-      cloudSaveVersion: '1.1'
+      cloudSaveVersion: '1.2'
     };
   }
 
-  // ИСПРАВЛЕННЫЙ МЕТОД: Сбор статистики игры
-  gatherGameStatistics() {
+  async sendGameStatistics() {
     try {
-      if (!this.gameState) {
-        return {};
-      }
+      const now = Date.now();
+      if (now - this.lastStatsSent < 30000) return; // Не чаще раза в 30 секунд
 
-      const resources = this.gameState.resources || {};
+      if (!this.gameState || this.gameState.isDestroyed) return;
+
+      const saveData = this.gameState.getSaveData();
+      if (!saveData) return;
+
+      const userData = this.tg?.user || this.tg?.initDataUnsafe?.user || {};
+      
+      const statisticsData = {
+        type: 'game_statistics',
+        userId: userData.id || Date.now(),
+        stats: this.gatherDetailedGameStatistics(saveData),
+        timestamp: now
+      };
+
+      const success = await this.sendToBot(statisticsData);
+      if (success) {
+        this.lastStatsSent = now;
+        console.log('📊 Game statistics sent successfully');
+      }
+    } catch (error) {
+      console.error('📊 Error sending statistics:', error);
+    }
+  }
+
+  gatherDetailedGameStatistics(saveData = null) {
+    try {
+      if (!this.gameState) return {};
+
+      const data = saveData || this.gameState.getSaveData() || {};
+      const resources = data.resources || {};
+      const buildings = data.buildings || {};
+      const skills = data.skills || {};
+      const achievements = data.achievements || {};
+      const raids = data.raids || {};
+
+      // Подсчитываем общие ресурсы
       const totalResources = Object.values(resources).reduce((sum, val) => sum + (val || 0), 0);
       
-      const buildingLevels = Object.values(this.gameState.buildings || {})
-        .reduce((sum, building) => sum + (building.level || 0), 0);
+      // Подсчитываем уровни зданий
+      const buildingLevels = Object.values(buildings).reduce((sum, building) => sum + (building.level || 0), 0);
       
-      const skillLevels = Object.values(this.gameState.skills || {})
-        .reduce((sum, skill) => sum + (skill.level || 0), 0);
-
-      const achievements = this.gameState.achievements || {};
+      // Подсчитываем уровни навыков
+      const skillLevels = Object.values(skills).reduce((sum, skill) => sum + (skill.level || 0), 0);
+      
+      // Количество достижений
       const achievementsCount = achievements.completed ? 
         (achievements.completed.size || achievements.completed.length || 0) : 0;
 
-      const raidStats = this.gameState.raids?.statistics || {};
-      
       return {
         // Основные ресурсы
         totalResources,
@@ -243,48 +286,54 @@ export class TelegramCloudSaveManager extends CleanupMixin {
         water: resources.water || 0,
         iron: resources.iron || 0,
         people: resources.people || 0,
-        energy: resources.energy || 0,
         science: resources.science || 0,
         faith: resources.faith || 0,
         chaos: resources.chaos || 0,
         
-        // Прогресс
-        skillPoints: this.gameState.skillPoints || 0,
-        maxCombo: this.gameState.combo?.count || 0,
+        // Очки навыков и комбо
+        skillPoints: data.skillPoints || 0,
+        maxCombo: data.combo?.count || 0,
+        
+        // Статистика достижений
         totalClicks: achievements.statistics?.totalClicks || 0,
         
-        // Постройки и навыки
+        // Здания и навыки
         buildingLevels,
         skillLevels,
-        totalBuildings: Object.values(this.gameState.buildings || {}).filter(b => (b.level || 0) > 0).length,
-        totalSkills: Object.values(this.gameState.skills || {}).filter(s => (s.level || 0) > 0).length,
+        totalBuildings: Object.values(buildings).filter(b => (b.level || 0) > 0).length,
+        totalSkills: Object.values(skills).filter(s => (s.level || 0) > 0).length,
         
         // Рейды
-        raidsCompleted: raidStats.totalRaids || 0,
-        successfulRaids: raidStats.successfulRaids || 0,
-        peopleLost: raidStats.peopleLost || 0,
-        raidSystemUnlocked: this.gameState.buildingManager?.isRaidSystemUnlocked() || false,
+        raidsCompleted: raids.statistics?.totalRaids || 0,
+        successfulRaids: raids.statistics?.successfulRaids || 0,
+        peopleLost: raids.statistics?.peopleLost || 0,
+        raidSystemUnlocked: !!(buildings.watchTower?.level),
         
         // Достижения
         achievementsCount,
         
-        // Оценка времени игры
+        // Время игры (приблизительная оценка)
         playtimeEstimate: Math.floor((totalResources + buildingLevels * 100 + skillLevels * 200) / 60),
         
         // Активные эффекты
-        activeBuffs: (this.gameState.buffs || []).length,
-        activeDebuffs: (this.gameState.debuffs || []).length,
+        activeBuffs: (data.buffs || []).length,
+        activeDebuffs: (data.debuffs || []).length,
         
         // Энергия
-        currentEnergy: this.gameState.energy?.current || 0,
-        maxEnergy: this.gameState.energy?.max || 0,
+        currentEnergy: data.energy?.current || 0,
+        maxEnergy: data.energy?.max || 0,
         
-        // Дополнительная статистика
+        // Рынок
+        marketReputation: data.market?.reputation || 0,
+        marketPurchases: data.market?.purchaseHistory?.length || 0,
+        
+        // Метаданные
         lastPlayTime: Date.now(),
-        saveCount: (this.gameState._saveCount || 0) + 1
+        saveCount: (data._saveCount || 0) + 1,
+        gameVersion: data.gameVersion || '1.0.10'
       };
     } catch (error) {
-      console.error('☁️ Error gathering statistics:', error);
+      console.error('☁️ Error gathering detailed statistics:', error);
       return {
         error: 'Failed to gather statistics',
         timestamp: Date.now()
@@ -292,51 +341,38 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     }
   }
 
-  sendGameStatistics() {
-    try {
-      const statisticsData = {
-        type: 'game_statistics',
-        userId: this.tg.user?.id || Date.now(),
-        stats: this.gatherGameStatistics(),
-        timestamp: Date.now()
-      };
-      
-      this.sendToBot(statisticsData);
-      console.log('📊 Game statistics sent');
-    } catch (error) {
-      console.error('📊 Error sending statistics:', error);
-    }
+  gatherGameStatistics() {
+    // Упрощенная версия для обратной совместимости
+    return this.gatherDetailedGameStatistics();
   }
 
   async sendToBot(data) {
     try {
-      if (!this.tg.tg || !this.tg.tg.sendData) {
+      if (!this.tg?.sendData) {
         console.warn('☁️ Telegram Web App sendData not available');
         return false;
       }
 
       const jsonData = JSON.stringify(data);
-      
-      // ИСПРАВЛЕНО: Проверяем размер данных
-      const maxSize = 4096; // Максимальный размер для Telegram
-      
+      const maxSize = 4000; // Немного уменьшаем лимит для надежности
+
       if (jsonData.length > maxSize) {
         console.warn(`☁️ Data too large (${jsonData.length} bytes), compressing...`);
-        
-        // Сжимаем данные, убирая менее важную информацию
         const compressedData = this.compressData(data);
         const compressedJson = JSON.stringify(compressedData);
         
         if (compressedJson.length > maxSize) {
           console.error('☁️ Data still too large after compression');
-          return false;
+          // Попытка отправить только критически важные данные
+          const criticalData = this.extractCriticalData(data);
+          this.tg.sendData(JSON.stringify(criticalData));
+        } else {
+          this.tg.sendData(compressedJson);
         }
-        
-        this.tg.tg.sendData(compressedJson);
       } else {
-        this.tg.tg.sendData(jsonData);
+        this.tg.sendData(jsonData);
       }
-      
+
       return true;
     } catch (error) {
       console.error('☁️ Error sending data to bot:', error);
@@ -344,64 +380,89 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     }
   }
 
-  // НОВЫЙ МЕТОД: Сжатие данных
+  extractCriticalData(data) {
+    // Извлекаем только самые важные данные если размер слишком большой
+    if (data.type === 'cloud_save') {
+      return {
+        type: 'cloud_save',
+        userId: data.userId,
+        userInfo: data.userInfo,
+        saveData: {
+          resources: data.saveData?.resources || {},
+          combo: data.saveData?.combo || {},
+          skillPoints: data.saveData?.skillPoints || 0,
+          buildings: data.saveData?.buildings || {},
+          skills: data.saveData?.skills || {},
+          energy: data.saveData?.energy || {},
+          saveTimestamp: data.saveData?.saveTimestamp || Date.now()
+        },
+        timestamp: data.timestamp,
+        compressed: true,
+        critical: true
+      };
+    }
+    return data;
+  }
+
   compressData(data) {
     const compressed = { ...data };
     
-    // Убираем или сжимаем большие объекты
     if (compressed.saveData) {
-      // Убираем историю покупок в маркете
+      // Сжимаем историю покупок
       if (compressed.saveData.market?.purchaseHistory) {
-        compressed.saveData.market.purchaseHistory = compressed.saveData.market.purchaseHistory.slice(-10);
+        compressed.saveData.market.purchaseHistory = compressed.saveData.market.purchaseHistory.slice(-5);
       }
       
-      // Убираем подробную историю рейдов
+      // Сжимаем историю рейдов
       if (compressed.saveData.raids?.completed) {
-        compressed.saveData.raids.completed = compressed.saveData.raids.completed.slice(-5);
+        compressed.saveData.raids.completed = compressed.saveData.raids.completed.slice(-3);
       }
       
-      // Убираем детальную статистику достижений
+      // Сжимаем статистику достижений
       if (compressed.saveData.achievements?.statistics?.resourcesCollected) {
         const resources = compressed.saveData.achievements.statistics.resourcesCollected;
         compressed.saveData.achievements.statistics.resourcesCollected = {
           total: Object.values(resources).reduce((sum, val) => sum + (val || 0), 0)
         };
       }
+      
+      // Удаляем неактивные эффекты
+      compressed.saveData.buffs = [];
+      compressed.saveData.debuffs = [];
+      compressed.saveData.blockedUntil = 0;
     }
     
-    // Отмечаем, что данные сжаты
     compressed.compressed = true;
-    
     return compressed;
   }
 
   performEmergencySave() {
     try {
       console.log('🚨 Performing emergency cloud save...');
-      
       const saveData = this.getCompleteSaveData();
       if (!saveData) {
         console.error('🚨 No save data for emergency save');
         return;
       }
 
+      const userData = this.tg?.user || this.tg?.initDataUnsafe?.user || {};
+      
       const emergencyData = {
         type: 'emergency_save',
-        userId: this.tg.user?.id || Date.now(),
+        userId: userData.id || Date.now(),
         saveData: saveData,
         timestamp: Date.now(),
         emergencyFlag: true
       };
 
-      if (this.tg.tg && this.tg.tg.sendData) {
+      if (this.tg?.sendData) {
         const jsonData = JSON.stringify(emergencyData);
-        if (jsonData.length <= 4096) {
-          this.tg.tg.sendData(jsonData);
+        if (jsonData.length <= 4000) {
+          this.tg.sendData(jsonData);
           console.log('🚨 Emergency save sent');
         } else {
-          // Если данные слишком большие, отправляем сжатые
-          const compressedData = this.compressData(emergencyData);
-          this.tg.tg.sendData(JSON.stringify(compressedData));
+          const compressedData = this.extractCriticalData(emergencyData);
+          this.tg.sendData(JSON.stringify(compressedData));
           console.log('🚨 Compressed emergency save sent');
         }
       }
@@ -410,7 +471,24 @@ export class TelegramCloudSaveManager extends CleanupMixin {
     }
   }
 
-  // Методы для работы с конфликтами и восстановлением данных
+  async loadFromCloud() {
+    // Запрос данных из облака при инициализации
+    try {
+      const userData = this.tg?.user || this.tg?.initDataUnsafe?.user || {};
+      
+      const requestData = {
+        type: 'cloud_load_request',
+        userId: userData.id || Date.now(),
+        timestamp: Date.now()
+      };
+
+      await this.sendToBot(requestData);
+      console.log('☁️ Cloud load request sent');
+    } catch (error) {
+      console.error('☁️ Failed to request cloud load:', error);
+    }
+  }
+
   handleCloudData(data) {
     try {
       if (data.type === 'cloud_save_data' && data.saveData) {
@@ -436,11 +514,10 @@ export class TelegramCloudSaveManager extends CleanupMixin {
       eventBus.emit(GameEvents.NOTIFICATION, message);
     }
 
-    // Тактильная обратная связь в Telegram
-    if (this.tg.tg && this.tg.tg.HapticFeedback) {
+    if (this.tg?.HapticFeedback) {
       const hapticType = type === 'success' ? 'success' :
                         type === 'error' ? 'error' : 'selection';
-      this.tg.tg.HapticFeedback.notificationOccurred(hapticType);
+      this.tg.HapticFeedback.notificationOccurred(hapticType);
     }
   }
 
@@ -449,36 +526,37 @@ export class TelegramCloudSaveManager extends CleanupMixin {
       isEnabled: this.isEnabled,
       syncInProgress: this.syncInProgress,
       lastCloudSave: this.lastCloudSave,
+      lastStatsSent: this.lastStatsSent,
       pendingSave: this.pendingSave,
       timeSinceLastSave: Date.now() - this.lastCloudSave,
+      timeSinceLastStats: Date.now() - this.lastStatsSent,
       nextAutoSave: this.lastCloudSave + this.autoSaveInterval,
-      userId: this.tg.user?.id,
+      userId: this.tg?.user?.id || this.tg?.initDataUnsafe?.user?.id,
       saveCount: this.gameState?._saveCount || 0
     };
   }
 
   forceSyncToCloud() {
-    return this.saveToCloud(true);
+    console.log('🔄 Force sync requested');
+    this.saveToCloud(true);
+    this.sendGameStatistics();
+    return true;
   }
 
   destroy() {
     console.log('🧹 TelegramCloudSaveManager cleanup started');
-    
     if (this.isEnabled && !this.syncInProgress) {
       this.performEmergencySave();
     }
-
     if (this.saveInterval) {
       this.cleanupManager.clearInterval(this.saveInterval);
       this.saveInterval = null;
     }
-
     super.destroy();
     console.log('✅ TelegramCloudSaveManager destroyed');
   }
 }
 
-// Добавляем в window для отладки
 if (typeof window !== 'undefined') {
   window.getCloudSaveStatus = () => {
     const cloudSaveManager = window.gameCore?.cloudSaveManager;
