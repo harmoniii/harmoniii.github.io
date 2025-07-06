@@ -2,33 +2,26 @@ import { CleanupMixin } from '../core/CleanupManager.js';
 import { eventBus, GameEvents } from '../core/GameEvents.js';
 
 export class TelegramCloudSaveManager extends CleanupMixin {
-  constructor(gameState, telegramWebApp) {
-super();
+constructor(gameState, telegramWebApp) {
+  super();
   this.gameState = gameState;
   this.tg = telegramWebApp;
   
-  // Проверяем, что у нас есть правильная ссылка на Telegram интеграцию
+  // Проверяем различные источники Telegram интеграции
   if (!this.tg && window.telegramIntegration) {
     this.tg = window.telegramIntegration;
     console.log('☁️ Using global telegramIntegration instance');
   }
   
-    this.isEnabled = this.tg && (this.tg.isReady || this.tg.isInTelegram);
-    this.lastCloudSave = 0;
-    this.saveInterval = null;
-    this.syncInProgress = false;
-    this.pendingSave = false;
-    this.autoSaveInterval = 120000; // Увеличен до 2 минут
-    this.maxRetries = 3;
-    this.retryDelay = 5000;
-    this.lastStatsSent = 0;
-    this.statsInterval = 300000; // 5 минут между отправкой статистики
-
-    if (this.isEnabled) {
-      this.initialize();
-    }
-    console.log('☁️ TelegramCloudSaveManager initialized:', this.isEnabled ? 'Enabled' : 'Disabled');
+  // Проверяем доступность методов отправки
+  this.isEnabled = this.checkTelegramAvailability();
+  
+  console.log('☁️ TelegramCloudSaveManager initialized:', this.isEnabled ? 'Enabled' : 'Disabled');
+  
+  if (this.isEnabled) {
+    this.initialize();
   }
+}
 
   initialize() {
     this.setupAutoSave();
@@ -122,58 +115,92 @@ super();
     }, delay);
   }
 
-  async saveToCloud(force = false) {
-    if (!this.isEnabled) {
-      console.warn('☁️ Cloud save disabled - Telegram Web App not available');
+async saveToCloud(force = false) {
+  if (!this.isEnabled) {
+    console.warn('☁️ Cloud save disabled - Telegram Web App not available');
+    return false;
+  }
+
+  if (this.syncInProgress && !force) {
+    this.pendingSave = true;
+    return false;
+  }
+
+  const now = Date.now();
+  if (!force && now - this.lastCloudSave < 30000) {
+    return false;
+  }
+
+  try {
+    this.syncInProgress = true;
+    console.log('☁️ Starting cloud save...');
+    
+    const saveData = this.getCompleteSaveData();
+    if (!saveData) {
+      console.warn('☁️ No save data available');
       return false;
     }
 
-    if (this.syncInProgress && !force) {
-      this.pendingSave = true;
-      return false;
-    }
-
-    const now = Date.now();
-    if (!force && now - this.lastCloudSave < 30000) {
-      return false;
-    }
-
-    try {
-      this.syncInProgress = true;
-      console.log('☁️ Starting cloud save...');
-
-      const saveData = this.getCompleteSaveData();
-      if (!saveData) {
-        throw new Error('No save data available');
+    const cloudSaveData = this.createCloudSaveData(saveData);
+    const success = await this.sendToBot(cloudSaveData);
+    
+    if (success) {
+      this.lastCloudSave = now;
+      console.log('☁️ Cloud save successful');
+      if (force) {
+        this.showCloudNotification('✅ Saved to cloud', 'success');
       }
-
-      const cloudSaveData = this.createCloudSaveData(saveData);
-      const success = await this.sendToBot(cloudSaveData);
-
-      if (success) {
-        this.lastCloudSave = now;
-        console.log('☁️ Cloud save successful');
-        if (force) {
-          this.showCloudNotification('✅ Saved to cloud', 'success');
-        }
-        return true;
-      } else {
-        throw new Error('Failed to send data to bot');
+      return true;
+    } else {
+      console.warn('☁️ Cloud save failed - bot communication unsuccessful');
+      if (force) {
+        this.showCloudNotification('⚠️ Save failed, stored locally', 'warning');
       }
-    } catch (error) {
-      console.error('☁️ Cloud save failed:', error);
+      return false;
+    }
+  } catch (error) {
+    console.error('☁️ Cloud save failed:', error);
+    if (force) {
       this.showCloudNotification('❌ Cloud save failed', 'error');
-      return false;
-    } finally {
-      this.syncInProgress = false;
-      if (this.pendingSave) {
-        this.pendingSave = false;
-        this.createTimeout(() => {
-          this.saveToCloud();
-        }, 1000);
-      }
+    }
+    return false;
+  } finally {
+    this.syncInProgress = false;
+    if (this.pendingSave) {
+      this.pendingSave = false;
+      setTimeout(() => {
+        this.saveToCloud();
+      }, 1000);
     }
   }
+}
+
+  checkTelegramAvailability() {
+  // Проверяем различные способы доступа к Telegram
+  const checks = [
+    // TelegramIntegration instance
+    this.tg && typeof this.tg.sendDataToBot === 'function',
+    // Direct Telegram WebApp access through integration
+    this.tg && this.tg.tg && typeof this.tg.tg.sendData === 'function',
+    // Global Telegram WebApp
+    window.Telegram?.WebApp?.sendData,
+    // TelegramIntegration global instance
+    window.telegramIntegration?.sendDataToBot
+  ];
+
+  const available = checks.some(check => check);
+  
+  console.log('☁️ Telegram availability check:', {
+    integration: !!this.tg,
+    sendDataToBot: typeof this.tg?.sendDataToBot === 'function',
+    directTelegram: !!(this.tg?.tg?.sendData),
+    globalTelegram: !!(window.Telegram?.WebApp?.sendData),
+    globalIntegration: !!(window.telegramIntegration?.sendDataToBot),
+    overall: available
+  });
+
+  return available;
+}
 
   getCompleteSaveData() {
     try {
@@ -355,18 +382,29 @@ super();
 
 async sendToBot(data) {
   try {
+    // Проверяем доступность Telegram интеграции
     if (!this.tg) {
       console.warn('☁️ Telegram integration not available');
       return false;
     }
 
-    // Проверяем, есть ли метод sendDataToBot
+    // Добавляем базовые поля если их нет
+    if (!data.userId && this.tg.user) {
+      data.userId = this.tg.user.id;
+    }
+    data.timestamp = data.timestamp || Date.now();
+    data.platform = 'telegram_webapp';
+
+    // Попытка использовать метод sendDataToBot из TelegramIntegration
     if (typeof this.tg.sendDataToBot === 'function') {
-      return await this.tg.sendDataToBot(data);
+      console.log('☁️ Using sendDataToBot method');
+      const result = await this.tg.sendDataToBot(data);
+      return result;
     }
 
     // Fallback: прямое использование Telegram WebApp API
-    if (this.tg.sendData && typeof this.tg.sendData === 'function') {
+    if (this.tg.tg && typeof this.tg.tg.sendData === 'function') {
+      console.log('☁️ Using direct Telegram WebApp sendData');
       const jsonData = JSON.stringify(data);
       const maxSize = 4000;
       
@@ -378,18 +416,33 @@ async sendToBot(data) {
         if (compressedJson.length > maxSize) {
           console.error('☁️ Data still too large after compression');
           const criticalData = this.extractCriticalData(data);
-          this.tg.sendData(JSON.stringify(criticalData));
+          this.tg.tg.sendData(JSON.stringify(criticalData));
         } else {
-          this.tg.sendData(compressedJson);
+          this.tg.tg.sendData(compressedJson);
         }
       } else {
-        this.tg.sendData(jsonData);
+        this.tg.tg.sendData(jsonData);
       }
       return true;
     }
 
+    // Еще один fallback для прямого доступа к Telegram
+    if (window.Telegram?.WebApp?.sendData) {
+      console.log('☁️ Using global Telegram WebApp sendData');
+      const jsonData = JSON.stringify(data);
+      
+      if (jsonData.length <= 4000) {
+        window.Telegram.WebApp.sendData(jsonData);
+        return true;
+      } else {
+        const compressedData = this.extractCriticalData(data);
+        window.Telegram.WebApp.sendData(JSON.stringify(compressedData));
+        return true;
+      }
+    }
+
     // Если ничего не сработало
-    console.error('☁️ No valid send method available');
+    console.warn('☁️ No valid send method available, data will be stored locally only');
     return false;
 
   } catch (error) {
