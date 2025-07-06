@@ -101,6 +101,243 @@
       "category": "resource_gathering"
     },
     {
+      "id": "survivor_camp",
+      "name": "⛺ Survivor Camp",
+      "description": "Rescue survivors from a small encampment and gain their loyalty",
+      "difficulty": "beginner",
+      "unlockCondition": { "building": "watchTower", "level": 1 },
+      "requirements": {
+        "people": 6,
+        "food": 15,
+        "water": 12
+      },
+      "duration": 180000,
+      "riskPercentage": 10,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "people", "min": 2, "max": 4 }
+        ],
+        "chance": [
+          {
+            "probability": 0.30,
+            "reward": { "resource": "skillPoints", "amount": 1 },
+            "description": "Gained knowledge from survivors"
+          },
+          {
+            "probability": 0.15,
+            "reward": { "type": "special", "id": "survival_guide" },
+            "description": "Obtained survival manual"
+          }
+        ]
+      },
+      "category": "recruitment"
+    },
+    {
+      "id": "supply_depot",
+      "name": "📦 Supply Depot",
+      "description": "Raid an old supply depot for emergency provisions and basic equipment",
+      "difficulty": "beginner",
+      "unlockCondition": { "building": "watchTower", "level": 1 },
+      "requirements": {
+        "people": 4,
+        "food": 6,
+        "water": 6
+      },
+      "duration": 100000,
+      "riskPercentage": 18,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "food", "min": 8, "max": 12 },
+          { "resource": "water", "min": 6, "max": 10 },
+          { "resource": "wood", "min": 2, "max": 4 }
+        ],
+        "chance": [
+          {
+            "probability": 0.20,
+            "reward": { "resource": "iron", "amount": 3 },
+            "description": "Found metal containers"
+          },
+          {
+            "probability": 0.12,
+            "reward": { "type": "special", "id": "first_aid_kit" },
+            "description": "Recovered medical supplies"
+          }
+        ]
+      },
+      "category": "supply_run"
+    },
+    {
+      "id": "forgotten_district",
+      "name": "🏙️ Forgotten District",
+      "description": "Scout the abandoned district for usable machinery and parts",
+      "difficulty": "intermediate",
+      "unlockCondition": { "building": "watchTower", "level": 2 },
+      "requirements": {
+        "people": 15,
+        "food": 45,
+        "water": 30
+      },
+      "duration": 240000,
+      "riskPercentage": 28,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "iron", "min": 10, "max": 15 },
+          { "resource": "science", "min": 8, "max": 12 }
+        ],
+        "chance": [
+          {
+            "probability": 0.35,
+            "reward": { "resource": "skillPoints", "amount": 3 },
+            "description": "Found ancient technology"
+          },
+          {
+            "probability": 0.15,
+            "reward": { "type": "special", "id": "advanced_blueprint" },
+            "description": "Discovered Advanced Blueprint"
+          }
+        ]
+      },
+      "category": "exploration"
+    },
+    {
+      "id": "factory_complex",
+      "name": "🏭 Factory Complex",
+      "description": "Infiltrate an abandoned manufacturing facility to salvage machinery",
+      "difficulty": "intermediate",
+      "unlockCondition": { "building": "watchTower", "level": 2 },
+      "requirements": {
+        "people": 12,
+        "food": 35,
+        "water": 25,
+        "iron": 8
+      },
+      "duration": 300000,
+      "riskPercentage": 32,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "iron", "min": 15, "max": 25 },
+          { "resource": "stone", "min": 8, "max": 12 },
+          { "resource": "science", "min": 5, "max": 8 }
+        ],
+        "chance": [
+          {
+            "probability": 0.25,
+            "reward": { "resource": "gold", "amount": 50 },
+            "description": "Found valuable components"
+          },
+          {
+            "probability": 0.20,
+            "reward": { "type": "special", "id": "power_core" },
+            "description": "Salvaged energy core"
+          }
+        ]
+      },
+      "category": "industrial"
+    },
+    {
+      "id": "research_facility",
+      "name": "🔬 Research Facility",
+      "description": "Break into a secured laboratory to recover scientific equipment and data",
+      "difficulty": "intermediate",
+      "unlockCondition": { "building": "watchTower", "level": 2 },
+      "requirements": {
+        "people": 10,
+        "food": 40,
+        "water": 30,
+        "science": 5
+      },
+      "duration": 270000,
+      "riskPercentage": 25,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "science", "min": 12, "max": 20 },
+          { "resource": "skillPoints", "min": 2, "max": 4 }
+        ],
+        "chance": [
+          {
+            "probability": 0.30,
+            "reward": { "resource": "faith", "amount": 8 },
+            "description": "Discovered hopeful research"
+          },
+          {
+            "probability": 0.18,
+            "reward": { "type": "special", "id": "research_data" },
+            "description": "Retrieved valuable data"
+          }
+        ]
+      },
+      "category": "scientific"
+    },
+    {
+      "id": "military_outpost",
+      "name": "🪖 Military Outpost",
+      "description": "Assault a fortified outpost to claim weapons and tactical equipment",
+      "difficulty": "intermediate",
+      "unlockCondition": { "building": "watchTower", "level": 2 },
+      "requirements": {
+        "people": 18,
+        "food": 50,
+        "water": 35,
+        "iron": 10
+      },
+      "duration": 360000,
+      "riskPercentage": 35,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "iron", "min": 20, "max": 30 },
+          { "resource": "gold", "min": 25, "max": 40 }
+        ],
+        "chance": [
+          {
+            "probability": 0.40,
+            "reward": { "resource": "people", "amount": 5 },
+            "description": "Recruited military survivors"
+          },
+          {
+            "probability": 0.12,
+            "reward": { "type": "special", "id": "tactical_manual" },
+            "description": "Found military strategies"
+          }
+        ]
+      },
+      "category": "military"
+    },
+    {
+      "id": "underground_bunker",
+      "name": "🕳️ Underground Bunker",
+      "description": "Explore deep bunkers for preserved resources and hidden technologies",
+      "difficulty": "intermediate",
+      "unlockCondition": { "building": "watchTower", "level": 2 },
+      "requirements": {
+        "people": 8,
+        "food": 30,
+        "water": 40,
+        "iron": 12
+      },
+      "duration": 320000,
+      "riskPercentage": 30,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "food", "min": 20, "max": 35 },
+          { "resource": "water", "min": 15, "max": 25 },
+          { "resource": "science", "min": 6, "max": 10 }
+        ],
+        "chance": [
+          {
+            "probability": 0.22,
+            "reward": { "resource": "skillPoints", "amount": 5 },
+            "description": "Found preserved knowledge"
+          },
+          {
+            "probability": 0.08,
+            "reward": { "type": "special", "id": "bunker_key" },
+            "description": "Discovered bunker access codes"
+          }
+        ]
+      },
+      "category": "exploration"
+    },
+    {
       "id": "corrupted_metropolis",
       "name": "🌆 Corrupted Metropolis",
       "description": "Venture into the chaos-twisted heart of a fallen megacity where reality bends",
@@ -141,6 +378,167 @@
         ]
       },
       "category": "chaos_expedition"
+    },
+    {
+      "id": "ancient_cathedral",
+      "name": "⛪ Ancient Cathedral",
+      "description": "Cleanse a holy site consumed by chaos to restore its sacred power",
+      "difficulty": "advanced",
+      "unlockCondition": { "building": "watchTower", "level": 3 },
+      "requirements": {
+        "people": 20,
+        "food": 70,
+        "water": 50,
+        "faith": 25,
+        "science": 10
+      },
+      "duration": 420000,
+      "riskPercentage": 40,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "faith", "min": 30, "max": 50 },
+          { "resource": "chaos", "min": -15, "max": -25 }
+        ],
+        "chance": [
+          {
+            "probability": 0.40,
+            "reward": { "resource": "skillPoints", "amount": 10 },
+            "description": "Divine inspiration granted"
+          },
+          {
+            "probability": 0.20,
+            "reward": { "type": "special", "id": "holy_relic" },
+            "description": "Blessed artifact recovered"
+          },
+          {
+            "probability": 0.10,
+            "reward": { "type": "special", "id": "purification_ritual" },
+            "description": "Ancient cleansing rite"
+          }
+        ]
+      },
+      "category": "spiritual"
+    },
+    {
+      "id": "orbital_debris",
+      "name": "🛰️ Orbital Debris",
+      "description": "Launch an expedition to recover technology from crashed space stations",
+      "difficulty": "advanced",
+      "unlockCondition": { "building": "watchTower", "level": 3 },
+      "requirements": {
+        "people": 15,
+        "food": 60,
+        "water": 40,
+        "iron": 35,
+        "science": 25
+      },
+      "duration": 540000,
+      "riskPercentage": 50,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "science", "min": 35, "max": 55 },
+          { "resource": "skillPoints", "min": 8, "max": 12 }
+        ],
+        "chance": [
+          {
+            "probability": 0.30,
+            "reward": { "resource": "gold", "amount": 200 },
+            "description": "Rare metal alloys recovered"
+          },
+          {
+            "probability": 0.25,
+            "reward": { "type": "special", "id": "fusion_core" },
+            "description": "Advanced power source"
+          },
+          {
+            "probability": 0.15,
+            "reward": { "type": "special", "id": "stellar_data" },
+            "description": "Cosmic knowledge database"
+          }
+        ]
+      },
+      "category": "technological"
+    },
+    {
+      "id": "warlord_stronghold",
+      "name": "🏰 Warlord Stronghold",
+      "description": "Storm the fortress of a chaos-corrupted warlord and claim their domain",
+      "difficulty": "advanced",
+      "unlockCondition": { "building": "watchTower", "level": 3 },
+      "requirements": {
+        "people": 35,
+        "food": 100,
+        "water": 80,
+        "iron": 40
+      },
+      "duration": 600000,
+      "riskPercentage": 55,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "iron", "min": 50, "max": 80 },
+          { "resource": "gold", "min": 100, "max": 150 },
+          { "resource": "people", "min": 10, "max": 20 }
+        ],
+        "chance": [
+          {
+            "probability": 0.45,
+            "reward": { "resource": "skillPoints", "amount": 15 },
+            "description": "Claimed warlord's knowledge"
+          },
+          {
+            "probability": 0.20,
+            "reward": { "type": "special", "id": "war_banner" },
+            "description": "Symbol of conquered domain"
+          },
+          {
+            "probability": 0.12,
+            "reward": { "type": "special", "id": "fortress_plans" },
+            "description": "Defensive construction secrets"
+          }
+        ]
+      },
+      "category": "conquest"
+    },
+    {
+      "id": "time_rift_expedition",
+      "name": "⏰ Time Rift Expedition",
+      "description": "Navigate temporal anomalies to recover pre-cataclysm technologies",
+      "difficulty": "advanced",
+      "unlockCondition": { "building": "watchTower", "level": 3 },
+      "requirements": {
+        "people": 12,
+        "food": 90,
+        "water": 70,
+        "science": 30,
+        "faith": 20,
+        "chaos": 10
+      },
+      "duration": 450000,
+      "riskPercentage": 48,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "science", "min": 40, "max": 60 },
+          { "resource": "skillPoints", "min": 12, "max": 18 }
+        ],
+        "chance": [
+          {
+            "probability": 0.35,
+            "reward": { "resource": "gold", "amount": 300 },
+            "description": "Pristine pre-war artifacts"
+          },
+          {
+            "probability": 0.18,
+            "reward": { "type": "special", "id": "temporal_stabilizer" },
+            "description": "Time manipulation device"
+          },
+          {
+            "probability": 0.08,
+            "reward": { "type": "special", "id": "chrono_knowledge" },
+            "description": "Temporal engineering data"
+          }
+        ]
+      },
+      "category": "anomalous"
     },
     {
       "id": "chaos_nexus",
@@ -184,6 +582,178 @@
         ]
       },
       "category": "ultimate"
+    },
+    {
+      "id": "divine_sanctuary",
+      "name": "🌟 Divine Sanctuary",
+      "description": "Ascend to a heavenly realm to commune with the last remnants of divine power",
+      "difficulty": "impossible",
+      "unlockCondition": { "building": "watchTower", "level": 4 },
+      "requirements": {
+        "people": 40,
+        "food": 180,
+        "water": 120,
+        "science": 40,
+        "faith": 150,
+        "chaos": 0
+      },
+      "duration": 720000,
+      "riskPercentage": 65,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "faith", "min": 100, "max": 150 },
+          { "resource": "skillPoints", "min": 30, "max": 50 },
+          { "resource": "people", "min": 15, "max": 25 }
+        ],
+        "chance": [
+          {
+            "probability": 0.40,
+            "reward": { "resource": "gold", "amount": 1000 },
+            "description": "Heavenly treasures bestowed"
+          },
+          {
+            "probability": 0.25,
+            "reward": { "type": "special", "id": "divine_blessing" },
+            "description": "Permanent divine protection"
+          },
+          {
+            "probability": 0.10,
+            "reward": { "type": "special", "id": "resurrection_power" },
+            "description": "Power to restore the lost"
+          }
+        ]
+      },
+      "category": "transcendent"
+    },
+    {
+      "id": "world_core",
+      "name": "🌍 World Core",
+      "description": "Descend to the planet's core to repair the fundamental damage done to reality",
+      "difficulty": "impossible",
+      "unlockCondition": { "building": "watchTower", "level": 5 },
+      "requirements": {
+        "people": 60,
+        "food": 300,
+        "water": 250,
+        "iron": 100,
+        "science": 80,
+        "faith": 80,
+        "chaos": 50
+      },
+      "duration": 1200000,
+      "riskPercentage": 80,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "skillPoints", "min": 50, "max": 80 },
+          { "resource": "science", "min": 100, "max": 150 },
+          { "resource": "faith", "min": 80, "max": 120 },
+          { "resource": "chaos", "min": -100, "max": -50 }
+        ],
+        "chance": [
+          {
+            "probability": 0.60,
+            "reward": { "resource": "gold", "amount": 2000 },
+            "description": "Crystallized world essence"
+          },
+          {
+            "probability": 0.35,
+            "reward": { "type": "special", "id": "world_heart" },
+            "description": "Core fragment of the planet"
+          },
+          {
+            "probability": 0.20,
+            "reward": { "type": "special", "id": "genesis_protocol" },
+            "description": "Power to reshape reality"
+          }
+        ]
+      },
+      "category": "planetary"
+    },
+    {
+      "id": "void_gateway",
+      "name": "🕳️ Void Gateway",
+      "description": "Enter the spaces between realities to confront the source of the cataclysm",
+      "difficulty": "impossible",
+      "unlockCondition": { "building": "watchTower", "level": 5 },
+      "requirements": {
+        "people": 35,
+        "food": 250,
+        "water": 200,
+        "iron": 75,
+        "science": 100,
+        "faith": 75,
+        "chaos": 75
+      },
+      "duration": 1080000,
+      "riskPercentage": 85,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "skillPoints", "min": 40, "max": 70 },
+          { "resource": "science", "min": 80, "max": 120 },
+          { "resource": "gold", "min": 500, "max": 800 }
+        ],
+        "chance": [
+          {
+            "probability": 0.45,
+            "reward": { "resource": "chaos", "amount": -200 },
+            "description": "Sealed void breach"
+          },
+          {
+            "probability": 0.25,
+            "reward": { "type": "special", "id": "void_essence" },
+            "description": "Essence of nothingness itself"
+          },
+          {
+            "probability": 0.15,
+            "reward": { "type": "special", "id": "creation_spark" },
+            "description": "Power to create from nothing"
+          }
+        ]
+      },
+      "category": "metaphysical"
+    },
+    {
+      "id": "titan_awakening",
+      "name": "🏔️ Titan Awakening",
+      "description": "Awaken and tame the last sleeping titan to help rebuild the world",
+      "difficulty": "impossible",
+      "unlockCondition": { "building": "watchTower", "level": 5 },
+      "requirements": {
+        "people": 100,
+        "food": 500,
+        "water": 400,
+        "iron": 150,
+        "science": 75,
+        "faith": 200,
+        "gold": 1000
+      },
+      "duration": 1500000,
+      "riskPercentage": 70,
+      "rewards": {
+        "guaranteed": [
+          { "resource": "people", "min": 50, "max": 100 },
+          { "resource": "skillPoints", "min": 60, "max": 100 },
+          { "resource": "gold", "min": 1000, "max": 1500 }
+        ],
+        "chance": [
+          {
+            "probability": 0.50,
+            "reward": { "resource": "faith", "amount": 300 },
+            "description": "Titan's ancient wisdom"
+          },
+          {
+            "probability": 0.30,
+            "reward": { "type": "special", "id": "titan_bond" },
+            "description": "Eternal pact with titan"
+          },
+          {
+            "probability": 0.20,
+            "reward": { "type": "special", "id": "world_builder" },
+            "description": "Power to reshape landscapes"
+          }
+        ]
+      },
+      "category": "legendary"
     }
   ],
   "specialRewards": {
@@ -205,6 +775,48 @@
       "icon": "⛏️",
       "effect": { "type": "production_boost", "target": "mining", "value": 0.2, "duration": 1800000 }
     },
+    "survival_guide": {
+      "name": "Survival Guide",
+      "description": "Reduces raid risk by 10% for next 3 raids",
+      "icon": "📖",
+      "effect": { "type": "risk_reduction", "value": 0.1, "uses": 3 }
+    },
+    "first_aid_kit": {
+      "name": "First Aid Kit",
+      "description": "Prevents people loss on next failed raid",
+      "icon": "🩹",
+      "effect": { "type": "casualty_prevention", "uses": 1 }
+    },
+    "advanced_blueprint": {
+      "name": "Advanced Blueprint",
+      "description": "25% discount on next building upgrade",
+      "icon": "📋",
+      "effect": { "type": "building_discount", "value": 0.25, "uses": 1 }
+    },
+    "power_core": {
+      "name": "Power Core",
+      "description": "Buildings produce 15% more for 2 hours",
+      "icon": "⚡",
+      "effect": { "type": "global_production_boost", "value": 0.15, "duration": 7200000 }
+    },
+    "research_data": {
+      "name": "Research Data",
+      "description": "Next tech research costs 50% less",
+      "icon": "💾",
+      "effect": { "type": "research_discount", "value": 0.5, "uses": 1 }
+    },
+    "tactical_manual": {
+      "name": "Tactical Manual",
+      "description": "Military raids have 20% less risk for 24 hours",
+      "icon": "📚",
+      "effect": { "type": "category_risk_reduction", "target": "military", "value": 0.2, "duration": 86400000 }
+    },
+    "bunker_key": {
+      "name": "Bunker Key",
+      "description": "Unlocks access to secret bunker raids",
+      "icon": "🗝️",
+      "effect": { "type": "unlock_raids", "target": "bunker_category" }
+    },
     "chaos_crystal": {
       "name": "Chaos Crystal",
       "description": "Can convert 10 chaos into 50 science",
@@ -217,6 +829,54 @@
       "icon": "📐",
       "effect": { "type": "global_discount", "target": "buildings", "value": 0.5, "duration": 3600000 }
     },
+    "holy_relic": {
+      "name": "Holy Relic",
+      "description": "Faith production increased by 50% for 6 hours",
+      "icon": "✨",
+      "effect": { "type": "production_boost", "target": "faith", "value": 0.5, "duration": 21600000 }
+    },
+    "purification_ritual": {
+      "name": "Purification Ritual",
+      "description": "Removes all chaos corruption from settlement",
+      "icon": "🔮",
+      "effect": { "type": "chaos_cleanse", "amount": "all" }
+    },
+    "fusion_core": {
+      "name": "Fusion Core",
+      "description": "Provides unlimited power for 12 hours",
+      "icon": "⚛️",
+      "effect": { "type": "unlimited_power", "duration": 43200000 }
+    },
+    "stellar_data": {
+      "name": "Stellar Data",
+      "description": "Unlocks advanced space technologies",
+      "icon": "🌌",
+      "effect": { "type": "unlock_tech_tree", "target": "space_tech" }
+    },
+    "war_banner": {
+      "name": "War Banner",
+      "description": "Military recruitment costs 50% less for 24 hours",
+      "icon": "🚩",
+      "effect": { "type": "recruitment_discount", "target": "military", "value": 0.5, "duration": 86400000 }
+    },
+    "fortress_plans": {
+      "name": "Fortress Plans",
+      "description": "Defensive buildings cost 30% less",
+      "icon": "🏗️",
+      "effect": { "type": "building_discount", "target": "defensive", "value": 0.3, "permanent": true }
+    },
+    "temporal_stabilizer": {
+      "name": "Temporal Stabilizer",
+      "description": "Can speed up or slow down time for specific processes",
+      "icon": "⏳",
+      "effect": { "type": "time_manipulation", "uses": 5 }
+    },
+    "chrono_knowledge": {
+      "name": "Chrono Knowledge",
+      "description": "Unlocks time-based technologies and abilities",
+      "icon": "🕰️",
+      "effect": { "type": "unlock_tech_tree", "target": "temporal_tech" }
+    },
     "reality_anchor": {
       "name": "Reality Anchor",
       "description": "Prevents all negative effects for 24 hours",
@@ -228,6 +888,54 @@
       "description": "Can control chaos effects instead of being harmed by them",
       "icon": "🌀",
       "effect": { "type": "chaos_control", "permanent": true }
+    },
+    "divine_blessing": {
+      "name": "Divine Blessing",
+      "description": "Permanent divine protection for the settlement",
+      "icon": "🙏",
+      "effect": { "type": "divine_protection", "permanent": true }
+    },
+    "resurrection_power": {
+      "name": "Resurrection Power",
+      "description": "Can bring back lost people and restore destroyed buildings",
+      "icon": "💫",
+      "effect": { "type": "resurrection", "uses": 3 }
+    },
+    "world_heart": {
+      "name": "World Heart",
+      "description": "Core fragment that pulses with planetary energy",
+      "icon": "💗",
+      "effect": { "type": "planetary_core", "permanent": true }
+    },
+    "genesis_protocol": {
+      "name": "Genesis Protocol",
+      "description": "Power to reshape reality and create new possibilities",
+      "icon": "🌱",
+      "effect": { "type": "reality_reshape", "uses": 1 }
+    },
+    "void_essence": {
+      "name": "Void Essence",
+      "description": "Essence of nothingness that can unmake or create",
+      "icon": "⚫",
+      "effect": { "type": "void_manipulation", "uses": 5 }
+    },
+    "creation_spark": {
+      "name": "Creation Spark",
+      "description": "Power to create matter and energy from nothing",
+      "icon": "✨",
+      "effect": { "type": "creation_power", "uses": 3 }
+    },
+    "titan_bond": {
+      "name": "Titan Bond",
+      "description": "Eternal pact with an ancient titan",
+      "icon": "🤝",
+      "effect": { "type": "titan_alliance", "permanent": true }
+    },
+    "world_builder": {
+      "name": "World Builder",
+      "description": "Power to reshape landscapes and create new terrains",
+      "icon": "🏔️",
+      "effect": { "type": "terrain_manipulation", "permanent": true }
     }
   },
   "difficulties": {
@@ -262,6 +970,93 @@
       "riskRange": "65-85%",
       "duration": "12-25 minutes",
       "requirements": "Massive resources and ultimate preparation"
+    }
+  },
+  "categories": {
+    "exploration": {
+      "name": "Exploration",
+      "icon": "🗺️",
+      "description": "Scouting and discovering new areas"
+    },
+    "resource_gathering": {
+      "name": "Resource Gathering",
+      "icon": "⛏️",
+      "description": "Focused on collecting materials and supplies"
+    },
+    "recruitment": {
+      "name": "Recruitment",
+      "icon": "👥",
+      "description": "Finding and recruiting new survivors"
+    },
+    "supply_run": {
+      "name": "Supply Run",
+      "icon": "📦",
+      "description": "Quick raids for essential supplies"
+    },
+    "industrial": {
+      "name": "Industrial",
+      "icon": "🏭",
+      "description": "Targeting manufacturing and industrial facilities"
+    },
+    "scientific": {
+      "name": "Scientific",
+      "icon": "🔬",
+      "description": "Recovering research and technological assets"
+    },
+    "military": {
+      "name": "Military",
+      "icon": "🪖",
+      "description": "Assaulting fortified positions and military installations"
+    },
+    "chaos_expedition": {
+      "name": "Chaos Expedition",
+      "icon": "🌪️",
+      "description": "Venturing into chaos-corrupted areas"
+    },
+    "spiritual": {
+      "name": "Spiritual",
+      "icon": "⛪",
+      "description": "Reclaiming holy sites and spiritual artifacts"
+    },
+    "technological": {
+      "name": "Technological",
+      "icon": "🛰️",
+      "description": "Recovering advanced pre-war technology"
+    },
+    "conquest": {
+      "name": "Conquest",
+      "icon": "🏰",
+      "description": "Claiming territory and defeating enemies"
+    },
+    "anomalous": {
+      "name": "Anomalous",
+      "icon": "⏰",
+      "description": "Investigating supernatural phenomena"
+    },
+    "ultimate": {
+      "name": "Ultimate",
+      "icon": "🌪️",
+      "description": "Final confrontations with cosmic forces"
+    },
+    "transcendent": {
+      "name": "Transcendent",
+      "icon": "🌟",
+      "description": "Ascending beyond mortal limitations"
+    },
+    "planetary": {
+      "name": "Planetary",
+      "icon": "🌍",
+      "description": "Affecting the entire world"
+    },
+    "metaphysical": {
+      "name": "Metaphysical",
+      "icon": "🕳️",
+      "description": "Beyond the boundaries of reality"
+    },
+    "legendary": {
+      "name": "Legendary",
+      "icon": "🏔️",
+      "description": "Epic quests of mythical proportions"
     }
   }
 }
