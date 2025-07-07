@@ -9,10 +9,12 @@ class TelegramIntegration {
     this.gameInstance = null;
     this.isInitialized = false;
     this.initPromise = null;
-    this.dataQueue = []; // Очередь для отправки данных
+    this.dataQueue = [];
     this.sendingInProgress = false;
-    this.saveAttempts = new Map(); // Отслеживание попыток сохранения
+    this.saveAttempts = new Map();
     this.maxRetries = 3;
+    this.lastStatsSent = 0;
+    this.statsInterval = 60000; // 1 минута между отправками статистики
     
     console.log('🤖 TelegramIntegration initializing...');
     this.initPromise = this.safeInitialize();
@@ -30,147 +32,217 @@ class TelegramIntegration {
     }
   }
 
-   async sendDataToBot(data) {
-        const attemptId = `${data.type}_${Date.now()}`;
+  async sendDataToBot(data) {
+    const attemptId = `${data.type}_${Date.now()}`;
+    try {
+      // Добавляем обязательные поля
+      data.attemptId = attemptId;
+      data.timestamp = data.timestamp || Date.now();
+      data.platform = 'telegram_webapp';
+      data.clientVersion = '1.0.10';
+      
+      // Добавляем user ID если его нет
+      if (!data.userId && this.user) {
+        data.userId = this.user.id;
+      }
+
+      console.log(`📤 Preparing to send data: ${data.type}`);
+      console.log(`📊 Data preview:`, {
+        type: data.type,
+        userId: data.userId,
+        hasStats: !!data.stats,
+        hasSaveData: !!data.saveData,
+        timestamp: data.timestamp
+      });
+
+      if (!this.validateClientData(data)) {
+        console.error('❌ Client-side validation failed');
+        return false;
+      }
+
+      const cleanData = this.cleanClientData(data);
+      const jsonData = JSON.stringify(cleanData);
+      
+      console.log(`📤 Sending data: ${data.type}, size: ${jsonData.length} bytes`);
+
+      if (!this.tg?.sendData) {
+        console.warn('🤖 Telegram WebApp sendData not available, falling back to queue');
+        this.dataQueue.push(data);
+        return false;
+      }
+
+      // Проверяем размер данных
+      if (jsonData.length > 4000) {
+        console.warn('📦 Data too large for Telegram, compressing...');
+        const compressedData = this.compressData(cleanData);
+        const compressedJson = JSON.stringify(compressedData);
         
-        try {
-            // Добавляем метаданные
-            data.attemptId = attemptId;
-            data.timestamp = data.timestamp || Date.now();
-            data.platform = 'telegram_webapp';
-            data.clientVersion = '1.0.10';
-            
-            // Валидация на клиенте
-            if (!this.validateClientData(data)) {
-                console.error('❌ Client-side validation failed');
-                return false;
-            }
-            
-            // Очистка данных
-            const cleanData = this.cleanClientData(data);
-            const jsonData = JSON.stringify(cleanData);
-            
-            console.log(`📤 Sending data: ${data.type}, size: ${jsonData.length} bytes`);
-            
-            if (!this.tg?.sendData) {
-                console.warn('🤖 Telegram WebApp sendData not available');
-                return false;
-            }
-            
-            // Отправка с таймаутом
-            const sendPromise = new Promise((resolve, reject) => {
-                try {
-                    this.tg.sendData(jsonData);
-                    resolve(true);
-                } catch (error) {
-                    reject(error);
-                }
-            });
-            
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Send timeout')), 10000);
-            });
-            
-            await Promise.race([sendPromise, timeoutPromise]);
-            
-            // Отслеживание успешной отправки
-            this.saveAttempts.set(attemptId, {
-                type: data.type,
-                timestamp: Date.now(),
-                status: 'sent'
-            });
-            
-            console.log('📤 Data sent successfully');
-            return true;
-            
-        } catch (error) {
-            console.error('❌ Failed to send data:', error);
-            
-            // Повторная попытка для критичных данных
-            if (this.isCriticalData(data) && this.shouldRetry(attemptId)) {
-                console.log('🔄 Retrying critical data send...');
-                setTimeout(() => {
-                    this.sendDataToBot(data);
-                }, 2000);
-            }
-            
-            return false;
-        }
-    }
-    
-    validateClientData(data) {
-        // Проверка обязательных полей
-        if (!data.type) return false;
-        
-        // Проверка размера
-        const jsonStr = JSON.stringify(data);
-        if (jsonStr.length > 3500) {  // Оставляем запас для метаданных
-            console.warn('⚠️ Data too large for single send');
-            return false;
+        if (compressedJson.length > 4000) {
+          console.error('❌ Data still too large after compression');
+          return false;
         }
         
-        // Специфичная валидация по типам
-        switch (data.type) {
-            case 'cloud_save':
-                return this.validateSaveData(data.saveData);
-            case 'game_statistics':
-                return this.validateStatsData(data.stats);
-            default:
-                return true;
+        this.tg.sendData(compressedJson);
+      } else {
+        this.tg.sendData(jsonData);
+      }
+
+      this.saveAttempts.set(attemptId, {
+        type: data.type,
+        timestamp: Date.now(),
+        status: 'sent'
+      });
+
+      console.log('✅ Data sent successfully to Telegram bot');
+      return true;
+
+    } catch (error) {
+      console.error('❌ Failed to send data:', error);
+      
+      // Для критических данных пытаемся повторить отправку
+      if (this.isCriticalData(data) && this.shouldRetry(attemptId)) {
+        console.log('🔄 Retrying critical data send...');
+        setTimeout(() => {
+          this.sendDataToBot(data);
+        }, 2000);
+      }
+      
+      return false;
+    }
+  }
+
+  validateClientData(data) {
+    if (!data.type) {
+      console.error('❌ Missing data type');
+      return false;
+    }
+
+    if (!data.userId) {
+      console.error('❌ Missing user ID');
+      return false;
+    }
+
+    const jsonStr = JSON.stringify(data);
+    if (jsonStr.length > 4000) {
+      console.warn('⚠️ Data too large for single send');
+      // Не блокируем отправку, попробуем сжать
+    }
+
+    switch (data.type) {
+      case 'cloud_save':
+        return this.validateSaveData(data.saveData);
+      case 'game_statistics':
+        return this.validateStatsData(data.stats);
+      default:
+        return true;
+    }
+  }
+
+  validateSaveData(saveData) {
+    if (!saveData || typeof saveData !== 'object') {
+      console.error('❌ Invalid saveData structure');
+      return false;
+    }
+
+    const requiredFields = ['resources', 'combo', 'skillPoints'];
+    for (const field of requiredFields) {
+      if (!(field in saveData)) {
+        console.error(`❌ Missing required field: ${field}`);
+        return false;
+      }
+    }
+
+    console.log('✅ Save data validation passed');
+    return true;
+  }
+
+  validateStatsData(stats) {
+    if (!stats || typeof stats !== 'object') {
+      console.error('❌ Invalid stats structure');
+      return false;
+    }
+
+    // Проверяем основные поля статистики
+    const numericFields = ['totalResources', 'maxCombo', 'totalClicks'];
+    for (const field of numericFields) {
+      if (field in stats) {
+        const value = stats[field];
+        if (typeof value !== 'number' || isNaN(value) || value < 0) {
+          console.error(`❌ Invalid ${field}: ${value}`);
+          return false;
         }
+      }
     }
-    
-    cleanClientData(data) {
-        // Рекурсивная очистка объекта
-        function clean(obj) {
-            if (obj === null || obj === undefined) {
-                return null;
-            }
-            
-            if (typeof obj === 'function') {
-                return null;
-            }
-            
-            if (obj instanceof Set) {
-                return Array.from(obj);
-            }
-            
-            if (obj instanceof Map) {
-                return Object.fromEntries(obj);
-            }
-            
-            if (Array.isArray(obj)) {
-                return obj.map(clean).filter(item => item !== null);
-            }
-            
-            if (typeof obj === 'object') {
-                const cleaned = {};
-                for (const [key, value] of Object.entries(obj)) {
-                    const cleanedValue = clean(value);
-                    if (cleanedValue !== null) {
-                        cleaned[key] = cleanedValue;
-                    }
-                }
-                return cleaned;
-            }
-            
-            return obj;
+
+    console.log('✅ Stats data validation passed');
+    return true;
+  }
+
+  cleanClientData(data) {
+    function clean(obj) {
+      if (obj === null || obj === undefined) {
+        return null;
+      }
+      if (typeof obj === 'function') {
+        return null;
+      }
+      if (obj instanceof Set) {
+        return Array.from(obj);
+      }
+      if (obj instanceof Map) {
+        return Object.fromEntries(obj);
+      }
+      if (Array.isArray(obj)) {
+        return obj.map(clean).filter(item => item !== null);
+      }
+      if (typeof obj === 'object') {
+        const cleaned = {};
+        for (const [key, value] of Object.entries(obj)) {
+          const cleanedValue = clean(value);
+          if (cleanedValue !== null && key !== 'undefined') {
+            cleaned[key] = cleanedValue;
+          }
         }
-        
-        return clean(data);
+        return cleaned;
+      }
+      return obj;
+    }
+
+    return clean(data);
+  }
+
+  compressData(data) {
+    const compressed = { ...data };
+    
+    if (compressed.saveData) {
+      // Удаляем неважные поля для экономии места
+      if (compressed.saveData.market?.purchaseHistory) {
+        compressed.saveData.market.purchaseHistory = compressed.saveData.market.purchaseHistory.slice(-5);
+      }
+      if (compressed.saveData.raids?.completed) {
+        compressed.saveData.raids.completed = compressed.saveData.raids.completed.slice(-3);
+      }
+      // Сбрасываем временные эффекты
+      compressed.saveData.buffs = [];
+      compressed.saveData.debuffs = [];
+      compressed.saveData.blockedUntil = 0;
     }
     
-    isCriticalData(data) {
-        return ['cloud_save', 'achievement_unlocked', 'raid_completed'].includes(data.type);
-    }
+    compressed.compressed = true;
+    return compressed;
+  }
+
+  isCriticalData(data) {
+    return ['cloud_save', 'achievement_unlocked', 'raid_completed'].includes(data.type);
+  }
+
+  shouldRetry(attemptId) {
+    const attempt = this.saveAttempts.get(attemptId);
+    if (!attempt) return true;
     
-    shouldRetry(attemptId) {
-        const attempt = this.saveAttempts.get(attemptId);
-        if (!attempt) return true;
-        
-        attempt.retries = (attempt.retries || 0) + 1;
-        return attempt.retries < this.maxRetries;
-    }
+    attempt.retries = (attempt.retries || 0) + 1;
+    return attempt.retries < this.maxRetries;
+  }
 
   hideLoadingScreen() {
     try {
@@ -184,6 +256,7 @@ class TelegramIntegration {
         errorScreen.classList.add('hidden');
       }
 
+      // Показываем игровой интерфейс
       const gameArea = document.getElementById('game-area');
       const uiTop = document.getElementById('ui-top');
       const controlsBottom = document.getElementById('controls-bottom');
@@ -195,22 +268,6 @@ class TelegramIntegration {
       console.log('✅ Loading screen hidden, game interface shown');
     } catch (error) {
       console.warn('⚠️ Error hiding loading screen:', error);
-    }
-  }
-
-  showErrorScreen(message) {
-    try {
-      const loadingScreen = document.getElementById('telegram-loading');
-      const errorScreen = document.getElementById('telegram-error');
-      const errorMessage = document.getElementById('error-message');
-      
-      if (loadingScreen) loadingScreen.classList.add('hidden');
-      if (errorScreen) errorScreen.classList.remove('hidden');
-      if (errorMessage) errorMessage.textContent = message;
-      
-      console.error('❌ Showing error screen:', message);
-    } catch (error) {
-      console.warn('⚠️ Error showing error screen:', error);
     }
   }
 
@@ -283,24 +340,20 @@ class TelegramIntegration {
 
       console.log('📱 Telegram WebApp found, initializing...');
       
-      // Инициализация WebApp
       this.tg.ready();
       this.isReady = true;
-
-      // Загрузка данных пользователя
-      await this.loadUserData();
       
-      // Настройка внешнего вида
+      await this.loadUserData();
       this.loadThemeParams();
       this.setupAppearance();
       this.setupEventHandlers();
       this.expandViewport();
       this.applyTheme();
-      this.setupButtons();
-
+      
       console.log('✅ Telegram WebApp initialized successfully');
       console.log('👤 User data:', this.user);
       console.log('🎨 Theme params:', this.themeParams);
+      
     } catch (error) {
       console.error('❌ Failed to initialize Telegram WebApp:', error);
       throw error;
@@ -309,7 +362,6 @@ class TelegramIntegration {
 
   async loadUserData() {
     try {
-      // Получаем данные пользователя из initDataUnsafe
       const initDataUnsafe = this.tg.initDataUnsafe || {};
       this.user = initDataUnsafe.user || null;
       
@@ -320,8 +372,8 @@ class TelegramIntegration {
         initDataLength: this.tg.initData?.length || 0
       });
 
+      // Если пользователь не найден, пытаемся парсить из initData
       if (!this.user && this.tg.initData) {
-        // Попытка парсинга initData вручную
         try {
           const urlParams = new URLSearchParams(this.tg.initData);
           const userParam = urlParams.get('user');
@@ -334,16 +386,10 @@ class TelegramIntegration {
         }
       }
 
+      // Создаем fallback пользователя если необходимо
       if (!this.user) {
         console.log('⚠️ No user data from Telegram, creating fallback');
-        this.user = {
-          id: Date.now(),
-          first_name: 'Telegram User',
-          username: 'telegram_user',
-          language_code: navigator.language?.substr(0, 2) || 'en',
-          is_bot: false,
-          is_premium: false
-        };
+        this.user = this.createFallbackUser();
       }
 
       console.log('👤 User data loaded:', {
@@ -352,25 +398,42 @@ class TelegramIntegration {
         username: this.user.username,
         language_code: this.user.language_code
       });
+
     } catch (error) {
       console.warn('⚠️ Error loading user data:', error);
       this.user = this.createFallbackUser();
     }
   }
 
+  createFallbackUser() {
+    return {
+      id: Date.now(), // Используем timestamp как ID
+      first_name: 'Telegram User',
+      username: 'telegram_user',
+      language_code: navigator.language?.substr(0, 2) || 'en',
+      is_bot: false,
+      is_premium: false
+    };
+  }
+
   setupFallbackMode() {
     console.log('🔄 Setting up fallback mode...');
+    
     this.isReady = true;
     this.user = this.createFallbackUser();
     this.themeParams = this.createFallbackTheme();
     this.isInitialized = true;
+    
     this.applyTheme();
     this.setupGameIntegration();
+    
     console.log('✅ Fallback mode initialized');
   }
 
   createFallbackTheme() {
-    const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDarkMode = window.matchMedia && 
+                      window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
     return isDarkMode ? {
       bg_color: '#1a1a1a',
       text_color: '#ffffff',
@@ -388,230 +451,6 @@ class TelegramIntegration {
       button_text_color: '#ffffff',
       secondary_bg_color: '#f1f1f1'
     };
-  }
-
-  async sendDataToBot(data) {
-    try {
-      if (!this.isReady) {
-        console.warn('🤖 Telegram not ready, queueing data');
-        this.dataQueue.push(data);
-        return false;
-      }
-
-      if (!this.tg || !this.tg.sendData) {
-        console.warn('🤖 Telegram WebApp sendData not available');
-        return false;
-      }
-
-      // Добавляем пользователя в данные если его нет
-      if (!data.userId && this.user) {
-        data.userId = this.user.id;
-      }
-
-      // Добавляем метаданные
-      data.timestamp = data.timestamp || Date.now();
-      data.platform = 'telegram_webapp';
-
-      const jsonData = JSON.stringify(data);
-      const maxSize = 4000;
-
-      console.log(`📤 Sending data to bot: ${data.type}, size: ${jsonData.length} bytes`);
-
-      if (jsonData.length > maxSize) {
-        console.warn('📦 Data too large for Telegram, splitting...');
-        const chunks = this.splitData(jsonData, 3500);
-        
-        for (let i = 0; i < chunks.length; i++) {
-          const chunkData = {
-            type: 'data_chunk',
-            userId: this.user?.id,
-            chunk_index: i,
-            total_chunks: chunks.length,
-            chunk_id: `${Date.now()}_${i}`,
-            data: chunks[i],
-            original_type: data.type,
-            timestamp: Date.now()
-          };
-          
-          this.tg.sendData(JSON.stringify(chunkData));
-          
-          // Небольшая задержка между чанками
-          if (i < chunks.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        }
-      } else {
-        this.tg.sendData(jsonData);
-      }
-
-      console.log('📤 Data sent to bot successfully');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to send data to bot:', error);
-      return false;
-    }
-  }
-
-  async processDataQueue() {
-    if (this.sendingInProgress || this.dataQueue.length === 0) return;
-
-    this.sendingInProgress = true;
-    console.log(`📤 Processing ${this.dataQueue.length} queued data items`);
-
-    while (this.dataQueue.length > 0) {
-      const data = this.dataQueue.shift();
-      try {
-        await this.sendDataToBot(data);
-        await new Promise(resolve => setTimeout(resolve, 200)); // Задержка между отправками
-      } catch (error) {
-        console.error('❌ Error processing queued data:', error);
-      }
-    }
-
-    this.sendingInProgress = false;
-  }
-
-  splitData(jsonString, chunkSize) {
-    const chunks = [];
-    for (let i = 0; i < jsonString.length; i += chunkSize) {
-      chunks.push(jsonString.substring(i, i + chunkSize));
-    }
-    return chunks;
-  }
-
-  async sendGameStatistics(gameData) {
-    if (!gameData && this.gameInstance?.gameState) {
-      gameData = this.gameInstance.gameState.getSaveData();
-    }
-
-    if (!gameData) {
-      console.warn('📊 No game data available for statistics');
-      return false;
-    }
-
-    const statsData = {
-      type: 'game_statistics',
-      userId: this.user?.id,
-      timestamp: Date.now(),
-      stats: this.calculateDetailedStats(gameData)
-    };
-
-    return await this.sendDataToBot(statsData);
-  }
-
-  calculateDetailedStats(gameData) {
-    try {
-      const resources = gameData.resources || {};
-      const buildings = gameData.buildings || {};
-      const skills = gameData.skills || {};
-      const achievements = gameData.achievements || {};
-      const raids = gameData.raids || {};
-      const energy = gameData.energy || {};
-      const market = gameData.market || {};
-
-      // Подсчитываем общие значения
-      const totalResources = Object.values(resources).reduce((sum, val) => sum + (val || 0), 0);
-      const buildingLevels = Object.values(buildings).reduce((sum, building) => sum + (building.level || 0), 0);
-      const skillLevels = Object.values(skills).reduce((sum, skill) => sum + (skill.level || 0), 0);
-      const achievementsCount = achievements.completed ? 
-        (Array.isArray(achievements.completed) ? achievements.completed.length : 
-         (achievements.completed.size || Object.keys(achievements.completed).length)) : 0;
-
-      return {
-        // Основные ресурсы
-        totalResources,
-        gold: resources.gold || 0,
-        wood: resources.wood || 0,
-        stone: resources.stone || 0,
-        food: resources.food || 0,
-        water: resources.water || 0,
-        iron: resources.iron || 0,
-        people: resources.people || 0,
-        science: resources.science || 0,
-        faith: resources.faith || 0,
-        chaos: resources.chaos || 0,
-        
-        // Игровой прогресс
-        skillPoints: gameData.skillPoints || 0,
-        maxCombo: gameData.combo?.count || 0,
-        totalClicks: achievements.statistics?.totalClicks || 0,
-        
-        // Здания и навыки
-        buildingLevels,
-        skillLevels,
-        totalBuildings: Object.values(buildings).filter(b => (b.level || 0) > 0).length,
-        totalSkills: Object.values(skills).filter(s => (s.level || 0) > 0).length,
-        
-        // Рейды
-        raidsCompleted: raids.statistics?.totalRaids || 0,
-        successfulRaids: raids.statistics?.successfulRaids || 0,
-        peopleLost: raids.statistics?.peopleLost || 0,
-        raidSystemUnlocked: !!(buildings.watchTower?.level),
-        
-        // Достижения
-        achievementsCount,
-        
-        // Энергия
-        currentEnergy: energy.current || 0,
-        maxEnergy: energy.max || 100,
-        totalEnergyConsumed: energy.totalConsumed || 0,
-        totalEnergyRegenerated: energy.totalRegenerated || 0,
-        
-        // Рынок
-        marketReputation: market.reputation || 0,
-        marketPurchases: market.purchaseHistory?.length || 0,
-        
-        // Эффекты
-        activeBuffs: (gameData.buffs || []).length,
-        activeDebuffs: (gameData.debuffs || []).length,
-        
-        // Время игры (приблизительная оценка на основе прогресса)
-        playtimeEstimate: Math.max(1, Math.floor((totalResources + buildingLevels * 100 + skillLevels * 200) / 100)),
-        
-        // Метаданные
-        lastPlayTime: Date.now(),
-        gameVersion: gameData.gameVersion || gameData.saveVersion || '1.0.10',
-        saveCount: (gameData._saveCount || 0) + 1
-      };
-    } catch (error) {
-      console.error('📊 Error calculating stats:', error);
-      return {
-        error: 'Failed to calculate statistics',
-        timestamp: Date.now()
-      };
-    }
-  }
-
-  async sendSaveData(saveData) {
-    const cloudSaveData = {
-      type: 'cloud_save',
-      userId: this.user?.id,
-      userInfo: {
-        firstName: this.user?.first_name || 'Unknown',
-        username: this.user?.username || null,
-        languageCode: this.user?.language_code || 'en',
-        isPremium: this.user?.is_premium || false
-      },
-      saveData: saveData,
-      gameStatistics: this.calculateDetailedStats(saveData),
-      timestamp: Date.now(),
-      version: saveData.saveVersion || saveData.gameVersion || '1.0.10',
-      platform: 'telegram_webapp',
-      cloudSaveVersion: '1.2'
-    };
-
-    return await this.sendDataToBot(cloudSaveData);
-  }
-
-  async requestLeaderboard(category = 'total_resources') {
-    const requestData = {
-      type: 'leaderboard_request',
-      userId: this.user?.id,
-      category: category,
-      timestamp: Date.now()
-    };
-    
-    return await this.sendDataToBot(requestData);
   }
 
   loadThemeParams() {
@@ -654,19 +493,11 @@ class TelegramIntegration {
       this.tg.onEvent('viewportChanged', () => {
         this.handleViewportChange();
       });
-
+      
       this.tg.onEvent('themeChanged', () => {
         this.handleThemeChange();
       });
-
-      this.tg.onEvent('backButtonClicked', () => {
-        this.handleBackButton();
-      });
-
-      this.tg.onEvent('mainButtonClicked', () => {
-        this.handleMainButton();
-      });
-
+      
       console.log('📡 Event handlers configured');
     } catch (error) {
       console.warn('⚠️ Error setting up event handlers:', error);
@@ -714,12 +545,12 @@ class TelegramIntegration {
     try {
       this.waitForGame().then(() => {
         this.integrateWithGame();
-        this.processDataQueue(); // Обрабатываем очередь после готовности
+        this.processDataQueue();
       });
       
       this.dispatchReadyEvent();
       
-      // Глобальные переменные
+      // Регистрируем глобальные объекты
       window.telegramIntegration = this;
       window.telegramWebApp = this;
       
@@ -748,34 +579,35 @@ class TelegramIntegration {
       if (!this.gameInstance) return;
       
       console.log('🔗 Integrating with game instance...');
-
+      
       // Подписываемся на события игры
       if (window.eventBus) {
         window.eventBus.subscribe('game:save', () => {
           this.onGameSave();
         });
-
+        
         window.eventBus.subscribe('achievement:unlocked', (data) => {
           this.onAchievementUnlocked(data);
         });
-
+        
         window.eventBus.subscribe('raid:completed', (data) => {
           this.onRaidCompleted(data);
         });
-
+        
+        // События для отправки статистики
         window.eventBus.subscribe('building:bought', () => {
           this.sendGameStatisticsIfNeeded();
         });
-
+        
         window.eventBus.subscribe('skill:bought', () => {
           this.sendGameStatisticsIfNeeded();
         });
-
+        
         window.eventBus.subscribe('item:purchased', () => {
           this.sendGameStatisticsIfNeeded();
         });
       }
-
+      
       this.setupAutoStatsSending();
       
       console.log('✅ Game integration completed');
@@ -788,14 +620,13 @@ class TelegramIntegration {
     // Отправляем статистику каждые 5 минут
     setInterval(() => {
       this.sendGameStatisticsIfNeeded();
-    }, 5 * 60 * 1000);
-
-    // Отправляем при закрытии страницы
+    }, this.statsInterval);
+    
+    // Отправляем при скрытии/закрытии страницы
     window.addEventListener('beforeunload', () => {
       this.sendGameStatisticsIfNeeded();
     });
-
-    // Отправляем при потере фокуса (переключение вкладок)
+    
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.sendGameStatisticsIfNeeded();
@@ -805,15 +636,181 @@ class TelegramIntegration {
 
   async sendGameStatisticsIfNeeded() {
     try {
+      const now = Date.now();
+      
+      // Не отправляем слишком часто
+      if (now - this.lastStatsSent < 30000) { // 30 секунд минимум
+        return;
+      }
+      
       if (!this.gameInstance?.gameState) return;
       
       const gameData = this.gameInstance.gameState.getSaveData();
       if (gameData) {
-        await this.sendGameStatistics(gameData);
+        const success = await this.sendGameStatistics(gameData);
+        if (success) {
+          this.lastStatsSent = now;
+        }
       }
     } catch (error) {
       console.warn('⚠️ Error sending game statistics:', error);
     }
+  }
+
+  async sendGameStatistics(gameData) {
+    if (!gameData && this.gameInstance?.gameState) {
+      gameData = this.gameInstance.gameState.getSaveData();
+    }
+    
+    if (!gameData) {
+      console.warn('📊 No game data available for statistics');
+      return false;
+    }
+
+    const statsData = {
+      type: 'game_statistics',
+      userId: this.user?.id,
+      timestamp: Date.now(),
+      stats: this.calculateDetailedStats(gameData)
+    };
+
+    console.log('📊 Sending game statistics:', {
+      type: statsData.type,
+      userId: statsData.userId,
+      totalResources: statsData.stats.totalResources,
+      maxCombo: statsData.stats.maxCombo
+    });
+
+    return await this.sendDataToBot(statsData);
+  }
+
+  calculateDetailedStats(gameData) {
+    try {
+      const resources = gameData.resources || {};
+      const buildings = gameData.buildings || {};
+      const skills = gameData.skills || {};
+      const achievements = gameData.achievements || {};
+      const raids = gameData.raids || {};
+      const energy = gameData.energy || {};
+      const market = gameData.market || {};
+
+      // Подсчитываем общие ресурсы
+      const totalResources = Object.values(resources).reduce((sum, val) => sum + (val || 0), 0);
+      
+      // Подсчитываем уровни зданий
+      const buildingLevels = Object.values(buildings).reduce((sum, building) => 
+        sum + (building.level || 0), 0);
+      
+      // Подсчитываем уровни навыков
+      const skillLevels = Object.values(skills).reduce((sum, skill) => 
+        sum + (skill.level || 0), 0);
+      
+      // Подсчитываем достижения
+      const achievementsCount = achievements.completed ? 
+        (Array.isArray(achievements.completed) ? achievements.completed.length :
+         (achievements.completed.size || Object.keys(achievements.completed).length)) : 0;
+
+      const stats = {
+        totalResources,
+        gold: resources.gold || 0,
+        wood: resources.wood || 0,
+        stone: resources.stone || 0,
+        food: resources.food || 0,
+        water: resources.water || 0,
+        iron: resources.iron || 0,
+        people: resources.people || 0,
+        science: resources.science || 0,
+        faith: resources.faith || 0,
+        chaos: resources.chaos || 0,
+        skillPoints: gameData.skillPoints || 0,
+        maxCombo: gameData.combo?.count || 0,
+        totalClicks: achievements.statistics?.totalClicks || 0,
+        buildingLevels,
+        skillLevels,
+        totalBuildings: Object.values(buildings).filter(b => (b.level || 0) > 0).length,
+        totalSkills: Object.values(skills).filter(s => (s.level || 0) > 0).length,
+        raidsCompleted: raids.statistics?.totalRaids || 0,
+        successfulRaids: raids.statistics?.successfulRaids || 0,
+        peopleLost: raids.statistics?.peopleLost || 0,
+        raidSystemUnlocked: !!(buildings.watchTower?.level),
+        achievementsCount,
+        currentEnergy: energy.current || 0,
+        maxEnergy: energy.max || 100,
+        totalEnergyConsumed: energy.totalConsumed || 0,
+        totalEnergyRegenerated: energy.totalRegenerated || 0,
+        marketReputation: market.reputation || 0,
+        marketPurchases: market.purchaseHistory?.length || 0,
+        activeBuffs: (gameData.buffs || []).length,
+        activeDebuffs: (gameData.debuffs || []).length,
+        playtimeEstimate: Math.max(1, Math.floor((totalResources + buildingLevels * 100 + skillLevels * 200) / 100)),
+        lastPlayTime: Date.now(),
+        gameVersion: gameData.gameVersion || gameData.saveVersion || '1.0.10',
+        saveCount: (gameData._saveCount || 0) + 1
+      };
+
+      console.log('📊 Calculated stats:', {
+        totalResources: stats.totalResources,
+        maxCombo: stats.maxCombo,
+        totalClicks: stats.totalClicks,
+        buildingLevels: stats.buildingLevels,
+        skillLevels: stats.skillLevels
+      });
+
+      return stats;
+    } catch (error) {
+      console.error('📊 Error calculating stats:', error);
+      return {
+        error: 'Failed to calculate statistics',
+        timestamp: Date.now()
+      };
+    }
+  }
+
+  async sendSaveData(saveData) {
+    const cloudSaveData = {
+      type: 'cloud_save',
+      userId: this.user?.id,
+      userInfo: {
+        firstName: this.user?.first_name || 'Unknown',
+        username: this.user?.username || null,
+        languageCode: this.user?.language_code || 'en',
+        isPremium: this.user?.is_premium || false
+      },
+      saveData: saveData,
+      gameStatistics: this.calculateDetailedStats(saveData),
+      timestamp: Date.now(),
+      version: saveData.saveVersion || saveData.gameVersion || '1.0.10',
+      platform: 'telegram_webapp',
+      cloudSaveVersion: '1.2'
+    };
+
+    console.log('💾 Sending save data:', {
+      type: cloudSaveData.type,
+      userId: cloudSaveData.userId,
+      version: cloudSaveData.version,
+      saveDataSize: JSON.stringify(saveData).length
+    });
+
+    return await this.sendDataToBot(cloudSaveData);
+  }
+
+  async processDataQueue() {
+    if (this.sendingInProgress || this.dataQueue.length === 0) return;
+    
+    this.sendingInProgress = true;
+    console.log(`📤 Processing ${this.dataQueue.length} queued data items`);
+    
+    while (this.dataQueue.length > 0) {
+      const data = this.dataQueue.shift();
+      try {
+        await this.sendDataToBot(data);
+        await new Promise(resolve => setTimeout(resolve, 200)); // Небольшая задержка
+      } catch (error) {
+        console.error('❌ Error processing queued data:', error);
+      }
+    }
+    
+    this.sendingInProgress = false;
   }
 
   onGameSave() {
@@ -838,6 +835,8 @@ class TelegramIntegration {
         timestamp: Date.now()
       };
 
+      console.log('🏆 Achievement unlocked:', achievementData);
+      
       await this.sendDataToBot(achievementData);
       
       if (this.tg?.HapticFeedback) {
@@ -859,6 +858,8 @@ class TelegramIntegration {
         timestamp: Date.now()
       };
 
+      console.log('⚔️ Raid completed:', raidData);
+      
       await this.sendDataToBot(raidData);
     } catch (error) {
       console.error('❌ Error sending raid completion data:', error);
@@ -877,7 +878,19 @@ class TelegramIntegration {
       });
       
       window.dispatchEvent(event);
-      console.log('📡 Ready event dispatched');
+      
+      // Также отправляем событие для совместимости
+      const completeEvent = new CustomEvent('telegramIntegrationComplete', {
+        detail: {
+          integration: this,
+          isReady: this.isReady,
+          user: this.user
+        }
+      });
+      
+      window.dispatchEvent(completeEvent);
+      
+      console.log('📡 Ready events dispatched');
     } catch (error) {
       console.warn('⚠️ Error dispatching ready event:', error);
     }
@@ -918,157 +931,7 @@ class TelegramIntegration {
     }
   }
 
-  setupButtons() {
-    if (!this.tg) return;
-    
-    try {
-      if (this.tg.MainButton) {
-        this.tg.MainButton.setText('💾 Save Game');
-        this.tg.MainButton.hide();
-      }
-      
-      if (this.tg.BackButton) {
-        this.tg.BackButton.hide();
-      }
-      
-      console.log('🔵 Buttons configured');
-    } catch (error) {
-      console.warn('⚠️ Error setting up buttons:', error);
-    }
-  }
-
-  handleBackButton() {
-    try {
-      console.log('🔙 Back button pressed');
-      
-      if (this.gameInstance?.managers?.ui) {
-        const uiManager = this.gameInstance.managers.ui;
-        if (uiManager.isPanelOpen && uiManager.isPanelOpen()) {
-          uiManager.hidePanel();
-          this.hideBackButton();
-          return;
-        }
-      }
-      
-      this.showExitConfirmation();
-    } catch (error) {
-      console.warn('⚠️ Error handling back button:', error);
-    }
-  }
-
-  handleMainButton() {
-    try {
-      console.log('⚡ Main button pressed');
-      
-      if (this.gameInstance && typeof this.gameInstance.autoSave === 'function') {
-        const saveResult = this.gameInstance.autoSave();
-        if (saveResult) {
-          this.showAlert('💾 Game saved successfully!');
-          this.sendGameStatisticsIfNeeded();
-        } else {
-          this.showAlert('❌ Save failed. Try again.');
-        }
-      }
-    } catch (error) {
-      console.warn('⚠️ Error handling main button:', error);
-    }
-  }
-
-  // Методы для управления кнопками
-  setMainButton(text, color = null) {
-    try {
-      if (!this.tg?.MainButton) return;
-      
-      this.tg.MainButton.setText(text);
-      if (color) {
-        this.tg.MainButton.setParams({ color: color });
-      }
-      this.tg.MainButton.show();
-      
-      console.log('🔵 Main button updated:', text);
-    } catch (error) {
-      console.warn('⚠️ Error setting main button:', error);
-    }
-  }
-
-  hideMainButton() {
-    try {
-      if (this.tg?.MainButton) {
-        this.tg.MainButton.hide();
-      }
-    } catch (error) {
-      console.warn('⚠️ Error hiding main button:', error);
-    }
-  }
-
-  showBackButton() {
-    try {
-      if (this.tg?.BackButton) {
-        this.tg.BackButton.show();
-      }
-    } catch (error) {
-      console.warn('⚠️ Error showing back button:', error);
-    }
-  }
-
-  hideBackButton() {
-    try {
-      if (this.tg?.BackButton) {
-        this.tg.BackButton.hide();
-      }
-    } catch (error) {
-      console.warn('⚠️ Error hiding back button:', error);
-    }
-  }
-
-  // Методы для отображения диалогов
-  showAlert(message) {
-    try {
-      if (this.tg?.showAlert) {
-        this.tg.showAlert(message);
-      } else {
-        alert(message);
-      }
-    } catch (error) {
-      console.warn('⚠️ Error showing alert:', error);
-    }
-  }
-
-  showConfirm(message, callback) {
-    try {
-      if (this.tg?.showConfirm) {
-        this.tg.showConfirm(message, callback);
-      } else {
-        const result = confirm(message);
-        if (callback) callback(result);
-      }
-    } catch (error) {
-      console.warn('⚠️ Error showing confirm:', error);
-      if (callback) callback(false);
-    }
-  }
-
-  showExitConfirmation() {
-    this.showConfirm('Exit the game? 🎮', (confirmed) => {
-      if (confirmed) {
-        this.close();
-      }
-    });
-  }
-
-  close() {
-    try {
-      if (this.tg?.close) {
-        this.tg.close();
-      } else {
-        window.close();
-      }
-    } catch (error) {
-      console.warn('⚠️ Error closing app:', error);
-    }
-  }
-
-  // Геттеры для удобного доступа
+  // Геттеры для удобного доступа к данным
   get isInTelegram() {
     return !!this.tg;
   }
@@ -1104,12 +967,32 @@ class TelegramIntegration {
       hasInitData: !!this.tg?.initData,
       initDataLength: this.tg?.initData?.length || 0,
       queuedItems: this.dataQueue.length,
-      sendingInProgress: this.sendingInProgress
+      sendingInProgress: this.sendingInProgress,
+      lastStatsSent: this.lastStatsSent,
+      saveAttempts: this.saveAttempts.size
     };
+  }
+
+  // Методы для тестирования
+  async testSend() {
+    const testData = {
+      type: 'test_message',
+      message: 'Test from game client',
+      timestamp: Date.now()
+    };
+    
+    console.log('🧪 Sending test data...');
+    return await this.sendDataToBot(testData);
+  }
+
+  async forceSendStats() {
+    console.log('🔄 Force sending statistics...');
+    this.lastStatsSent = 0; // Сбрасываем ограничение
+    return await this.sendGameStatisticsIfNeeded();
   }
 }
 
-// Инициализация
+// Глобальная инициализация
 let telegramIntegrationInstance = null;
 
 function initTelegramIntegration() {
@@ -1124,124 +1007,133 @@ function initTelegramIntegration() {
   }
 }
 
-// Автоматическая инициализация при загрузке DOM
+// Инициализация при загрузке DOM
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('📱 DOM loaded, initializing Telegram integration...');
   initTelegramIntegration();
 });
 
-// Экспорт для глобального использования
+// Экспорт для использования
 window.TelegramIntegration = TelegramIntegration;
 window.initTelegramIntegration = initTelegramIntegration;
+
+// Отладочные функции
 window.getTelegramDebug = () => {
   return telegramIntegrationInstance?.getDebugInfo() || 'Not initialized';
 };
 
-console.log('📱 Telegram Integration script loaded');
-
-// Экспорт для глобального доступа
-window.telegramIntegration = telegramIntegrationInstance;
-
-// Совместимость с существующим кодом
-if (typeof module !== 'undefined' && module.exports) {
- module.exports = TelegramIntegration;
-}
-
-// Дополнительные утилиты для разработки
 window.debugTelegram = () => {
- if (telegramIntegrationInstance) {
-   console.log('🔍 Telegram Integration Debug Info:', telegramIntegrationInstance.getDebugInfo());
-   return telegramIntegrationInstance.getDebugInfo();
- } else {
-   console.log('❌ Telegram integration not initialized');
-   return null;
- }
+  if (telegramIntegrationInstance) {
+    console.log('🔍 Telegram Integration Debug Info:', telegramIntegrationInstance.getDebugInfo());
+    return telegramIntegrationInstance.getDebugInfo();
+  } else {
+    console.log('❌ Telegram integration not initialized');
+    return null;
+  }
 };
 
-// Тестовые функции для разработки
 window.testTelegramSend = async (testData = null) => {
- if (!telegramIntegrationInstance) {
-   console.error('❌ Telegram integration not available');
-   return false;
- }
-
- const data = testData || {
-   type: 'test_message',
-   message: 'Test from game',
-   timestamp: Date.now()
- };
-
- try {
-   const result = await telegramIntegrationInstance.sendDataToBot(data);
-   console.log('📤 Test send result:', result);
-   return result;
- } catch (error) {
-   console.error('❌ Test send failed:', error);
-   return false;
- }
+  if (!telegramIntegrationInstance) {
+    console.error('❌ Telegram integration not available');
+    return false;
+  }
+  
+  const data = testData || {
+    type: 'test_message',
+    message: 'Test from game',
+    timestamp: Date.now()
+  };
+  
+  try {
+    const result = await telegramIntegrationInstance.sendDataToBot(data);
+    console.log('📤 Test send result:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Test send failed:', error);
+    return false;
+  }
 };
 
-// Проверка готовности для других модулей
+window.forceSendTelegramStats = async () => {
+  if (!telegramIntegrationInstance) {
+    console.error('❌ Telegram integration not available');
+    return false;
+  }
+  
+  try {
+    const result = await telegramIntegrationInstance.forceSendStats();
+    console.log('📊 Force stats result:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Force stats failed:', error);
+    return false;
+  }
+};
+
 window.isTelegramReady = () => {
- return telegramIntegrationInstance?.isReady || false;
+  return telegramIntegrationInstance?.isReady || false;
 };
 
-// Событие для уведомления о готовности
+// Обработка загрузки страницы
 window.addEventListener('load', () => {
- if (telegramIntegrationInstance && !telegramIntegrationInstance.isInitialized) {
-   telegramIntegrationInstance.initPromise?.then(() => {
-     console.log('✅ Telegram integration fully loaded and ready');
-     
-     // Отправка события готовности
-     const readyEvent = new CustomEvent('telegramIntegrationComplete', {
-       detail: {
-         integration: telegramIntegrationInstance,
-         isReady: telegramIntegrationInstance.isReady,
-         user: telegramIntegrationInstance.user
-       }
-     });
-     
-     window.dispatchEvent(readyEvent);
-   }).catch(error => {
-     console.error('❌ Telegram integration initialization failed:', error);
-   });
- }
+  if (telegramIntegrationInstance && !telegramIntegrationInstance.isInitialized) {
+    telegramIntegrationInstance.initPromise?.then(() => {
+      console.log('✅ Telegram integration fully loaded and ready');
+      
+      // Устанавливаем глобальную ссылку
+      window.telegramIntegration = telegramIntegrationInstance;
+      
+      const readyEvent = new CustomEvent('telegramIntegrationComplete', {
+        detail: {
+          integration: telegramIntegrationInstance,
+          isReady: telegramIntegrationInstance.isReady,
+          user: telegramIntegrationInstance.user
+        }
+      });
+      
+      window.dispatchEvent(readyEvent);
+    }).catch(error => {
+      console.error('❌ Telegram integration initialization failed:', error);
+    });
+  }
 });
 
-// Обработка ошибок для надежности
+// Обработка ошибок
 window.addEventListener('error', (event) => {
- if (telegramIntegrationInstance && event.filename?.includes('telegram')) {
-   console.error('❌ Telegram integration error:', event.error);
-   
-   // Попытка отправить отчет об ошибке
-   if (telegramIntegrationInstance.isReady) {
-     telegramIntegrationInstance.sendDataToBot({
-       type: 'error_report',
-       error: {
-         message: event.error?.message || 'Unknown error',
-         filename: event.filename,
-         lineno: event.lineno,
-         timestamp: Date.now()
-       }
-     }).catch(sendError => {
-       console.error('❌ Failed to send error report:', sendError);
-     });
-   }
- }
+  if (telegramIntegrationInstance && event.filename?.includes('telegram')) {
+    console.error('❌ Telegram integration error:', event.error);
+    
+    if (telegramIntegrationInstance.isReady) {
+      telegramIntegrationInstance.sendDataToBot({
+        type: 'error_report',
+        error: {
+          message: event.error?.message || 'Unknown error',
+          filename: event.filename,
+          lineno: event.lineno,
+          timestamp: Date.now()
+        }
+      }).catch(sendError => {
+        console.error('❌ Failed to send error report:', sendError);
+      });
+    }
+  }
 });
 
-// Graceful cleanup при закрытии
+// Очистка при выгрузке страницы
 window.addEventListener('beforeunload', () => {
- if (telegramIntegrationInstance) {
-   try {
-     // Последняя отправка статистики
-     telegramIntegrationInstance.sendGameStatisticsIfNeeded();
-     
-     // Очистка ресурсов
-     telegramIntegrationInstance.cleanup?.();
-   } catch (error) {
-     console.warn('⚠️ Error during cleanup:', error);
-   }
- }
+  if (telegramIntegrationInstance) {
+    try {
+      telegramIntegrationInstance.sendGameStatisticsIfNeeded();
+      telegramIntegrationInstance.cleanup?.();
+    } catch (error) {
+      console.warn('⚠️ Error during cleanup:', error);
+    }
+  }
 });
 
 console.log('🚀 Telegram Integration script fully initialized');
+
+// Экспорт для модульных систем
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = TelegramIntegration;
+}
