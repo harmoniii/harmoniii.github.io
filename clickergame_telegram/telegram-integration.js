@@ -11,6 +11,8 @@ class TelegramIntegration {
     this.initPromise = null;
     this.dataQueue = []; // Очередь для отправки данных
     this.sendingInProgress = false;
+    this.saveAttempts = new Map(); // Отслеживание попыток сохранения
+    this.maxRetries = 3;
     
     console.log('🤖 TelegramIntegration initializing...');
     this.initPromise = this.safeInitialize();
@@ -27,6 +29,148 @@ class TelegramIntegration {
       this.hideLoadingScreen();
     }
   }
+
+   async sendDataToBot(data) {
+        const attemptId = `${data.type}_${Date.now()}`;
+        
+        try {
+            // Добавляем метаданные
+            data.attemptId = attemptId;
+            data.timestamp = data.timestamp || Date.now();
+            data.platform = 'telegram_webapp';
+            data.clientVersion = '1.0.10';
+            
+            // Валидация на клиенте
+            if (!this.validateClientData(data)) {
+                console.error('❌ Client-side validation failed');
+                return false;
+            }
+            
+            // Очистка данных
+            const cleanData = this.cleanClientData(data);
+            const jsonData = JSON.stringify(cleanData);
+            
+            console.log(`📤 Sending data: ${data.type}, size: ${jsonData.length} bytes`);
+            
+            if (!this.tg?.sendData) {
+                console.warn('🤖 Telegram WebApp sendData not available');
+                return false;
+            }
+            
+            // Отправка с таймаутом
+            const sendPromise = new Promise((resolve, reject) => {
+                try {
+                    this.tg.sendData(jsonData);
+                    resolve(true);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+            
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Send timeout')), 10000);
+            });
+            
+            await Promise.race([sendPromise, timeoutPromise]);
+            
+            // Отслеживание успешной отправки
+            this.saveAttempts.set(attemptId, {
+                type: data.type,
+                timestamp: Date.now(),
+                status: 'sent'
+            });
+            
+            console.log('📤 Data sent successfully');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Failed to send data:', error);
+            
+            // Повторная попытка для критичных данных
+            if (this.isCriticalData(data) && this.shouldRetry(attemptId)) {
+                console.log('🔄 Retrying critical data send...');
+                setTimeout(() => {
+                    this.sendDataToBot(data);
+                }, 2000);
+            }
+            
+            return false;
+        }
+    }
+    
+    validateClientData(data) {
+        // Проверка обязательных полей
+        if (!data.type) return false;
+        
+        // Проверка размера
+        const jsonStr = JSON.stringify(data);
+        if (jsonStr.length > 3500) {  // Оставляем запас для метаданных
+            console.warn('⚠️ Data too large for single send');
+            return false;
+        }
+        
+        // Специфичная валидация по типам
+        switch (data.type) {
+            case 'cloud_save':
+                return this.validateSaveData(data.saveData);
+            case 'game_statistics':
+                return this.validateStatsData(data.stats);
+            default:
+                return true;
+        }
+    }
+    
+    cleanClientData(data) {
+        // Рекурсивная очистка объекта
+        function clean(obj) {
+            if (obj === null || obj === undefined) {
+                return null;
+            }
+            
+            if (typeof obj === 'function') {
+                return null;
+            }
+            
+            if (obj instanceof Set) {
+                return Array.from(obj);
+            }
+            
+            if (obj instanceof Map) {
+                return Object.fromEntries(obj);
+            }
+            
+            if (Array.isArray(obj)) {
+                return obj.map(clean).filter(item => item !== null);
+            }
+            
+            if (typeof obj === 'object') {
+                const cleaned = {};
+                for (const [key, value] of Object.entries(obj)) {
+                    const cleanedValue = clean(value);
+                    if (cleanedValue !== null) {
+                        cleaned[key] = cleanedValue;
+                    }
+                }
+                return cleaned;
+            }
+            
+            return obj;
+        }
+        
+        return clean(data);
+    }
+    
+    isCriticalData(data) {
+        return ['cloud_save', 'achievement_unlocked', 'raid_completed'].includes(data.type);
+    }
+    
+    shouldRetry(attemptId) {
+        const attempt = this.saveAttempts.get(attemptId);
+        if (!attempt) return true;
+        
+        attempt.retries = (attempt.retries || 0) + 1;
+        return attempt.retries < this.maxRetries;
+    }
 
   hideLoadingScreen() {
     try {
